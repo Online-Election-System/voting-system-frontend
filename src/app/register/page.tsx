@@ -102,6 +102,8 @@ export default function UserRegistrationForm() {
             </div>
           </div>
 
+          
+
           {/* Address Information Section */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Address Information</h3>
