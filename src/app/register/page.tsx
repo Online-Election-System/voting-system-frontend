@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,7 +11,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon } from "lucide-react"
+import { CalendarIcon, X } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 
@@ -18,6 +20,10 @@ export default function UserRegistrationForm() {
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [passwordError, setPasswordError] = useState("")
+  const [documents, setDocuments] = useState<{ [key: string]: File | null }>({
+    idCopy: null,
+    birthCertificate: null,
+  })
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPassword(e.target.value)
@@ -35,10 +41,26 @@ export default function UserRegistrationForm() {
     }
   }
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, docType: string) => {
+    if (e.target.files && e.target.files[0]) {
+      setDocuments({
+        ...documents,
+        [docType]: e.target.files[0],
+      })
+    }
+  }
+
+  const removeDocument = (docType: string) => {
+    setDocuments({
+      ...documents,
+      [docType]: null,
+    })
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     // Handle form submission here
-    console.log("Form submitted")
+    console.log("Form submitted", { documents })
   }
 
   return (
@@ -46,7 +68,9 @@ export default function UserRegistrationForm() {
       <Card className="w-full max-w-3xl mx-auto">
         <CardHeader>
           <CardTitle className="text-xl font-black mx-auto">Register</CardTitle>
-          <CardDescription className="mx-auto">Already have an Account? <a href="/login">Login</a></CardDescription>
+          <CardDescription className="mx-auto">
+            Already have an Account? <a href="/login">Login</a>
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Personal Information Section */}
@@ -102,7 +126,67 @@ export default function UserRegistrationForm() {
             </div>
           </div>
 
-          
+          {/* Document Upload Section */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Document Upload</h3>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="idCopy">ID Copy</Label>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      id="idCopy"
+                      type="file"
+                      className={cn("cursor-pointer", documents.idCopy && "text-transparent")}
+                      onChange={(e) => handleFileChange(e, "idCopy")}
+                    />
+                    {documents.idCopy && (
+                      <div className="absolute inset-0 flex items-center px-3 pointer-events-none">
+                        <span className="text-sm text-gray-500 truncate">{documents.idCopy.name}</span>
+                      </div>
+                    )}
+                  </div>
+                  {documents.idCopy && (
+                    <Button type="button" variant="outline" size="icon" onClick={() => removeDocument("idCopy")}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="birthCertificate">Birth Certificate</Label>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      id="birthCertificate"
+                      type="file"
+                      className={cn("cursor-pointer", documents.birthCertificate && "text-transparent")}
+                      onChange={(e) => handleFileChange(e, "birthCertificate")}
+                    />
+                    {documents.birthCertificate && (
+                      <div className="absolute inset-0 flex items-center px-3 pointer-events-none">
+                        <span className="text-sm text-gray-500 truncate">{documents.birthCertificate.name}</span>
+                      </div>
+                    )}
+                  </div>
+                  {documents.birthCertificate && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => removeDocument("birthCertificate")}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Please upload clear scanned copies or photos of your documents. Accepted formats: PDF, JPG, PNG.
+            </div>
+          </div>
 
           {/* Address Information Section */}
           <div className="space-y-4">

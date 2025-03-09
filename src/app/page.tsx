@@ -1,23 +1,108 @@
+"use client"
+
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { CheckCircle, Shield, BarChart3, Users } from "lucide-react"
+import { CheckCircle, Shield, BarChart3, Users, Calendar, Clock, FileText } from "lucide-react"
 
 export default function FeaturesSection() {
+  // Set the target date for the election (14 days from now for this example)
+  const [targetDate] = useState(() => {
+    const date = new Date()
+    date.setDate(date.getDate() + 14)
+    return date
+  })
+
+  // State for countdown values
+  const [timeLeft, setTimeLeft] = useState({
+    days: 0,
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
+  })
+
+  // Calculate time remaining
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      const difference = targetDate.getTime() - new Date().getTime()
+
+      if (difference > 0) {
+        setTimeLeft({
+          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+          minutes: Math.floor((difference / 1000 / 60) % 60),
+          seconds: Math.floor((difference / 1000) % 60),
+        })
+      } else {
+        // Countdown finished
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 })
+      }
+    }
+
+    // Calculate immediately
+    calculateTimeLeft()
+
+    // Update every second
+    const timer = setInterval(calculateTimeLeft, 1000)
+
+    // Clean up interval on unmount
+    return () => clearInterval(timer)
+  }, [targetDate])
+
+  // Format numbers to always have two digits
+  const formatNumber = (num) => {
+    return num.toString().padStart(2, "0")
+  }
+
   return (
-    <section className="w-full py-12 md:py-24 lg:py-32">
-      <div className="container px-4 md:px-6">
+    <section className="w-full py-12 md:py-24 lg:py-32 flex justify-center">
+      <div className="container mx-auto px-4 md:px-6 max-w-7xl">
         {/* Section Header */}
         <div className="flex flex-col items-center justify-center space-y-4 text-center mb-12">
           <div className="space-y-2">
-              <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">Secure Voting Made Simple</h2>
-            <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+            <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">Secure Voting Made Simple</h2>
+            <p className="max-w-[900px] mx-auto text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
               Our platform provides all the tools you need to create, manage, and analyze votes with confidence.
             </p>
           </div>
         </div>
 
+        {/* Upcoming Election Card - Highlighted at the top */}
+        <div className="mb-12 p-6 rounded-xl border-2 border-primary/20 bg-primary/5 shadow-lg mx-auto">
+          <div className="flex flex-col md:flex-row items-center gap-6">
+            <div className="flex-shrink-0 flex items-center justify-center h-16 w-16 rounded-full bg-primary/20">
+              <Calendar className="h-8 w-8 text-primary" />
+            </div>
+            <div className="flex-grow space-y-2 text-center md:text-left">
+              <h3 className="text-2xl font-bold">Upcoming Election: City Council Vote</h3>
+              <div className="flex flex-wrap justify-center md:justify-start gap-4">
+                <div className="flex flex-col items-center p-2 bg-background rounded-lg shadow-sm">
+                  <span className="text-2xl font-bold">{formatNumber(timeLeft.days)}</span>
+                  <span className="text-xs text-muted-foreground">Days</span>
+                </div>
+                <div className="flex flex-col items-center p-2 bg-background rounded-lg shadow-sm">
+                  <span className="text-2xl font-bold">{formatNumber(timeLeft.hours)}</span>
+                  <span className="text-xs text-muted-foreground">Hours</span>
+                </div>
+                <div className="flex flex-col items-center p-2 bg-background rounded-lg shadow-sm">
+                  <span className="text-2xl font-bold">{formatNumber(timeLeft.minutes)}</span>
+                  <span className="text-xs text-muted-foreground">Minutes</span>
+                </div>
+                <div className="flex flex-col items-center p-2 bg-background rounded-lg shadow-sm">
+                  <span className="text-2xl font-bold">{formatNumber(timeLeft.seconds)}</span>
+                  <span className="text-xs text-muted-foreground">Seconds</span>
+                </div>
+              </div>
+              <p className="text-muted-foreground">
+                Registration closes in 3 days. Don't miss your chance to participate!
+              </p>
+            </div>
+            <div className="flex-shrink-0 mt-4 md:mt-0"></div>
+          </div>
+        </div>
+
         {/* Body Section - Grid of Features */}
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3 mb-16">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3 mb-16 mx-auto">
           <div className="flex flex-col items-start space-y-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
               <Shield className="h-6 w-6 text-primary" />
@@ -62,20 +147,7 @@ export default function FeaturesSection() {
 
           <div className="flex flex-col items-start space-y-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-              <svg
-                className="h-6 w-6 text-primary"
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
-              </svg>
+              <Shield className="h-6 w-6 text-primary" />
             </div>
             <h3 className="text-xl font-bold">Fraud Prevention</h3>
             <p className="text-muted-foreground">
@@ -86,27 +158,23 @@ export default function FeaturesSection() {
 
           <div className="flex flex-col items-start space-y-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-              <svg
-                className="h-6 w-6 text-primary"
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <rect width="18" height="18" x="3" y="3" rx="2" />
-                <path d="M7 7h10" />
-                <path d="M7 12h10" />
-                <path d="M7 17h10" />
-              </svg>
+              <FileText className="h-6 w-6 text-primary" />
             </div>
             <h3 className="text-xl font-bold">Customizable Forms</h3>
             <p className="text-muted-foreground">
               Design your ballot with custom questions, images, and branding to match your organization's identity.
+            </p>
+          </div>
+
+          {/* Election Reminder Card */}
+          <div className="flex flex-col items-start space-y-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+              <Clock className="h-6 w-6 text-primary" />
+            </div>
+            <h3 className="text-xl font-bold">Election Reminders</h3>
+            <p className="text-muted-foreground">
+              Never miss an important vote with customizable notifications and calendar integrations for upcoming
+              elections.
             </p>
           </div>
         </div>
