@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { CheckCircle, Shield, BarChart3, Users, Calendar, Clock, FileText } from "lucide-react"
+import { useAuthContext } from "@asgardeo/auth-react";
 
 export default function FeaturesSection() {
   // Set the target date for the election (14 days from now for this example)
@@ -50,13 +51,16 @@ export default function FeaturesSection() {
   }, [targetDate])
 
   // Format numbers to always have two digits
-  const formatNumber = (num) => {
+  const formatNumber = (num: number) => {
     return num.toString().padStart(2, "0")
   }
+
+  const { state, signIn, signOut } = useAuthContext();
 
   return (
     <section className="w-full py-12 md:py-24 lg:py-32 flex justify-center">
       <div className="container mx-auto px-4 md:px-6 max-w-7xl">
+      <button onClick={ () => signIn() }>Login</button>
         {/* Section Header */}
         <div className="flex flex-col items-center justify-center space-y-4 text-center mb-12">
           <div className="space-y-2">
