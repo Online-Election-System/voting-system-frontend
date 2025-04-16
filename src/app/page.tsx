@@ -50,7 +50,7 @@ export default function FeaturesSection() {
   }, [targetDate])
 
   // Format numbers to always have two digits
-  const formatNumber = (num) => {
+  const formatNumber = (num: number) => {
     return num.toString().padStart(2, "0")
   }
 
