@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { CheckCircle, Shield, BarChart3, Users, Calendar, Clock, FileText } from "lucide-react"
+import React from "react"
 
 export default function FeaturesSection() {
   // Set the target date for the election (14 days from now for this example)
