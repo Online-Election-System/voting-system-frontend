@@ -1,5 +1,5 @@
 // src/services/electionService.ts
-import { getAuthToken, getTestToken } from "@/services/authService";
+import { getAuthToken, getTestToken } from "@/lib/services/authService";
 import { Election, ElectionConfig, ElectionUpdate } from "../election.types";
 
 // API base URL
