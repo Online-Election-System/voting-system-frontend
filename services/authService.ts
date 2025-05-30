@@ -104,8 +104,19 @@ export const isAuthenticated = (): boolean => {
   return !!getAuthToken();
 };
 
+// Temporary test user for development
+export const getTestToken = (): string => {
+  return 'YOUR_ACCESS_TOKEN';
+};
+
 // Get authentication headers for API requests
 export const getAuthHeaders = (): Record<string, string> => {
-  const token = getAuthToken();
-  return token ? { 'Authorization': `Bearer ${token}` } : {};
+  const token = process.env.NODE_ENV === 'development' 
+    ? getTestToken() 
+    : getAuthToken();
+    
+  return {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  };
 };
