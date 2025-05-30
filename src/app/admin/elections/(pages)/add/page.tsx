@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { ElectionForm } from "../../components/election-form";
 import { useElections } from "../../hooks/use-elections";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "@/lib/hooks/use-toast";
 
 export default function AddElectionPage() {
   const router = useRouter();
@@ -27,9 +27,9 @@ export default function AddElectionPage() {
   };
 
   return (
-    <div className="container mx-auto py-8">      
+    <div className="container mx-auto py-8">
       <div className="max-w-2xl mx-auto">
-        <ElectionForm 
+        <ElectionForm
           editingElection={null}
           onSubmit={handleSubmit}
           onCancel={handleCancel}

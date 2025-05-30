@@ -14,7 +14,7 @@ import Link from "next/link";
 import { ElectionsTable } from "./components/elections-table";
 import { useElections } from "./hooks/use-elections";
 import { Election, ElectionConfig, ElectionUpdate } from "./election.types";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "@/lib/hooks/use-toast";
 
 export default function ElectionsPage() {
   const { elections, loading, error, fetchElections, removeElection } =
