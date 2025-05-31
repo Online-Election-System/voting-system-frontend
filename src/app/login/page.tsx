@@ -22,7 +22,7 @@ export default function LoginForm() {
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
         <CardTitle className="text-xl font-black mx-auto">Login</CardTitle>
-        <CardDescription className="mx-auto">Don't have an Account? <a href="/register">Register</a></CardDescription>
+        <CardDescription className="mx-auto">Dont have an Account? <a href="/register">Register</a></CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
