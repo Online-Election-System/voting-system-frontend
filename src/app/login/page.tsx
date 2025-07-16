@@ -1,28 +1,66 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { EyeIcon, EyeOffIcon } from "lucide-react"
+import api from "../../lib/axios" 
 
 export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [nic, setNic] = useState("")
   const [password, setPassword] = useState("")
+  const [loading, setLoading] = useState(false)
+  const router = useRouter()
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Handle login logic here
-    console.log("Login attempted with NIC:", nic)
+    setLoading(true)
+
+    try {
+      const response = await api.post("/voter-registration/api/v1/login", {
+        nic,
+        password,
+      })
+
+      const { token, userType, userId, fullName, message } = response.data;
+
+      if (!token) throw new Error("Token missing in response")
+
+      // ✅ Store token
+      localStorage.setItem("token", token);
+      localStorage.setItem("userType", userType);
+      localStorage.setItem("userId", userId);
+      localStorage.setItem("fullName", fullName);
+
+      // ✅ Set default authorization header
+      api.defaults.headers.common["Authorization"] = `Bearer ${token}`
+
+      alert(`Welcome, ${fullName}!`)
+      // First-time login for household members
+    if (userType === "householdMember" && message.includes("First-time")) {
+      router.push("/change-password");
+    } else {
+      router.push("/dashboard");
+    }
+    } catch (error: any) {
+      console.error("Login error:", error);
+      alert("Login failed: Invalid NIC or password.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
         <CardTitle className="text-xl font-black mx-auto">Login</CardTitle>
-        <CardDescription className="mx-auto">Don't have an Account? <a href="/register">Register</a></CardDescription>
+        <CardDescription className="mx-auto">
+          Don't have an account? <a href="/register" className="text-blue-600 underline">Register</a>
+        </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
@@ -60,12 +98,11 @@ export default function LoginForm() {
           </div>
         </CardContent>
         <CardFooter>
-          <Button type="submit" className="w-full">
-            Login
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "Logging in..." : "Login"}
           </Button>
         </CardFooter>
       </form>
     </Card>
   )
 }
-

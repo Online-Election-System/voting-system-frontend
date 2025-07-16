@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -18,22 +19,24 @@ import { cn } from "@/lib/utils"
 type MemberInfo = {
   fullName: string
   nic: string
-  dateOfBirth: Date | undefined
+  dob: Date | undefined
   gender: string
   civilStatus: string
-  relationshipWithChief: string
-  idCopy: File | null
-  chiefApproval: string
+  relationshipWithChiefOccupant: string
+  idCopyPath: File | null
+  approvedByChief: Boolean
 }
 
 type ChiefOccupant = {
   fullName: string
   nic: string
-  dateOfBirth: Date | undefined
+  dob: Date | undefined
   gender: string
   civilStatus: string
-  telephone: string
-  idCopy: File | null
+  phoneNumber: string
+  idCopyPath: File | null
+  email:string
+  passwordHash: string;
 }
 
 type HouseholdDetails = {
@@ -43,7 +46,7 @@ type HouseholdDetails = {
   gramaNiladhariDivision: string
   villageStreetEstate: string
   houseNumber: string
-  numberOfMembers: number
+  householdMemberCount: number
 }
 
 export default function HouseholdRegistrationForm() {
@@ -51,11 +54,13 @@ export default function HouseholdRegistrationForm() {
   const [chiefOccupant, setChiefOccupant] = useState<ChiefOccupant>({
     fullName: "",
     nic: "",
-    dateOfBirth: undefined,
+    dob: undefined,
     gender: "male",
     civilStatus: "single",
-    telephone: "",
-    idCopy: null,
+    phoneNumber: "",
+    idCopyPath: null,
+    email:"",
+    passwordHash:""
   })
 
   const [householdDetails, setHouseholdDetails] = useState<HouseholdDetails>({
@@ -65,7 +70,7 @@ export default function HouseholdRegistrationForm() {
     gramaNiladhariDivision: "",
     villageStreetEstate: "",
     houseNumber: "",
-    numberOfMembers: 1,
+    householdMemberCount: 1,
   })
 
   const [householdMembers, setHouseholdMembers] = useState<MemberInfo[]>([])
@@ -73,6 +78,7 @@ export default function HouseholdRegistrationForm() {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [passwordError, setPasswordError] = useState("")
   const [currentMemberIndex, setCurrentMemberIndex] = useState(0)
+  const router = useRouter();
 
   const handleChiefOccupantChange = (field: keyof ChiefOccupant, value: string | Date | undefined | File | null) => {
     setChiefOccupant({ ...chiefOccupant, [field]: value })
@@ -85,19 +91,19 @@ export default function HouseholdRegistrationForm() {
   const handleMemberChange = (
     index: number,
     field: keyof MemberInfo,
-    value: string | Date | undefined | File | null,
+    value: string | Date |boolean| undefined | File | null,
   ) => {
     const updatedMembers = [...householdMembers]
     if (!updatedMembers[index]) {
       updatedMembers[index] = {
         fullName: "",
         nic: "",
-        dateOfBirth: undefined,
+        dob: undefined,
         gender: "male",
         civilStatus: "single",
-        relationshipWithChief: "",
-        idCopy: null,
-        chiefApproval: "approved",
+        relationshipWithChiefOccupant: "",
+        idCopyPath: null,
+        approvedByChief:true,
       }
     }
     updatedMembers[index] = { ...updatedMembers[index], [field]: value }
@@ -107,18 +113,18 @@ export default function HouseholdRegistrationForm() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, isChief: boolean, memberIndex?: number) => {
     if (e.target.files && e.target.files[0]) {
       if (isChief) {
-        handleChiefOccupantChange("idCopy", e.target.files[0])
+        handleChiefOccupantChange("idCopyPath", e.target.files[0])
       } else if (memberIndex !== undefined) {
-        handleMemberChange(memberIndex, "idCopy", e.target.files[0])
+        handleMemberChange(memberIndex, "idCopyPath", e.target.files[0])
       }
     }
   }
 
   const removeFile = (isChief: boolean, memberIndex?: number) => {
     if (isChief) {
-      handleChiefOccupantChange("idCopy", null)
+      handleChiefOccupantChange("idCopyPath", null)
     } else if (memberIndex !== undefined) {
-      handleMemberChange(memberIndex, "idCopy", null)
+      handleMemberChange(memberIndex, "idCopyPath", null)
     }
   }
 
@@ -136,27 +142,88 @@ export default function HouseholdRegistrationForm() {
   const initializeHouseholdMembers = () => {
     // Initialize the array with empty members based on the number specified
     const members = []
-    for (let i = 0; i < householdDetails.numberOfMembers; i++) {
+    for (let i = 0; i < householdDetails.householdMemberCount; i++) {
       members.push({
         fullName: "",
         nic: "",
-        dateOfBirth: undefined,
+        dob: undefined,
         gender: "male",
         civilStatus: "single",
-        relationshipWithChief: "",
-        idCopy: null,
-        chiefApproval: "approved",
+        relationshipWithChiefOccupant: "",
+        idCopyPath: null,
+        approvedByChief: true,
       })
     }
     setHouseholdMembers(members)
   }
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Handle form submission here
-    console.log("Form submitted", { chiefOccupant, householdDetails, householdMembers })
-  }
+    const payload = {
+      chiefOccupant: {
+        // Do NOT spread the original object if it contains `id`
+       ...chiefOccupant, // will be hashed in backend
+       passwordHash: password
+      },
+      householdDetails: {
+        ...householdDetails
+        // Temporarily omit chiefOccupantId, as the ID is not known yet
+      },
+      newHouseholdMembers: {
+        // Omit chiefOccupantId here too, it will be added after backend response
+        members: householdMembers.map(member => ({
+          ...member
+        }))
+      }
+    };
+    console.log("Payload being sent:", JSON.stringify(payload, null, 2));
 
+    try {
+      const response = await fetch("http://localhost:9090/voter-registration/api/v1/registration", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+  
+      if (response.ok) {
+        alert("Registration successful!");
+        router.push("/login");
+      } else {
+        const err = await response.text();
+        alert("Registration failed: " + err);
+      }
+    } catch (error) {
+      console.error("Error during registration:", error);
+      alert("An error occurred. Check the console for details.");
+    }
+  
+    const formData = new FormData()
+  
+    // Append Chief Occupant Data
+    formData.append("chiefOccupant", JSON.stringify({ ...chiefOccupant, dateOfBirth: chiefOccupant.dob?.toISOString() }))
+    if (chiefOccupant.idCopyPath) {
+      formData.append("chiefIdCopy", chiefOccupant.idCopyPath)
+    }
+  
+    // Append Household Details
+    formData.append("householdDetails", JSON.stringify(householdDetails))
+  
+    // Append Household Members
+    const membersToSend = householdMembers.map((member) => ({
+      ...member,
+      dateOfBirth: member.dob?.toISOString(),
+    }))
+    formData.append("householdMembers", JSON.stringify(membersToSend))
+  
+    // Append Member ID Copies
+    householdMembers.forEach((member, index) => {
+      if (member.idCopyPath) {
+        formData.append(`memberIdCopy${index}`, member.idCopyPath)
+      }
+    })
+  }
+  
   const nextStep = () => {
     if (currentStep === "chief") {
       setCurrentStep("household")
@@ -202,8 +269,8 @@ export default function HouseholdRegistrationForm() {
           <Label htmlFor="chiefTelephone">Telephone Number</Label>
           <Input
             id="chiefTelephone"
-            value={chiefOccupant.telephone}
-            onChange={(e) => handleChiefOccupantChange("telephone", e.target.value)}
+            value={chiefOccupant.phoneNumber}
+            onChange={(e) => handleChiefOccupantChange("phoneNumber", e.target.value)}
             placeholder="Enter telephone number"
             required
           />
@@ -216,18 +283,18 @@ export default function HouseholdRegistrationForm() {
                 variant={"outline"}
                 className={cn(
                   "w-full justify-start text-left font-normal",
-                  !chiefOccupant.dateOfBirth && "text-muted-foreground",
+                  !chiefOccupant.dob && "text-muted-foreground",
                 )}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {chiefOccupant.dateOfBirth ? format(chiefOccupant.dateOfBirth, "PPP") : <span>Pick a date</span>}
+                {chiefOccupant.dob ? format(chiefOccupant.dob, "PPP") : <span>Pick a date</span>}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0">
               <Calendar
                 mode="single"
-                selected={chiefOccupant.dateOfBirth}
-                onSelect={(date) => handleChiefOccupantChange("dateOfBirth", date)}
+                selected={chiefOccupant.dob}
+                onSelect={(date) => handleChiefOccupantChange("dob", date)}
                 initialFocus
               />
             </PopoverContent>
@@ -279,23 +346,33 @@ export default function HouseholdRegistrationForm() {
             <Input
               id="chiefIdCopy"
               type="file"
-              className={cn("cursor-pointer", chiefOccupant.idCopy && "text-transparent")}
+              className={cn("cursor-pointer", chiefOccupant.idCopyPath && "text-transparent")}
               onChange={(e) => handleFileChange(e, true)}
             />
-            {chiefOccupant.idCopy && (
+            {chiefOccupant.idCopyPath && (
               <div className="absolute inset-0 flex items-center px-3 pointer-events-none">
-                <span className="text-sm text-gray-500 truncate">{chiefOccupant.idCopy.name}</span>
+                <span className="text-sm text-gray-500 truncate">{chiefOccupant.idCopyPath.name}</span>
               </div>
             )}
           </div>
-          {chiefOccupant.idCopy && (
+          {chiefOccupant.idCopyPath && (
             <Button type="button" variant="outline" size="icon" onClick={() => removeFile(true)}>
               <X className="h-4 w-4" />
             </Button>
           )}
         </div>
       </div>
-
+      <div className="space-y-2">
+          <Label htmlFor="chiefEmail">Email Address</Label>
+          <Input
+            id="chiefEmail"
+            type="email"
+            value={chiefOccupant.email}
+            onChange={(e) => handleChiefOccupantChange("email", e.target.value)}
+            placeholder="Enter email address"
+            required
+          />
+      </div>
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Password Information</h3>
         <div className="space-y-2">
@@ -403,8 +480,8 @@ export default function HouseholdRegistrationForm() {
           id="numberOfMembers"
           type="number"
           min="0"
-          value={householdDetails.numberOfMembers}
-          onChange={(e) => handleHouseholdDetailsChange("numberOfMembers", Number.parseInt(e.target.value) || 0)}
+          value={householdDetails.householdMemberCount}
+          onChange={(e) => handleHouseholdDetailsChange("householdMemberCount", Number.parseInt(e.target.value) || 0)}
           placeholder="Enter number of household members"
           required
         />
@@ -444,12 +521,12 @@ export default function HouseholdRegistrationForm() {
                 variant={"outline"}
                 className={cn(
                   "w-full justify-start text-left font-normal",
-                  !householdMembers[index]?.dateOfBirth && "text-muted-foreground",
+                  !householdMembers[index]?.dob && "text-muted-foreground",
                 )}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {householdMembers[index]?.dateOfBirth ? (
-                  format(householdMembers[index].dateOfBirth, "PPP")
+                {householdMembers[index]?.dob ? (
+                  format(householdMembers[index].dob, "PPP")
                 ) : (
                   <span>Pick a date</span>
                 )}
@@ -458,8 +535,8 @@ export default function HouseholdRegistrationForm() {
             <PopoverContent className="w-auto p-0">
               <Calendar
                 mode="single"
-                selected={householdMembers[index]?.dateOfBirth}
-                onSelect={(date) => handleMemberChange(index, "dateOfBirth", date)}
+                selected={householdMembers[index]?.dob}
+                onSelect={(date) => handleMemberChange(index, "dob", date)}
                 initialFocus
               />
             </PopoverContent>
@@ -505,8 +582,8 @@ export default function HouseholdRegistrationForm() {
           <Label htmlFor={`relationship-${index}`}>Relationship with Chief Occupant</Label>
           <Input
             id={`relationship-${index}`}
-            value={householdMembers[index]?.relationshipWithChief || ""}
-            onChange={(e) => handleMemberChange(index, "relationshipWithChief", e.target.value)}
+            value={householdMembers[index]?.relationshipWithChiefOccupant || ""}
+            onChange={(e) => handleMemberChange(index, "relationshipWithChiefOccupant", e.target.value)}
             placeholder="E.g., Spouse, Child, Parent"
             required
           />
@@ -520,16 +597,16 @@ export default function HouseholdRegistrationForm() {
             <Input
               id={`idCopy-${index}`}
               type="file"
-              className={cn("cursor-pointer", householdMembers[index]?.idCopy && "text-transparent")}
+              className={cn("cursor-pointer", householdMembers[index]?.idCopyPath && "text-transparent")}
               onChange={(e) => handleFileChange(e, false, index)}
             />
-            {householdMembers[index]?.idCopy && (
+            {householdMembers[index]?.idCopyPath && (
               <div className="absolute inset-0 flex items-center px-3 pointer-events-none">
-                <span className="text-sm text-gray-500 truncate">{householdMembers[index].idCopy.name}</span>
+                <span className="text-sm text-gray-500 truncate">{householdMembers[index].idCopyPath.name}</span>
               </div>
             )}
           </div>
-          {householdMembers[index]?.idCopy && (
+          {householdMembers[index]?.idCopyPath && (
             <Button type="button" variant="outline" size="icon" onClick={() => removeFile(false, index)}>
               <X className="h-4 w-4" />
             </Button>
@@ -541,7 +618,7 @@ export default function HouseholdRegistrationForm() {
         <Label>Chief Occupant Approval</Label>
         <RadioGroup
           defaultValue="approved"
-          onValueChange={(value) => handleMemberChange(index, "chiefApproval", value)}
+          onValueChange={(value) => handleMemberChange(index, "approvedByChief", value==='approved')}
         >
           <div className="flex items-center space-x-2">
             <RadioGroupItem value="approved" id={`approval-${index}`} />
@@ -560,7 +637,7 @@ export default function HouseholdRegistrationForm() {
     <div className="space-y-6">
       <h3 className="text-xl font-semibold">Household Members Registration</h3>
 
-      {householdDetails.numberOfMembers > 0 ? (
+      {householdDetails.householdMemberCount > 0 ? (
         <Tabs
           defaultValue="0"
           value={currentMemberIndex.toString()}
@@ -568,16 +645,16 @@ export default function HouseholdRegistrationForm() {
         >
           <TabsList
             className="grid"
-            style={{ gridTemplateColumns: `repeat(${Math.min(householdDetails.numberOfMembers, 5)}, 1fr)` }}
+            style={{ gridTemplateColumns: `repeat(${Math.min(householdDetails.householdMemberCount, 5)}, 1fr)` }}
           >
-            {Array.from({ length: householdDetails.numberOfMembers }).map((_, i) => (
+            {Array.from({ length: householdDetails.householdMemberCount }).map((_, i) => (
               <TabsTrigger key={i} value={i.toString()}>
                 Member {i + 1}
               </TabsTrigger>
             ))}
           </TabsList>
 
-          {Array.from({ length: householdDetails.numberOfMembers }).map((_, i) => (
+          {Array.from({ length: householdDetails.householdMemberCount }).map((_, i) => (
             <TabsContent key={i} value={i.toString()}>
               {renderMemberForm(i)}
             </TabsContent>
