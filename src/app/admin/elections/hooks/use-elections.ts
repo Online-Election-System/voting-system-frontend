@@ -20,6 +20,7 @@ export function useElections() {
       setLoading(true);
       const data = await getElections();
       setElections(data);
+      console.log(data);
       setError(null);
       return data;
     } catch (err) {
