@@ -3,7 +3,7 @@
 import { useState } from "react"
 import type { Screen, Candidate } from "@/types/voter"
 import { candidates } from "@/data/mockData"
-import { useVoterValidation } from "@/hooks/use-voter-validation"
+import { useCastVote, useVoterValidation } from "@/hooks/useVote"
 
 // Components
 import { VotingHeader } from "@/components/header"
@@ -16,9 +16,13 @@ import { SuccessMessage } from "@/components/success-message"
 export default function VotingSystem() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("validation")
   const [nicNumber, setNicNumber] = useState("")
+  const [password, setPassword] = useState("")
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null)
+  const [voteSubmitted, setVoteSubmitted] = useState(false)
 
+  // From hooks/useVote.ts
   const { validationStatus, voterProfile, isValidating, validateVoter } = useVoterValidation()
+  const { cast, loading: isCasting, error: castError, result } = useCastVote()
 
   const proceedToVoting = () => {
     setCurrentScreen("voting")
@@ -29,23 +33,45 @@ export default function VotingSystem() {
   }
 
   const confirmVote = () => {
-    if (selectedCandidate) {
-      setCurrentScreen("confirmation")
-    }
+    setCurrentScreen("confirmation")
   }
 
-  const finalizeVote = () => {
-    setCurrentScreen("success")
-    // Auto logout after 5 seconds
-    setTimeout(() => {
-      resetSystem()
-    }, 5000)
+  const finalizeVote = async () => {
+    if (!voterProfile || !selectedCandidate) {
+      console.error("Missing voter profile or selected candidate")
+      return
+    }
+
+    try {
+      // Cast the vote with all required fields matching Ballerina backend
+      await cast({
+        voterId: voterProfile.id,
+        electionId: selectedCandidate.electionId,
+        candidateId: selectedCandidate.id,
+        district: voterProfile.district,
+        timestamp: new Date().toISOString()
+      })
+
+      // If vote was cast successfully, mark as submitted
+      setVoteSubmitted(true)
+      setCurrentScreen("success")
+      
+      // Auto-reset after 5 seconds
+      setTimeout(() => {
+        resetSystem()
+      }, 5000)
+    } catch (error) {
+      console.error("Failed to cast vote:", error)
+      // Error is already handled in the hook, just stay on confirmation screen
+    }
   }
 
   const resetSystem = () => {
     setCurrentScreen("validation")
     setNicNumber("")
+    setPassword("")
     setSelectedCandidate(null)
+    setVoteSubmitted(false)
   }
 
   const goBack = () => {
@@ -56,7 +82,8 @@ export default function VotingSystem() {
     }
   }
 
-  // Screen 1: Voter Validation Interface
+  // --- UI RENDERING ---
+
   if (currentScreen === "validation") {
     return (
       <div className="min-h-screen bg-gray-50 p-4">
@@ -65,8 +92,10 @@ export default function VotingSystem() {
 
           <div className="grid md:grid-cols-2 gap-6">
             <VoterSearch
-              nicNumber={nicNumber}
-              setNicNumber={setNicNumber}
+              nationalId={nicNumber}
+              setNationalId={setNicNumber}
+              password={password}
+              setPassword={setPassword}
               onSearch={validateVoter}
               isValidating={isValidating}
               validationStatus={validationStatus}
@@ -83,7 +112,6 @@ export default function VotingSystem() {
     )
   }
 
-  // Screen 2: Voting Interface
   if (currentScreen === "voting") {
     return (
       <VotingInterface
@@ -96,12 +124,18 @@ export default function VotingSystem() {
     )
   }
 
-  // Screen 3: Vote Confirmation
   if (currentScreen === "confirmation") {
-    return <VoteConfirmation selectedCandidate={selectedCandidate} onConfirm={finalizeVote} onGoBack={goBack} />
+    return (
+      <VoteConfirmation
+        selectedCandidate={selectedCandidate}
+        onConfirm={finalizeVote}
+        onGoBack={goBack}
+        isSubmitting={isCasting}
+        errorMessage={castError?.message}
+      />
+    )
   }
 
-  // Screen 4: Success Message
   if (currentScreen === "success") {
     return <SuccessMessage onReset={resetSystem} />
   }

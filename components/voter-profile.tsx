@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { User, Calendar, MapPin, Phone, Mail, Vote } from "lucide-react"
+import { User, Calendar, MapPin, Phone, Vote, Home } from "lucide-react"
 import type { VoterProfile as VoterProfileType, ValidationStatus } from "@/types/voter"
 
 interface VoterProfileProps {
@@ -25,7 +25,28 @@ function getStatusBadge(status: string) {
   }
 }
 
+function calculateAge(dob: string | null | undefined): number | null {
+  if (!dob) return null
+  
+  // Parse MM/DD/YYYY format
+  const [month, day, year] = dob.split('/').map(Number)
+  if (!month || !day || !year) return null
+  
+  const birthDate = new Date(year, month - 1, day)
+  const today = new Date()
+  let age = today.getFullYear() - birthDate.getFullYear()
+  const monthDiff = today.getMonth() - birthDate.getMonth()
+  
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--
+  }
+  
+  return age
+}
+
 export function VoterProfile({ validationStatus, voterProfile, onProceedToVoting }: VoterProfileProps) {
+  const age = voterProfile ? calculateAge(voterProfile.dob) : null
+
   return (
     <Card className="h-fit">
       <CardHeader>
@@ -45,53 +66,68 @@ export function VoterProfile({ validationStatus, voterProfile, onProceedToVoting
                 className="w-24 h-32 object-cover border-2 border-gray-300 rounded"
               />
               <div className="flex-1">
-                <h3 className="text-xl font-bold text-gray-800">{voterProfile.name}</h3>
-                <p className="text-gray-600 mb-2">{voterProfile.nameWithInitials}</p>
+                <h3 className="text-xl font-bold text-gray-800">{voterProfile.fullName}</h3>
+                <p className="text-gray-600 mb-2">NIC: {voterProfile.nationalId}</p>
                 <div className="mb-3">{getStatusBadge(voterProfile.status)}</div>
                 <div className="text-sm text-gray-600">
-                  <p className="flex items-center mb-1">
-                    <Calendar className="h-4 w-4 mr-1" />
-                    Age: {voterProfile.age} | {voterProfile.gender}
-                  </p>
+                  {age && (
+                    <p className="flex items-center mb-1">
+                      <Calendar className="h-4 w-4 mr-1" />
+                      Age: {age} {voterProfile.gender && `| ${voterProfile.gender}`}
+                    </p>
+                  )}
+                  {voterProfile.dob && (
+                    <p className="text-xs">DOB: {voterProfile.dob}</p>
+                  )}
                 </div>
               </div>
             </div>
 
             {/* Detailed Information */}
             <div className="grid grid-cols-1 gap-3 text-sm">
-              <div className="flex items-start">
-                <MapPin className="h-4 w-4 mr-2 mt-0.5 text-gray-500" />
-                <div>
-                  <p className="font-medium">Address:</p>
-                  <p className="text-gray-600">{voterProfile.address}</p>
+              {voterProfile.address && (
+                <div className="flex items-start">
+                  <MapPin className="h-4 w-4 mr-2 mt-0.5 text-gray-500" />
+                  <div>
+                    <p className="font-medium">Address:</p>
+                    <p className="text-gray-600">{voterProfile.address}</p>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="font-medium">District:</p>
                   <p className="text-gray-600">{voterProfile.district}</p>
                 </div>
-                <div>
-                  <p className="font-medium">Polling Division:</p>
-                  <p className="text-gray-600">{voterProfile.pollingDivision}</p>
+                {voterProfile.gramaNiladhari && (
+                  <div>
+                    <p className="font-medium">Grama Niladhari:</p>
+                    <p className="text-gray-600">{voterProfile.gramaNiladhari}</p>
+                  </div>
+                )}
+              </div>
+
+              {voterProfile.householdNo && (
+                <div className="flex items-center">
+                  <Home className="h-4 w-4 mr-2 text-gray-500" />
+                  <span className="text-gray-600">Household No: {voterProfile.householdNo}</span>
                 </div>
-              </div>
+              )}
 
-              <div className="flex items-center">
-                <Phone className="h-4 w-4 mr-2 text-gray-500" />
-                <span className="text-gray-600">{voterProfile.phone}</span>
-              </div>
+              {voterProfile.mobileNumber && (
+                <div className="flex items-center">
+                  <Phone className="h-4 w-4 mr-2 text-gray-500" />
+                  <span className="text-gray-600">{voterProfile.mobileNumber}</span>
+                </div>
+              )}
 
-              <div className="flex items-center">
-                <Mail className="h-4 w-4 mr-2 text-gray-500" />
-                <span className="text-gray-600">{voterProfile.email}</span>
-              </div>
-
-              <div>
-                <p className="font-medium">Registration Date:</p>
-                <p className="text-gray-600">{new Date(voterProfile.registrationDate).toLocaleDateString()}</p>
-              </div>
+              {voterProfile.nicChiefOccupant && (
+                <div>
+                  <p className="font-medium">Chief Occupant NIC:</p>
+                  <p className="text-gray-600">{voterProfile.nicChiefOccupant}</p>
+                </div>
+              )}
 
               {voterProfile.status === "already-voted" && voterProfile.votedAt && (
                 <div className="p-3 bg-orange-50 border border-orange-200 rounded">
