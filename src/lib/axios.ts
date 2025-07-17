@@ -1,8 +1,8 @@
 // src/lib/axios.ts
-import axios from "axios"
+import axios from 'axios';
 
 const api = axios.create({
-  baseURL: "http://localhost:9090",
+  baseURL: "http://localhost:8080",
 })
 
 if (typeof window !== "undefined") {
