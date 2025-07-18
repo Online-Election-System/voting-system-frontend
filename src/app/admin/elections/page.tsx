@@ -13,7 +13,6 @@ import {
 import Link from "next/link";
 import { ElectionsTable } from "./components/elections-table";
 import { useElections } from "./hooks/use-elections";
-import { Election, ElectionConfig, ElectionUpdate } from "./election.types";
 import { toast } from "@/lib/hooks/use-toast";
 
 export default function ElectionsPage() {
@@ -45,7 +44,7 @@ export default function ElectionsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 mx-12 my-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Manage Elections</h1>
         <Link href="/admin/elections/add">

@@ -34,7 +34,7 @@ export default function CandidatesPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 mx-12 my-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Manage Candidates</h1>
         <Button onClick={handleAddClick}>

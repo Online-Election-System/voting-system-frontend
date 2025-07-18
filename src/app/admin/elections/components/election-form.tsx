@@ -5,15 +5,33 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { Election, ElectionConfig, ElectionStatus, ElectionUpdate } from "../election.types";
+import {
+  Election,
+  ElectionConfig,
+  ElectionStatus,
+  ElectionUpdate,
+} from "../election.types";
 import { simpleDateToDate, dateToSimpleDate } from "../utils/date-utils";
 import { formatTimeOfDay, parseTimeString } from "../utils/time-utils";
 import { ELECTION_TYPES, ELECTION_STATUSES } from "../election-constants";
 import { toast } from "@/components/ui/use-toast";
+import { CandidateSelectionDialog } from "./candidate-selection-dialog";
+import { Candidate } from "../../candidates/candidate.types";
+import { useCandidates } from "../../candidates/hooks/use-candidates";
 
 interface ElectionFormProps {
   editingElection: Election | null;
@@ -21,7 +39,11 @@ interface ElectionFormProps {
   onCancel: () => void;
 }
 
-export function ElectionForm({ editingElection, onSubmit, onCancel }: ElectionFormProps) {
+export function ElectionForm({
+  editingElection,
+  onSubmit,
+  onCancel,
+}: ElectionFormProps) {
   // Form state
   const [electionName, setElectionName] = useState("");
   const [electionType, setElectionType] = useState("");
@@ -33,9 +55,12 @@ export function ElectionForm({ editingElection, onSubmit, onCancel }: ElectionFo
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
   const [enrolDdl, setEnrolDdl] = useState<Date | undefined>();
-  const [noOfCandidates, setNoOfCandidates] = useState(1);
+  const [noOfCandidates, setNoOfCandidates] = useState(0);
   const [dateError, setDateError] = useState<string | null>(null);
   const [timeError, setTimeError] = useState<string | null>(null);
+  const [isCandidateDialogOpen, setIsCandidateDialogOpen] = useState(false);
+  const [selectedCandidates, setSelectedCandidates] = useState<Candidate[]>([]);
+  const { candidates } = useCandidates();
 
   // Calendar popover states
   const [electionDateOpen, setElectionDateOpen] = useState(false);
@@ -46,18 +71,18 @@ export function ElectionForm({ editingElection, onSubmit, onCancel }: ElectionFo
   // Calculate status based on dates and times
   const calculateStatus = useCallback((): ElectionStatus => {
     const now = new Date();
-    
+
     if (!startDate || !endDate || !electionDate || !startTime || !endTime) {
       return "Scheduled";
     }
 
     // Parse election day times
-    const [startHour, startMinute] = startTime.split(':').map(Number);
-    const [endHour, endMinute] = endTime.split(':').map(Number);
-    
+    const [startHour, startMinute] = startTime.split(":").map(Number);
+    const [endHour, endMinute] = endTime.split(":").map(Number);
+
     const electionStartDateTime = new Date(electionDate);
     electionStartDateTime.setHours(startHour, startMinute, 0, 0);
-    
+
     const electionEndDateTime = new Date(electionDate);
     electionEndDateTime.setHours(endHour, endMinute, 0, 0);
 
@@ -65,24 +90,32 @@ export function ElectionForm({ editingElection, onSubmit, onCancel }: ElectionFo
     if (isBefore(now, startDate)) {
       return "Scheduled";
     }
-    
+
     if (isWithinInterval(now, { start: startDate, end: electionDate })) {
       return "Upcoming";
     }
-    
-    if (isWithinInterval(now, { start: electionStartDateTime, end: electionEndDateTime })) {
+
+    if (
+      isWithinInterval(now, {
+        start: electionStartDateTime,
+        end: electionEndDateTime,
+      })
+    ) {
       return "Active";
     }
-    
+
     if (isAfter(now, electionEndDateTime)) {
       return "Completed";
     }
-    
+
     return "Scheduled";
   }, [startDate, endDate, electionDate, startTime, endTime]);
 
   // Validate time inputs
-  const validateTimes = useCallback((): { isValid: boolean; error?: string } => {
+  const validateTimes = useCallback((): {
+    isValid: boolean;
+    error?: string;
+  } => {
     if (!startTime || !endTime) {
       return { isValid: false, error: "Both start and end times are required" };
     }
@@ -106,7 +139,10 @@ export function ElectionForm({ editingElection, onSubmit, onCancel }: ElectionFo
     return date >= start && date <= end;
   };
 
-  const validateDates = useCallback((): { isValid: boolean; error?: string } => {
+  const validateDates = useCallback((): {
+    isValid: boolean;
+    error?: string;
+  } => {
     if (!startDate || !endDate || !electionDate || !enrolDdl) {
       return { isValid: false, error: "All dates are required" };
     }
@@ -116,15 +152,24 @@ export function ElectionForm({ editingElection, onSubmit, onCancel }: ElectionFo
     }
 
     if (!isDateBetween(electionDate, startDate, endDate)) {
-      return { isValid: false, error: "Election date must be between start and end dates" };
+      return {
+        isValid: false,
+        error: "Election date must be between start and end dates",
+      };
     }
 
     if (!isDateBetween(enrolDdl, startDate, endDate)) {
-      return { isValid: false, error: "Enrollment deadline must be between start and end dates" };
+      return {
+        isValid: false,
+        error: "Enrollment deadline must be between start and end dates",
+      };
     }
 
     if (enrolDdl >= electionDate) {
-      return { isValid: false, error: "Enrollment deadline must be before election date" };
+      return {
+        isValid: false,
+        error: "Enrollment deadline must be before election date",
+      };
     }
 
     return { isValid: true };
@@ -134,18 +179,31 @@ export function ElectionForm({ editingElection, onSubmit, onCancel }: ElectionFo
   useEffect(() => {
     if (startDate && endDate && electionDate && enrolDdl) {
       const dateValidation = validateDates();
-      setDateError(dateValidation.isValid ? null : dateValidation.error || null);
+      setDateError(
+        dateValidation.isValid ? null : dateValidation.error || null
+      );
     } else {
       setDateError(null);
     }
 
     if (startTime && endTime) {
       const timeValidation = validateTimes();
-      setTimeError(timeValidation.isValid ? null : timeValidation.error || null);
+      setTimeError(
+        timeValidation.isValid ? null : timeValidation.error || null
+      );
     } else {
       setTimeError(null);
     }
-  }, [startDate, endDate, electionDate, enrolDdl, startTime, endTime, validateDates, validateTimes]);
+  }, [
+    startDate,
+    endDate,
+    electionDate,
+    enrolDdl,
+    startTime,
+    endTime,
+    validateDates,
+    validateTimes,
+  ]);
 
   // Set form values when editing an election
   useEffect(() => {
@@ -154,7 +212,7 @@ export function ElectionForm({ editingElection, onSubmit, onCancel }: ElectionFo
       setElectionType(editingElection.electionType || "");
       setDescription(editingElection.description || "");
       setStatus(editingElection.status || "Scheduled");
-      setNoOfCandidates(editingElection.noOfCandidates || 1);
+      setNoOfCandidates(editingElection.noOfCandidates || 0);
 
       // Handle dates
       setElectionDate(simpleDateToDate(editingElection.electionDate));
@@ -183,9 +241,34 @@ export function ElectionForm({ editingElection, onSubmit, onCancel }: ElectionFo
       return;
     }
 
+    // Candidate validation
+    if (selectedCandidates.length < noOfCandidates) {
+      toast({
+        title: "Validation Error",
+        description: `Please select ${noOfCandidates} candidates`,
+        variant: "destructive",
+      });
+      return;
+    }
+    if (selectedCandidates.length > noOfCandidates) {
+      toast({
+        title: "Validation Error",
+        description: `Candidate limit exceeded by ${selectedCandidates.length - noOfCandidates}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Date validation for new elections
     if (!editingElection) {
-      if (!electionDate || !startDate || !endDate || !enrolDdl || !startTime || !endTime) {
+      if (
+        !electionDate ||
+        !startDate ||
+        !endDate ||
+        !enrolDdl ||
+        !startTime ||
+        !endTime
+      ) {
         toast({
           title: "Validation Error",
           description: "Please fill in all required fields",
@@ -215,7 +298,7 @@ export function ElectionForm({ editingElection, onSubmit, onCancel }: ElectionFo
 
     try {
       const currentStatus = editingElection ? status : calculateStatus();
-      
+
       if (editingElection) {
         // Update existing election
         const updateData: ElectionUpdate = {
@@ -267,8 +350,14 @@ export function ElectionForm({ editingElection, onSubmit, onCancel }: ElectionFo
   // Form validation
   const isFormValid = Boolean(
     electionName &&
-    electionType &&
-    (editingElection || (electionDate && startTime && endTime && !dateError && !timeError))
+      electionType &&
+      (editingElection ||
+        (electionDate &&
+          startTime &&
+          endTime &&
+          !dateError &&
+          !timeError &&
+          selectedCandidates.length == noOfCandidates))
   );
 
   // Date selection handlers
@@ -311,7 +400,11 @@ export function ElectionForm({ editingElection, onSubmit, onCancel }: ElectionFo
             </div>
             <div className="grid gap-2">
               <Label htmlFor="type">Election Type*</Label>
-              <Select value={electionType} onValueChange={setElectionType} required>
+              <Select
+                value={electionType}
+                onValueChange={setElectionType}
+                required
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select election type" />
                 </SelectTrigger>
@@ -324,27 +417,61 @@ export function ElectionForm({ editingElection, onSubmit, onCancel }: ElectionFo
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="noOfCandidates">Number of Candidates*</Label>
-              <Input
-                id="noOfCandidates"
-                type="number"
-                min="1"
-                value={noOfCandidates}
-                onChange={(e) => setNoOfCandidates(Math.max(1, Number(e.target.value)))}
-                required
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="noOfCandidates">Number of Candidates*</Label>
+                <Input
+                  id="noOfCandidates"
+                  type="number"
+                  min="0"
+                  value={noOfCandidates}
+                  onChange={(e) =>
+                    setNoOfCandidates(Math.max(0, Number(e.target.value)))
+                  }
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Candidates</Label>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsCandidateDialogOpen(true)}
+                >
+                  {selectedCandidates.length > 0
+                    ? `${selectedCandidates.length} candidates selected`
+                    : "Select Candidates"}
+                </Button>
+              </div>
+              {selectedCandidates.length < noOfCandidates && (
+                <p className="text-sm text-red-500">
+                  {noOfCandidates - selectedCandidates.length} more candidates
+                  needs to be selected
+                </p>
+              )}
+              {selectedCandidates.length > noOfCandidates && (
+                <p className="text-sm text-red-500">
+                  Exceeded the candidate limit by{" "}
+                  {selectedCandidates.length - noOfCandidates}
+                </p>
+              )}
             </div>
             {editingElection && (
               <div className="grid gap-2">
                 <Label htmlFor="status">Status*</Label>
-                <Select value={status} onValueChange={(value) => setStatus(value as ElectionStatus)} required>
+                <Select
+                  value={status}
+                  onValueChange={(value) => setStatus(value as ElectionStatus)}
+                  required
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
                     {ELECTION_STATUSES.map((statusOption) => (
-                      <SelectItem key={statusOption.value} value={statusOption.value}>
+                      <SelectItem
+                        key={statusOption.value}
+                        value={statusOption.value}
+                      >
                         {statusOption.label}
                       </SelectItem>
                     ))}
@@ -387,7 +514,9 @@ export function ElectionForm({ editingElection, onSubmit, onCancel }: ElectionFo
                   <Calendar
                     mode="single"
                     selected={startDate}
-                    onSelect={(date) => handleDateSelect(date, setStartDate, setStartDateOpen)}
+                    onSelect={(date) =>
+                      handleDateSelect(date, setStartDate, setStartDateOpen)
+                    }
                     initialFocus
                   />
                 </PopoverContent>
@@ -413,7 +542,9 @@ export function ElectionForm({ editingElection, onSubmit, onCancel }: ElectionFo
                   <Calendar
                     mode="single"
                     selected={endDate}
-                    onSelect={(date) => handleDateSelect(date, setEndDate, setEndDateOpen)}
+                    onSelect={(date) =>
+                      handleDateSelect(date, setEndDate, setEndDateOpen)
+                    }
                     initialFocus
                   />
                 </PopoverContent>
@@ -432,14 +563,18 @@ export function ElectionForm({ editingElection, onSubmit, onCancel }: ElectionFo
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {enrolDdl ? format(enrolDdl, "PPP") : "Select enrollment deadline"}
+                    {enrolDdl
+                      ? format(enrolDdl, "PPP")
+                      : "Select enrollment deadline"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
                   <Calendar
                     mode="single"
                     selected={enrolDdl}
-                    onSelect={(date) => handleDateSelect(date, setEnrolDdl, setEnrolDdlOpen)}
+                    onSelect={(date) =>
+                      handleDateSelect(date, setEnrolDdl, setEnrolDdlOpen)
+                    }
                     initialFocus
                   />
                 </PopoverContent>
@@ -447,7 +582,10 @@ export function ElectionForm({ editingElection, onSubmit, onCancel }: ElectionFo
             </div>
             <div className="grid gap-2">
               <Label>Election Date*</Label>
-              <Popover open={electionDateOpen} onOpenChange={setElectionDateOpen}>
+              <Popover
+                open={electionDateOpen}
+                onOpenChange={setElectionDateOpen}
+              >
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -464,7 +602,13 @@ export function ElectionForm({ editingElection, onSubmit, onCancel }: ElectionFo
                   <Calendar
                     mode="single"
                     selected={electionDate}
-                    onSelect={(date) => handleDateSelect(date, setElectionDate, setElectionDateOpen)}
+                    onSelect={(date) =>
+                      handleDateSelect(
+                        date,
+                        setElectionDate,
+                        setElectionDateOpen
+                      )
+                    }
                     initialFocus
                   />
                 </PopoverContent>
@@ -524,6 +668,15 @@ export function ElectionForm({ editingElection, onSubmit, onCancel }: ElectionFo
           </div>
         )}
       </div>
+
+      <CandidateSelectionDialog
+        open={isCandidateDialogOpen}
+        onOpenChange={setIsCandidateDialogOpen}
+        candidates={candidates} // Pass your actual candidates array here
+        requiredCandidates={noOfCandidates}
+        onSelect={setSelectedCandidates}
+        existingSelections={selectedCandidates}
+      />
     </div>
   );
 }
