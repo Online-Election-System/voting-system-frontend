@@ -54,14 +54,34 @@ export interface Vote {
   timestamp: string
 }
 
-// Frontend-specific types
+// Backend Candidate type (matches your Ballerina structure)
+export interface BackendCandidate {
+  candidateId: string
+  electionId: string
+  candidateName: string
+  partyName: string
+  partySymbol?: string
+  partyColor: string
+  candidateImage?: string
+  popularVotes: number
+  electoralVotes: number
+  position?: number
+  isActive: boolean
+}
+
+// Frontend Candidate type (for display compatibility)
 export interface Candidate {
-  electionId: string // Changed from 'any' to 'string' for better type safety
-  id: string
-  nameEn: string
-  symbol: string
-  symbolName: string
-  party?: string
+  candidateId: string
+  electionId: string
+  candidateName: string
+  partyName: string
+  partySymbol?: string
+  partyColor: string
+  candidateImage?: string
+  popularVotes: number
+  electoralVotes: number
+  position?: number
+  isActive: boolean
 }
 
 export interface VoterProfile extends Voter {

@@ -31,6 +31,21 @@ export function VoteConfirmation({
     }
   }
 
+  // Helper function to get candidate name (uses backend structure)
+  const getCandidateName = (candidate: Candidate) => {
+    return candidate.candidateName || "Unknown Candidate"
+  }
+
+  // Helper function to get party symbol (uses backend structure)
+  const getPartySymbol = (candidate: Candidate) => {
+    return candidate.partySymbol || "🏛️"
+  }
+
+  // Helper function to get party name (uses backend structure)
+  const getPartyName = (candidate: Candidate) => {
+    return candidate.partyName || "Unknown Party"
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
@@ -40,17 +55,52 @@ export function VoteConfirmation({
         <CardContent className="space-y-6">
           {selectedCandidate && (
             <div className="text-center p-6 bg-gray-50 rounded-lg border-2 border-gray-800">
-              <div className="text-6xl mb-4">{selectedCandidate.symbol}</div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2">{selectedCandidate.nameEn}</h3>
-              <p className="text-gray-600">Symbol: {selectedCandidate.symbolName}</p>
-              {selectedCandidate.party && (
-                <p className="text-gray-500 text-sm mt-1">Party: {selectedCandidate.party}</p>
+              {/* Candidate Image if available */}
+              {selectedCandidate.candidateImage && (
+                <div className="mb-4">
+                  <img 
+                    src={selectedCandidate.candidateImage} 
+                    alt={getCandidateName(selectedCandidate)}
+                    className="w-20 h-20 rounded-full mx-auto object-cover border-4 border-gray-300"
+                  />
+                </div>
               )}
+              
+              {/* Party Symbol */}
+              <div className="text-6xl mb-4">{getPartySymbol(selectedCandidate)}</div>
+              
+              {/* Candidate Name */}
+              <h3 className="text-xl font-bold text-gray-800 mb-2">
+                {getCandidateName(selectedCandidate)}
+              </h3>
+              
+              {/* Party Name (same as symbol name in this case) */}
+              <p className="text-gray-600">Symbol: {getPartyName(selectedCandidate)}</p>
+              
+              {/* Additional Party Info */}
+              <p className="text-gray-500 text-sm mt-1">
+                Party: {getPartyName(selectedCandidate)}
+              </p>
+              
+              {/* Party Color Badge */}
+          
+{selectedCandidate.partyColor && (
+  <div className="mt-3 flex items-center justify-center">
+    <div 
+      className="w-6 h-6 rounded-full border-2 border-gray-300"
+      style={{ backgroundColor: selectedCandidate.partyColor }}
+      title={`Party Color: ${selectedCandidate.partyColor}`}
+    />
+  </div>
+)}
+
             </div>
           )}
 
           <div className="text-center">
-            <p className="text-lg font-medium text-gray-800 mb-2">Are you sure you want to vote for this candidate?</p>
+            <p className="text-lg font-medium text-gray-800 mb-2">
+              Are you sure you want to vote for this candidate?
+            </p>
             <p className="text-sm text-gray-600">This action cannot be undone.</p>
           </div>
 

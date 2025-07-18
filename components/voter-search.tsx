@@ -57,6 +57,7 @@ export function VoterSearch({
               disabled={isValidating}
               className="text-lg"
               required
+              autoComplete="off"
             />
           </div>
 
@@ -72,6 +73,7 @@ export function VoterSearch({
                 disabled={isValidating}
                 className="text-lg pr-10"
                 required
+                  autoComplete="off"
               />
               <Button
                 type="button"

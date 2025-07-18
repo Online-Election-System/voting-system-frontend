@@ -2,8 +2,7 @@
 
 import { useState } from "react"
 import type { Screen, Candidate } from "@/types/voter"
-import { candidates } from "@/data/mockData"
-import { useCastVote, useVoterValidation } from "@/hooks/useVote"
+import { useCastVote, useVoterValidation, useActiveElections, useCandidatesByElection } from "@/hooks/useVote"
 
 // Components
 import { VotingHeader } from "@/components/header"
@@ -19,12 +18,19 @@ export default function VotingSystem() {
   const [password, setPassword] = useState("")
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null)
   const [voteSubmitted, setVoteSubmitted] = useState(false)
+  const [currentElectionId, setCurrentElectionId] = useState<string>("")
 
-  // From hooks/useVote.ts
+  // Hooks
   const { validationStatus, voterProfile, isValidating, validateVoter } = useVoterValidation()
   const { cast, loading: isCasting, error: castError, result } = useCastVote()
+  const { elections, loading: electionsLoading } = useActiveElections()
+  const { candidates, loading: candidatesLoading } = useCandidatesByElection(currentElectionId)
 
   const proceedToVoting = () => {
+    // Set the current election ID (for now, use the first active election)
+    if (elections.length > 0) {
+      setCurrentElectionId(elections[0].id)
+    }
     setCurrentScreen("voting")
   }
 
@@ -43,13 +49,12 @@ export default function VotingSystem() {
     }
 
     try {
-      // Cast the vote with all required fields matching Ballerina backend
+      // Cast the vote with only required fields
       await cast({
         voterId: voterProfile.id,
         electionId: selectedCandidate.electionId,
-        candidateId: selectedCandidate.id,
-        district: voterProfile.district,
-        timestamp: new Date().toISOString()
+        candidateId: selectedCandidate.candidateId,
+        district: ""
       })
 
       // If vote was cast successfully, mark as submitted
@@ -67,11 +72,8 @@ export default function VotingSystem() {
   }
 
   const resetSystem = () => {
-    setCurrentScreen("validation")
-    setNicNumber("")
-    setPassword("")
-    setSelectedCandidate(null)
-    setVoteSubmitted(false)
+    // Refresh the page to completely reset the application state
+    window.location.reload()
   }
 
   const goBack = () => {
@@ -113,6 +115,17 @@ export default function VotingSystem() {
   }
 
   if (currentScreen === "voting") {
+    if (candidatesLoading) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900 mx-auto"></div>
+            <p className="mt-4 text-lg">Loading candidates...</p>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <VotingInterface
         candidates={candidates}

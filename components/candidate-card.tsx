@@ -20,10 +20,10 @@ export function CandidateCard({ candidate, isSelected, onSelect }: CandidateCard
     >
       <CardContent className="p-4">
         <div className="flex items-center gap-4">
-          <div className="text-4xl bg-gray-100 p-3 rounded-lg min-w-[80px] text-center">{candidate.symbol}</div>
+          <div className="text-4xl bg-gray-100 p-3 rounded-lg min-w-[80px] text-center">{candidate.partySymbol}</div>
           <div className="flex-1">
-            <h3 className="font-bold text-lg text-gray-800">{candidate.nameEn}</h3>
-            <p className="text-sm text-gray-600">Symbol: {candidate.symbolName}</p>
+            <h3 className="font-bold text-lg text-gray-800">{candidate.candidateName}</h3>
+            <p className="text-sm text-gray-600"> {candidate.partySymbol}</p>
           </div>
           {isSelected && <CheckCircle className="h-8 w-8 text-gray-800" />}
         </div>
