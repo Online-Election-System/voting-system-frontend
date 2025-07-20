@@ -55,16 +55,20 @@ export default function HouseholdRegistrationForm() {
   // Handle page unload/refresh
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (!isFormSubmittedRef.current && cleanupFunctionsRef.current.length > 0) {
+      if (
+        !isFormSubmittedRef.current &&
+        cleanupFunctionsRef.current.length > 0
+      ) {
         e.preventDefault();
-        e.returnValue = 'Are you sure you want to leave? Your uploaded files will be lost.';
+        e.returnValue =
+          "Are you sure you want to leave? Your uploaded files will be lost.";
       }
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, []);
 
@@ -84,10 +88,10 @@ export default function HouseholdRegistrationForm() {
       }
     };
 
-    window.addEventListener('popstate', handlePopState);
+    window.addEventListener("popstate", handlePopState);
 
     return () => {
-      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener("popstate", handlePopState);
       // Cleanup on component unmount if form wasn't submitted
       if (!isFormSubmittedRef.current) {
         cleanupAllFiles();
@@ -98,11 +102,11 @@ export default function HouseholdRegistrationForm() {
   const cleanupAllFiles = async () => {
     try {
       await Promise.all(
-        cleanupFunctionsRef.current.map(cleanup => cleanup())
+        cleanupFunctionsRef.current.map((cleanup) => cleanup())
       );
-      console.log('All uploaded files cleaned up');
+      console.log("All uploaded files cleaned up");
     } catch (error) {
-      console.error('Error cleaning up files:', error);
+      console.error("Error cleaning up files:", error);
     }
   };
 
@@ -121,6 +125,18 @@ export default function HouseholdRegistrationForm() {
     router.push("/");
   };
 
+  // Handle navigation between steps (NOT form submission)
+  const handleNextStep = (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent form submission
+    nextStep();
+  };
+
+  const handlePrevStep = (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent form submission
+    prevStep();
+  };
+
+  // Handle actual form submission (only when submit button is clicked)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -207,40 +223,33 @@ export default function HouseholdRegistrationForm() {
             )}
           </CardContent>
           <CardFooter className="flex justify-between">
-            <div className="flex space-x-2">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={handleFormCancel}
-              >
-                Cancel
-              </Button>
+            <Button type="button" variant="outline" onClick={handleFormCancel}>
+              Cancel
+            </Button>
+            <div className="flex space-x-6">
               {currentStep !== "chief" && (
-                <Button type="button" variant="outline" onClick={prevStep}>
+                <Button type="button" variant="outline" onClick={handlePrevStep}>
                   Previous
                 </Button>
               )}
+
+              {currentStep !== "members" ? (
+                <Button type="button" onClick={handleNextStep}>
+                  Next
+                </Button>
+              ) : (
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    "Submit Registration"
+                  )}
+                </Button>
+              )}
             </div>
-            
-            {currentStep !== "members" ? (
-              <Button
-                type="button"
-                onClick={nextStep}
-              >
-                Next
-              </Button>
-            ) : (
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  "Submit Registration"
-                )}
-              </Button>
-            )}
           </CardFooter>
         </Card>
       </form>
@@ -252,20 +261,18 @@ export default function HouseholdRegistrationForm() {
             <CardHeader>
               <CardTitle>Cancel Registration</CardTitle>
               <CardDescription>
-                Are you sure you want to cancel? All uploaded files and form data will be lost.
+                Are you sure you want to cancel? All uploaded files and form
+                data will be lost.
               </CardDescription>
             </CardHeader>
             <CardFooter className="flex justify-end space-x-2">
-              <Button 
-                variant="default" 
+              <Button
+                variant="default"
                 onClick={() => setShowCancelDialog(false)}
               >
                 Continue Editing
               </Button>
-              <Button 
-                variant="outline" 
-                onClick={confirmCancel}
-              >
+              <Button variant="outline" onClick={confirmCancel}>
                 Yes, Cancel
               </Button>
             </CardFooter>
