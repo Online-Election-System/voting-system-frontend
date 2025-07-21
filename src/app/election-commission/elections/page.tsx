@@ -1,95 +1,158 @@
+// pages/ElectionsPage.tsx
 "use client";
 
-import { useState, useEffect } from "react";
-import { Plus } from "lucide-react";
+import { useElections, useDeleteElection, usePrefetchElection } from "./hooks/use-elections";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import Link from "next/link";
+import { Plus, Loader2, RefreshCw } from "lucide-react";
 import { ElectionsTable } from "./components/elections-table";
-import { useElections } from "./hooks/use-elections";
-import { toast } from "@/lib/hooks/use-toast";
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
 
 export default function ElectionsPage() {
-  const { elections, loading, error, fetchElections, removeElection } =
-    useElections();
+  const {
+    data: electionsData,
+    isLoading,
+    error,
+    refetch,
+  } = useElections();
 
-  // Fetch elections on component mount
-  useEffect(() => {
-    fetchElections();
-  }, [fetchElections]);
+  const deleteElectionMutation = useDeleteElection();
+  const prefetchElection = usePrefetchElection();
 
-  const handleDeleteElection = async (id: string) => {
-    try {
-      await removeElection(id);
-      toast({
-        title: "Success",
-        description: "Election deleted successfully",
-        variant: "default",
-      });
-      fetchElections();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description:
-          error instanceof Error ? error.message : "Failed to delete election",
-        variant: "destructive",
-      });
+  const handleRefresh = () => {
+    refetch();
+  };
+
+  const handleDeleteElection = async (electionId: string) => {
+    if (confirm("Are you sure you want to delete this election?")) {
+      try {
+        await deleteElectionMutation.mutateAsync(electionId);
+      } catch (error) {
+        console.error("Failed to delete election:", error);
+      }
     }
   };
 
-  return (
-    <div className="space-y-6 mx-12 my-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Manage Elections</h1>
-        <Link href="/admin/elections/add">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Election
-          </Button>
-        </Link>
-      </div>
+  const handleElectionHover = (electionId: string) => {
+    // Prefetch election details for instant loading when clicked
+    prefetchElection(electionId);
+  };
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Elections List</CardTitle>
-          <CardDescription>
-            Manage all scheduled and past elections
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="space-y-6 mx-4 sm:mx-6 lg:mx-12 my-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold">Elections</h1>
+            <p className="text-muted-foreground">
+              Manage all elections in the system
+            </p>
+          </div>
+          <Button disabled>
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            Loading...
+          </Button>
+        </div>
+        
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center py-12">
+              <div className="flex items-center space-x-2">
+                <Loader2 className="h-6 w-6 animate-spin" />
+                <span>Loading elections...</span>
+              </div>
             </div>
-          ) : error ? (
-            <div className="text-center py-8 text-red-500">
-              <p>{error}</p>
-              <Button
-                variant="outline"
-                className="mt-4"
-                onClick={fetchElections}
-              >
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-6 mx-4 sm:mx-6 lg:mx-12 my-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold">Elections</h1>
+            <p className="text-muted-foreground">
+              Manage all elections in the system
+            </p>
+          </div>
+        </div>
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-red-600 mb-4">Error loading elections: {error.message}</p>
+              <Button onClick={handleRefresh} variant="outline">
                 Try Again
               </Button>
             </div>
-          ) : elections.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <p>No elections found. Create your first election!</p>
-            </div>
-          ) : (
-            <ElectionsTable
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const { elections = [] } = electionsData || {};
+
+  return (
+    <div className="space-y-6 mx-4 sm:mx-6 lg:mx-12 my-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Elections</h1>
+          <p className="text-muted-foreground">
+            Manage all elections in the system
+          </p>
+        </div>
+        <div className="flex gap-6">
+          <Button 
+            onClick={handleRefresh} 
+            variant="outline"
+            disabled={isLoading}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Button>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Election
+          </Button>
+        </div>
+      </div>
+
+      {elections.length === 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>No Elections Found</CardTitle>
+            <CardDescription>
+              Create your first election to get started.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Election
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="p-6">
+            <ElectionsTable 
               elections={elections}
               onDelete={handleDeleteElection}
+              itemsPerPage={10}
             />
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

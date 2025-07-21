@@ -2,8 +2,8 @@ import { useCallback, useState } from "react";
 import { Candidate, CandidateFormData } from "../candidate.types";
 
 export const useCandidateForm = (initialCandidate?: Candidate | null) => {
-  const [name, setName] = useState(initialCandidate?.name || "");
-  const [party, setParty] = useState(initialCandidate?.party || "");
+  const [name, setName] = useState(initialCandidate?.candidateName || "");
+  const [party, setParty] = useState(initialCandidate?.partyName || "");
 
   const resetForm = useCallback(() => {
     setName("");
@@ -11,8 +11,8 @@ export const useCandidateForm = (initialCandidate?: Candidate | null) => {
   }, []);
 
   const setFormData = useCallback((candidate: Candidate) => {
-    setName(candidate.name);
-    setParty(candidate.party);
+    setName(candidate.candidateName);
+    setParty(candidate.partyName);
   }, []);
 
   const getFormData = useCallback((): CandidateFormData => ({

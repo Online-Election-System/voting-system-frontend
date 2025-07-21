@@ -9,22 +9,22 @@ import { cn } from "@/lib/utils"
 const navItems = [
   {
     label: "Dashboard",
-    href: "/admin",
+    href: "/election-commission",
     icon: Home,
   },
   {
     label: "Elections",
-    href: "/admin/elections",
+    href: "/election-commission/elections",
     icon: Vote,
   },
   {
     label: "Candidates",
-    href: "/admin/candidates",
+    href: "/election-commission/candidates",
     icon: Users,
   },
   {
     label: "Profile",
-    href: "/admin/profile",
+    href: "/election-commission/profile",
     icon: User,
   },
 ]

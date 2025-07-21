@@ -50,6 +50,78 @@ export const getElections = async (): Promise<Election[]> => {
   }
 };
 
+// Get election count
+export const getElectionCount = async (): Promise<number> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/election/api/v1/count`);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch election count: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching election count:", error);
+    throw error instanceof Error
+      ? error
+      : new Error("An unknown error occurred while fetching election count");
+  }
+};
+
+// Get upcoming election count
+export const getUpcomingElectionCount = async (): Promise<number> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/election/api/v1/count/upcoming`);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch upcoming election count: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching upcoming election count:", error);
+    throw error instanceof Error
+      ? error
+      : new Error("An unknown error occurred while fetching upcoming election count");
+  }
+};
+
+// Get upcoming elections
+export const getUpcomingElections = async (): Promise<Election[]> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/election/api/v1/elections/upcoming`);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch upcoming elections: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching upcoming elections:", error);
+    throw error instanceof Error
+      ? error
+      : new Error("An unknown error occurred while fetching upcoming elections");
+  }
+};
+
+// Get active elections
+export const getActiveElections = async (): Promise<Election[]> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/election/api/v1/elections/active`);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch active elections: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching active elections:", error);
+    throw error instanceof Error
+      ? error
+      : new Error("An unknown error occurred while fetching active elections");
+  }
+};
+
 // Get a single election by ID
 export const getElectionById = async (
   electionId: string
