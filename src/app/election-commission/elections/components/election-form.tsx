@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { format, isBefore, isAfter, isWithinInterval } from "date-fns";
-import { Calendar as CalendarIcon, Clock } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
@@ -37,12 +37,14 @@ interface ElectionFormProps {
   editingElection: Election | null;
   onSubmit: (data: ElectionConfig | ElectionUpdate) => Promise<void>;
   onCancel: () => void;
+  isLoading?: boolean;
 }
 
 export function ElectionForm({
   editingElection,
   onSubmit,
   onCancel,
+  isLoading = false, // Default to false if not provided
 }: ElectionFormProps) {
   // Form state
   const [electionName, setElectionName] = useState("");
@@ -60,13 +62,18 @@ export function ElectionForm({
   const [timeError, setTimeError] = useState<string | null>(null);
   const [isCandidateDialogOpen, setIsCandidateDialogOpen] = useState(false);
   const [selectedCandidates, setSelectedCandidates] = useState<Candidate[]>([]);
-  const { candidates } = useCandidates();
+  const [isSubmitting, setIsSubmitting] = useState(false); // Internal loading state
+  const { data: candidatesData } = useCandidates();
+  const candidates = candidatesData?.candidates || [];
 
   // Calendar popover states
   const [electionDateOpen, setElectionDateOpen] = useState(false);
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [endDateOpen, setEndDateOpen] = useState(false);
   const [enrolDdlOpen, setEnrolDdlOpen] = useState(false);
+
+  // Combined loading state
+  const isFormLoading = isLoading || isSubmitting;
 
   // Calculate status based on dates and times
   const calculateStatus = useCallback((): ElectionStatus => {
@@ -231,6 +238,9 @@ export function ElectionForm({
   }, [editingElection]);
 
   const handleSubmit = async () => {
+    // Prevent multiple submissions
+    if (isFormLoading) return;
+
     // Basic validation
     if (!electionName || !electionType) {
       toast({
@@ -253,7 +263,9 @@ export function ElectionForm({
     if (selectedCandidates.length > noOfCandidates) {
       toast({
         title: "Validation Error",
-        description: `Candidate limit exceeded by ${selectedCandidates.length - noOfCandidates}`,
+        description: `Candidate limit exceeded by ${
+          selectedCandidates.length - noOfCandidates
+        }`,
         variant: "destructive",
       });
       return;
@@ -297,6 +309,7 @@ export function ElectionForm({
     }
 
     try {
+      setIsSubmitting(true);
       const currentStatus = editingElection ? status : calculateStatus();
 
       if (editingElection) {
@@ -344,6 +357,8 @@ export function ElectionForm({
         description: "Failed to submit election",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -351,6 +366,7 @@ export function ElectionForm({
   const isFormValid = Boolean(
     electionName &&
       electionType &&
+      !isFormLoading &&
       (editingElection ||
         (electionDate &&
           startTime &&
@@ -366,44 +382,40 @@ export function ElectionForm({
     setter: React.Dispatch<React.SetStateAction<Date | undefined>>,
     popoverSetter: React.Dispatch<React.SetStateAction<boolean>>
   ) => {
+    if (isFormLoading) return; // Prevent date changes while loading
     setter(date);
     setTimeout(() => popoverSetter(false), 50);
   };
 
   return (
     <div className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-xl font-semibold">
-          {editingElection ? "Edit Election" : "Add New Election"}
-        </h1>
-        <p className="text-muted-foreground">
-          {editingElection
-            ? "Update the election information below."
-            : "Fill in the details to schedule a new election."}
-        </p>
-      </div>
-
       <div className="space-y-6">
         {/* Basic Information Section */}
-        <div className="space-y-4 rounded-lg border p-4">
+        <div className="space-y-4 rounded-lg border p-4 mt-6">
           <h2 className="font-bold">Basic Information</h2>
           <div className="grid gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="title">Election Title*</Label>
+              <Label htmlFor="title">
+                Election Title<span className="text-red-500">*</span>
+              </Label>
               <Input
                 id="title"
                 value={electionName}
                 onChange={(e) => setElectionName(e.target.value)}
                 placeholder="Enter election title"
                 required
+                disabled={isFormLoading}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="type">Election Type*</Label>
+              <Label htmlFor="type">
+                Election Type<span className="text-red-500">*</span>
+              </Label>
               <Select
                 value={electionType}
                 onValueChange={setElectionType}
                 required
+                disabled={isFormLoading}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select election type" />
@@ -419,7 +431,9 @@ export function ElectionForm({
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="noOfCandidates">Number of Candidates*</Label>
+                <Label htmlFor="noOfCandidates">
+                  Number of Candidates<span className="text-red-500">*</span>
+                </Label>
                 <Input
                   id="noOfCandidates"
                   type="number"
@@ -429,6 +443,7 @@ export function ElectionForm({
                     setNoOfCandidates(Math.max(0, Number(e.target.value)))
                   }
                   required
+                  disabled={isFormLoading}
                 />
               </div>
               <div className="grid gap-2">
@@ -436,6 +451,7 @@ export function ElectionForm({
                 <Button
                   variant="outline"
                   onClick={() => setIsCandidateDialogOpen(true)}
+                  disabled={isFormLoading}
                 >
                   {selectedCandidates.length > 0
                     ? `${selectedCandidates.length} candidates selected`
@@ -457,11 +473,14 @@ export function ElectionForm({
             </div>
             {editingElection && (
               <div className="grid gap-2">
-                <Label htmlFor="status">Status*</Label>
+                <Label htmlFor="status">
+                  Status<span className="text-red-500">*</span>
+                </Label>
                 <Select
                   value={status}
                   onValueChange={(value) => setStatus(value as ElectionStatus)}
                   required
+                  disabled={isFormLoading}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select status" />
@@ -487,6 +506,7 @@ export function ElectionForm({
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Enter election details"
                 rows={3}
+                disabled={isFormLoading}
               />
             </div>
           </div>
@@ -496,7 +516,9 @@ export function ElectionForm({
           <h2 className="font-bold">Election Period</h2>
           <div className="grid gap-4">
             <div className="grid gap-2">
-              <Label>Start Date*</Label>
+              <Label>
+                Start Date<span className="text-red-500">*</span>
+              </Label>
               <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -505,6 +527,7 @@ export function ElectionForm({
                       "w-full justify-start text-left font-normal",
                       !startDate && "text-muted-foreground"
                     )}
+                    disabled={isFormLoading}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {startDate ? format(startDate, "PPP") : "Select start date"}
@@ -518,13 +541,16 @@ export function ElectionForm({
                       handleDateSelect(date, setStartDate, setStartDateOpen)
                     }
                     initialFocus
+                    disabled={isFormLoading}
                   />
                 </PopoverContent>
               </Popover>
             </div>
 
             <div className="grid gap-2">
-              <Label>End Date*</Label>
+              <Label>
+                End Date<span className="text-red-500">*</span>
+              </Label>
               <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -533,6 +559,7 @@ export function ElectionForm({
                       "w-full justify-start text-left font-normal",
                       !endDate && "text-muted-foreground"
                     )}
+                    disabled={isFormLoading}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {endDate ? format(endDate, "PPP") : "Select end date"}
@@ -546,13 +573,16 @@ export function ElectionForm({
                       handleDateSelect(date, setEndDate, setEndDateOpen)
                     }
                     initialFocus
+                    disabled={isFormLoading}
                   />
                 </PopoverContent>
               </Popover>
             </div>
 
             <div className="grid gap-2">
-              <Label>Enrollment Deadline*</Label>
+              <Label>
+                Enrollment Deadline<span className="text-red-500">*</span>
+              </Label>
               <Popover open={enrolDdlOpen} onOpenChange={setEnrolDdlOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -561,6 +591,7 @@ export function ElectionForm({
                       "w-full justify-start text-left font-normal",
                       !enrolDdl && "text-muted-foreground"
                     )}
+                    disabled={isFormLoading}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {enrolDdl
@@ -576,12 +607,15 @@ export function ElectionForm({
                       handleDateSelect(date, setEnrolDdl, setEnrolDdlOpen)
                     }
                     initialFocus
+                    disabled={isFormLoading}
                   />
                 </PopoverContent>
               </Popover>
             </div>
             <div className="grid gap-2">
-              <Label>Election Date*</Label>
+              <Label>
+                Election Date<span className="text-red-500">*</span>
+              </Label>
               <Popover
                 open={electionDateOpen}
                 onOpenChange={setElectionDateOpen}
@@ -593,6 +627,7 @@ export function ElectionForm({
                       "w-full justify-start text-left font-normal",
                       !electionDate && "text-muted-foreground"
                     )}
+                    disabled={isFormLoading}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {electionDate ? format(electionDate, "PPP") : "Select date"}
@@ -610,6 +645,7 @@ export function ElectionForm({
                       )
                     }
                     initialFocus
+                    disabled={isFormLoading}
                   />
                 </PopoverContent>
               </Popover>
@@ -617,7 +653,9 @@ export function ElectionForm({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="startTime">Start Time*</Label>
+                <Label htmlFor="startTime">
+                  Start Time<span className="text-red-500">*</span>
+                </Label>
                 <div className="flex items-center">
                   <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -626,11 +664,14 @@ export function ElectionForm({
                     value={startTime}
                     onChange={(e) => setStartTime(e.target.value)}
                     required
+                    disabled={isFormLoading}
                   />
                 </div>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="endTime">End Time*</Label>
+                <Label htmlFor="endTime">
+                  End Time<span className="text-red-500">*</span>
+                </Label>
                 <div className="flex items-center">
                   <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -639,6 +680,7 @@ export function ElectionForm({
                     value={endTime}
                     onChange={(e) => setEndTime(e.target.value)}
                     required
+                    disabled={isFormLoading}
                   />
                 </div>
               </div>
@@ -654,11 +696,18 @@ export function ElectionForm({
       </div>
 
       <div className="flex justify-end gap-2 pt-4">
-        <Button variant="outline" onClick={onCancel}>
+        <Button variant="outline" onClick={onCancel} disabled={isFormLoading}>
           Cancel
         </Button>
         <Button onClick={handleSubmit} disabled={!isFormValid}>
-          {editingElection ? "Update" : "Schedule"}
+          {isFormLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+          {isFormLoading
+            ? editingElection
+              ? "Updating..."
+              : "Creating..."
+            : editingElection
+            ? "Update"
+            : "Schedule"}
         </Button>
 
         {/* Display calculated status in debug mode */}
@@ -670,9 +719,9 @@ export function ElectionForm({
       </div>
 
       <CandidateSelectionDialog
-        open={isCandidateDialogOpen}
+        open={isCandidateDialogOpen && !isFormLoading}
         onOpenChange={setIsCandidateDialogOpen}
-        candidates={candidates} // Pass your actual candidates array here
+        candidates={candidates}
         requiredCandidates={noOfCandidates}
         onSelect={setSelectedCandidates}
         existingSelections={selectedCandidates}

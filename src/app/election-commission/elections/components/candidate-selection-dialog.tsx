@@ -34,8 +34,8 @@ export const CandidateSelectionDialog = ({
   useEffect(() => {
     if (searchTerm) {
       const filtered = candidates.filter(candidate =>
-        candidate.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        candidate.party.toLowerCase().includes(searchTerm.toLowerCase())
+        candidate.candidateName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        candidate.partyName.toLowerCase().includes(searchTerm.toLowerCase())
       );
       setFilteredCandidates(filtered);
     } else {
@@ -111,8 +111,8 @@ export const CandidateSelectionDialog = ({
                       className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
                       onClick={() => toggleCandidateSelection(candidate)}
                     >
-                      <TableCell className="font-medium">{candidate.name}</TableCell>
-                      <TableCell>{candidate.party}</TableCell>
+                      <TableCell className="font-medium">{candidate.candidateName}</TableCell>
+                      <TableCell>{candidate.partyName}</TableCell>
                       <TableCell>
                         <Button
                           variant="ghost"

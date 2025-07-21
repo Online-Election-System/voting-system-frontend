@@ -1,10 +1,26 @@
-"use client"
+// components/AdminDashboard.tsx
+"use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, Calendar, Vote, BarChart3 } from "lucide-react"
-import { useCandidates } from "./candidates/hooks/use-candidates"
-import { useElections } from "./elections/hooks/use-elections"
-import { useEffect } from "react"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Users,
+  Vote,
+  BarChart3,
+  RefreshCw,
+  Loader2,
+  UserCheck,
+  Clock,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useElections } from "./elections/hooks/use-elections";
+import { useCandidates } from "./candidates/hooks/use-candidates";
+import { TimeOfDay } from "./elections/election.types";
 
 type SimpleDate = {
   year: number;
@@ -14,172 +30,328 @@ type SimpleDate = {
   minute?: number;
 };
 
+// Loading skeleton component for cards
+const LoadingCard = ({ title, icon: Icon }: { title: string; icon: any }) => (
+  <Card>
+    <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+      <CardTitle className="text-sm font-medium">{title}</CardTitle>
+      <Icon className="h-4 w-4 text-muted-foreground" />
+    </CardHeader>
+    <CardContent>
+      <div className="flex items-center space-x-2">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        <div className="text-2xl font-bold text-muted-foreground">--</div>
+      </div>
+      <p className="text-xs text-muted-foreground">Loading...</p>
+    </CardContent>
+  </Card>
+);
+
 export default function AdminDashboard() {
-  const { candidates } = useCandidates();
-  const { elections, fetchElections } = useElections();
+  // React Query hooks - much cleaner than context!
+  const {
+    data: electionsData,
+    isLoading: electionsLoading,
+    error: electionsError,
+    refetch: refetchElections,
+  } = useElections();
 
-  // Fetch elections on component mount
-  useEffect(() => {
-    fetchElections();
-  }, [fetchElections]);
+  const {
+    data: candidatesData,
+    isLoading: candidatesLoading,
+    error: candidatesError,
+    refetch: refetchCandidates,
+  } = useCandidates();
 
-  // Helper function to convert SimpleDate to Date
-  const simpleDateToDate = (simpleDate?: SimpleDate): Date | null => {
-    if (!simpleDate) return null;
-    
-    // Validate required fields
-    if (
-      typeof simpleDate.year !== 'number' ||
-      typeof simpleDate.month !== 'number' ||
-      typeof simpleDate.day !== 'number'
-    ) {
-      console.error('Invalid date fields:', simpleDate);
-      return null;
-    }
-
-    // Set defaults for optional fields
-    const hour = simpleDate.hour !== undefined ? simpleDate.hour : 0;
-    const minute = simpleDate.minute !== undefined ? simpleDate.minute : 0;
-
-    return new Date(
-      simpleDate.year,
-      simpleDate.month - 1, // months are 0-indexed in JavaScript Date
-      simpleDate.day,
-      hour,
-      minute
-    );
+  // Manual refresh function
+  const handleRefresh = () => {
+    refetchElections();
+    refetchCandidates();
   };
 
-  // Get active elections (current date is between start and end dates)
-  const activeElections = elections.filter(election => {
-    const now = new Date();
-    const startDate = simpleDateToDate(election.startDate);
-    const endDate = simpleDateToDate(election.endDate);
-    
-    if (!startDate || !endDate) return false;
-    return now >= startDate && now <= endDate;
-  });
+  // Extract data with defaults
+  const {
+    elections = [],
+    totalCount = 0,
+    activeElections = [],
+    upcomingElections = [],
+    upcomingCount = 0,
+    activeCount = 0,
+  } = electionsData || {};
 
-  // Get upcoming elections (start date is in the future)
-  const upcomingElections = elections
-    .filter(election => {
-      const startDate = simpleDateToDate(election.startDate);
-      return startDate && startDate > new Date();
-    })
-    .sort((a, b) => {
-      const aDate = simpleDateToDate(a.startDate) || new Date(0);
-      const bDate = simpleDateToDate(b.startDate) || new Date(0);
-      return aDate.getTime() - bDate.getTime();
-    })
-    .slice(0, 3); // Only show next 3
+  const {
+    candidates = [],
+    totalCandidates = 0,
+    activeCandidates = 0,
+    partiesCount = 0,
+  } = candidatesData || {};
+
+  const currentActiveElection = activeElections[0] || null;
+  const isLoading = electionsLoading || candidatesLoading;
 
   // Format date for display
   const formatDate = (simpleDate?: SimpleDate): string => {
-    const date = simpleDateToDate(simpleDate);
-    if (!date) return 'Not scheduled';
-    
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    if (!simpleDate) return "Not scheduled";
+
+    try {
+      const date = new Date(
+        simpleDate.year,
+        simpleDate.month - 1,
+        simpleDate.day
+      );
+      return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    } catch {
+      return "Invalid date";
+    }
   };
 
   // Format time for display
-  const formatTime = (simpleDate?: SimpleDate): string => {
-    if (!simpleDate || simpleDate.hour === undefined || simpleDate.minute === undefined) {
-      return 'N/A';
+  const formatTime = (timeOfDay?: TimeOfDay): string => {
+    if (
+      !timeOfDay ||
+      timeOfDay.hour === undefined ||
+      timeOfDay.minute === undefined
+    ) {
+      return "N/A";
     }
-    
-    const hours = simpleDate.hour % 12 || 12;
-    const minutes = simpleDate.minute.toString().padStart(2, '0');
-    const ampm = simpleDate.hour >= 12 ? 'PM' : 'AM';
-    
+
+    const hours = timeOfDay.hour % 12 || 12;
+    const minutes = timeOfDay.minute.toString().padStart(2, "0");
+    const ampm = timeOfDay.hour >= 12 ? "PM" : "AM";
+
     return `${hours}:${minutes} ${ampm}`;
   };
 
-  return (
-    <div className="space-y-6 mx-12 my-6">
-      <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Total Candidates</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{candidates.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {candidates.length > 0 ? `${candidates.length} registered` : "No candidates yet"}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Active Elections</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{activeElections.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {activeElections.length > 0 
-                ? activeElections[0].title 
-                : "No active elections"}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Total Elections</CardTitle>
-            <Vote className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{elections.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {elections.length > 0 
-                ? `${elections.length} total elections` 
-                : "No elections created"}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Upcoming Elections</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{upcomingElections.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {upcomingElections.length > 0 
-                ? upcomingElections.map(e => e.title).join(", ") 
-                : "No upcoming elections"}
+  // Error state
+  if (electionsError || candidatesError) {
+    return (
+      <div className="space-y-6 mx-4 sm:mx-6 lg:mx-12 my-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+          <Button onClick={handleRefresh} variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Retry
+          </Button>
+        </div>
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="pt-6">
+            <p className="text-red-600">
+              Error loading dashboard data:{" "}
+              {electionsError?.message || candidatesError?.message}
             </p>
           </CardContent>
         </Card>
       </div>
+    );
+  }
 
+  return (
+    <div className="space-y-6 mx-4 sm:mx-6 lg:mx-12 my-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+        <div className="flex gap-2">
+          <Button
+            onClick={handleRefresh}
+            variant="outline"
+            disabled={isLoading}
+          >
+            <RefreshCw
+              className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
+            />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {/* Active Election Alert */}
+      {currentActiveElection && !electionsLoading && (
+        <Card className="ring-2 ring-green-500 bg-green-50 dark:bg-green-950/20">
+          <CardHeader>
+            <CardTitle className="text-green-800 dark:text-green-400">
+              Live Election
+            </CardTitle>
+            <div className="flex items-center space-x-1">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-xs font-medium text-green-600">
+                IN PROGRESS
+              </span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-green-800 dark:text-green-400">
+                    {currentActiveElection.electionName}
+                  </h3>
+                  <p className="text-sm font-semibold text-green-600 dark:text-green-300">
+                    {currentActiveElection.electionType}
+                  </p>
+                  {currentActiveElection.description && (
+                    <p className="text-sm text-green-600 dark:text-green-300">
+                      {currentActiveElection.description}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg ring-1 ring-green-200">
+                    <Clock className="h-4 w-4 mx-auto text-green-600 mb-1" />
+                    <p className="text-xs text-green-600 dark:text-green-400 font-medium">
+                      Start Time
+                    </p>
+                    <p className="text-sm font-bold text-green-800 dark:text-green-300">
+                      {formatTime(currentActiveElection.startTime)}
+                    </p>
+                  </div>
+                  <div className="text-center p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg ring-1 ring-green-200">
+                    <Clock className="h-4 w-4 mx-auto text-green-600 mb-1" />
+                    <p className="text-xs text-green-600 dark:text-green-400 font-medium">
+                      End Time
+                    </p>
+                    <p className="text-sm font-bold text-green-800 dark:text-green-300">
+                      {formatTime(currentActiveElection.endTime)}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-center p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg ring-1 ring-green-200">
+                  <Users className="h-4 w-4 mx-auto text-green-600 mb-1" />
+                  <p className="text-xs text-green-600 dark:text-green-400 font-medium">
+                    Candidates
+                  </p>
+                  <p className="text-sm font-bold text-green-800 dark:text-green-300">
+                    {currentActiveElection.noOfCandidates || 0}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Stats Grid */}
+      <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-4">
+        {candidatesLoading ? (
+          <LoadingCard title="Total Candidates" icon={Users} />
+        ) : (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+              <CardTitle className="text-sm font-medium">
+                Total Candidates
+              </CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalCandidates}</div>
+              <p className="text-xs text-muted-foreground">
+                {activeCandidates} active • {partiesCount} parties
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {candidatesLoading ? (
+          <LoadingCard title="Active Candidates" icon={UserCheck} />
+        ) : (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+              <CardTitle className="text-sm font-medium">
+                Active Candidates
+              </CardTitle>
+              <UserCheck className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{activeCandidates}</div>
+              <p className="text-xs text-muted-foreground">
+                {partiesCount > 0
+                  ? `From ${partiesCount} parties`
+                  : "No parties yet"}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {electionsLoading ? (
+          <LoadingCard title="Total Elections" icon={Vote} />
+        ) : (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+              <CardTitle className="text-sm font-medium">
+                Total Elections
+              </CardTitle>
+              <Vote className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalCount}</div>
+              <p className="text-xs text-muted-foreground">
+                {activeCount > 0
+                  ? `${activeCount} active`
+                  : "No active elections"}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {electionsLoading ? (
+          <LoadingCard title="Upcoming Elections" icon={BarChart3} />
+        ) : (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+              <CardTitle className="text-sm font-medium">
+                Upcoming Elections
+              </CardTitle>
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{upcomingCount}</div>
+              <p className="text-xs text-muted-foreground">
+                {upcomingCount > 0
+                  ? "Elections scheduled"
+                  : "No upcoming elections"}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Recent Activities */}
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Upcoming Elections</CardTitle>
-            <CardDescription>Schedule for the next elections</CardDescription>
+            <CardDescription>Next scheduled elections</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {upcomingElections.length > 0 ? (
-                upcomingElections.map((election) => (
-                  <div key={election.id} className="flex justify-between items-center">
+              {electionsLoading ? (
+                <div className="flex items-center space-x-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Loading...</span>
+                </div>
+              ) : upcomingElections.length > 0 ? (
+                upcomingElections.slice(0, 3).map((election) => (
+                  <div
+                    key={election.id}
+                    className="flex justify-between items-center"
+                  >
                     <div>
                       <p className="font-medium">{election.electionName}</p>
-                      <p className="text-sm text-muted-foreground">{election.electionType}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {election.electionType}
+                      </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-medium">
-                        {formatDate(election.startDate)}
+                      <p className="text-sm font-medium">
+                        {formatDate(election.electionDate)}
                       </p>
-                      <p className="text-sm text-muted-foreground">
-                        {formatTime(election.startDate)} - {formatTime(election.endDate)}
+                      <p className="text-xs text-muted-foreground">
+                        {formatTime(election.startTime)} -{" "}
+                        {formatTime(election.endTime)}
                       </p>
                     </div>
                   </div>
@@ -192,46 +364,74 @@ export default function AdminDashboard() {
             </div>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader>
-            <CardTitle>Recent Activities</CardTitle>
-            <CardDescription>Latest system activities</CardDescription>
+            <CardTitle>Recent Activity</CardTitle>
+            <CardDescription>Latest system updates</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {candidates.length > 0 && (
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="font-medium">Latest Candidate Added</p>
-                    <p className="text-sm text-muted-foreground">
-                      {candidates[candidates.length - 1].name}
-                    </p>
+              {isLoading ? (
+                <div className="flex items-center space-x-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Loading activities...</span>
+                </div>
+              ) : (
+                <>
+                  {currentActiveElection && (
+                    <div className="flex justify-between items-center p-2 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200">
+                      <div>
+                        <p className="font-medium text-green-800 dark:text-green-400">
+                          Election Currently LIVE
+                        </p>
+                        <p className="text-sm text-green-600 dark:text-green-300">
+                          {currentActiveElection.electionName}
+                        </p>
+                      </div>
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    </div>
+                  )}
+
+                  {candidates.length > 0 && (
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="font-medium">Latest Candidate</p>
+                        <p className="text-sm text-muted-foreground">
+                          {candidates[candidates.length - 1]?.candidateName}
+                        </p>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Recently</p>
+                    </div>
+                  )}
+
+                  {elections.length > 0 && (
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="font-medium">Latest Election</p>
+                        <p className="text-sm text-muted-foreground">
+                          {elections[elections.length - 1]?.electionName}
+                        </p>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Recently</p>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="font-medium">System Status</p>
+                      <p className="text-sm text-muted-foreground">
+                        All systems operational
+                      </p>
+                    </div>
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   </div>
-                  <p className="text-sm text-muted-foreground">Recently</p>
-                </div>
+                </>
               )}
-              {elections.length > 0 && (
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="font-medium">Latest Election Created</p>
-                    <p className="text-sm text-muted-foreground">
-                      {elections[elections.length - 1].title}
-                    </p>
-                  </div>
-                  <p className="text-sm text-muted-foreground">Recently</p>
-                </div>
-              )}
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="font-medium">System Status</p>
-                  <p className="text-sm text-muted-foreground">All systems operational</p>
-                </div>
-                <p className="text-sm text-muted-foreground">Today</p>
-              </div>
             </div>
           </CardContent>
         </Card>
       </div>
     </div>
-  )
+  );
 }
