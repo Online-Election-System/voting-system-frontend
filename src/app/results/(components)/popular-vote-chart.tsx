@@ -1,51 +1,129 @@
 "use client"
 
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  Legend,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+} from "recharts"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import type { TransformedCandidate } from "@/app/results/types"
+
 interface PopularVoteChartProps {
-  data: any
+  data: {
+    candidates: TransformedCandidate[]
+    totalVotes: number
+  }
 }
 
 export function PopularVoteChart({ data }: PopularVoteChartProps) {
-  // Sort candidates by popular votes in descending order
-  const sortedCandidates = [...data.candidates].sort((a, b) => b.popularVotes - a.popularVotes)
+  const { candidates, totalVotes } = data
+
+  const chartData = candidates
+    .map((candidate) => {
+      const nameParts = candidate.name.split(" ")
+      const displayName =
+        nameParts.length === 1
+          ? nameParts[0]
+          : nameParts[0] + " " + nameParts[nameParts.length - 1]
+      return {
+        name: displayName,
+        value: candidate.popularVotes,
+        percentage: ((candidate.popularVotes / totalVotes) * 100).toFixed(1),
+        color: candidate.color,
+        fullName: candidate.name,
+        party: candidate.party,
+      }
+    })
+    .sort((a, b) => b.value - a.value)
+
+  const CustomTooltip = ({
+    active,
+    payload,
+  }: {
+    active?: boolean
+    payload?: any[]
+  }) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload
+      return (
+        <div className="bg-white p-3 border rounded-lg shadow-lg">
+          <p className="font-semibold">{data.fullName}</p>
+          <p className="text-sm text-gray-600">{data.party}</p>
+          <p className="text-sm">
+            <span className="font-medium">{data.value.toLocaleString()}</span> votes
+          </p>
+          <p className="text-sm">
+            <span className="font-medium">{data.percentage}%</span> of total
+          </p>
+        </div>
+      )
+    }
+    return null
+  }
+
+  // Legend formatter uses payload to get color
+  const legendFormatter = (value: string, entry: any) => {
+    const color = entry?.payload?.color || "#000"
+    return <span style={{ color }}>{value}</span>
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="h-16 flex rounded-lg overflow-hidden">
-        {sortedCandidates.map((candidate) => {
-          const percent = (candidate.popularVotes / data.totalVotes) * 100
+    <Tabs defaultValue="pie" className="w-full">
+      <TabsList className="grid w-full grid-cols-2">
+        <TabsTrigger value="pie">Pie Chart</TabsTrigger>
+        <TabsTrigger value="bar">Bar Chart</TabsTrigger>
+      </TabsList>
 
-          return (
-            <div
-              key={candidate.id}
-              className="flex items-center justify-center text-white font-medium"
-              style={{
-                backgroundColor: candidate.color,
-                width: `${percent}%`,
-                minWidth: percent > 1 ? "auto" : "0",
-              }}
-            >
-              {percent > 5 ? `${percent.toFixed(1)}%` : ""}
-            </div>
-          )
-        })}
-      </div>
+      <TabsContent value="pie">
+        <div className="h-96">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ percentage }) => `${percentage}%`}
+                outerRadius={120}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip content={<CustomTooltip />} />
+              <Legend formatter={legendFormatter} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </TabsContent>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {sortedCandidates.map((candidate) => {
-          const percent = (candidate.popularVotes / data.totalVotes) * 100
-
-          return (
-            <div key={candidate.id} className="space-y-2">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: candidate.color }}></div>
-                <span className="font-medium">{candidate.name}</span>
-              </div>
-              <p className="text-2xl font-bold">{candidate.popularVotes.toLocaleString()}</p>
-              <p className="text-sm text-muted-foreground">{percent.toFixed(1)}% of total votes</p>
-            </div>
-          )
-        })}
-      </div>
-    </div>
+      <TabsContent value="bar">
+        <div className="h-96">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} fontSize={12} />
+              <YAxis tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`} />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </TabsContent>
+    </Tabs>
   )
 }

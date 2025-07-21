@@ -1,38 +1,36 @@
-export type ElectionYear = "2024" | "2020" | "2016";
+export interface ElectionSummaryResponse {
+  electionYear: number
+  totalVotes: number
+  lastUpdated: string
+  candidates: {
+    candidateId: string
+    candidateName: string
+    partyName: string
+    electoralVotes: number
+    popularVotes: number
+    candidateImage?: string
+    partyColor?: string
+  }[]
+  districts: {
+    districtId: string
+    districtName: string
+    winningCandidateId: string
+    totalVotes: number
+  }[]
+  statistics: {
+    totalRegisteredVoters: number
+    totalVotesCast: number
+    turnoutPercentage: number
+    electionStatus: string
+  }
+}
 
-export type Candidate = {
-  id: string;
-  name: string;
-  party: string;
-  electoralVotes: number;
-  popularVotes: number;
-  image: string;
-  color: string;
-};
-
-export type District = {
-  name: string;
-  code: string;
-  electoralVotes: number;
-  winner: string;
-  margin: number;
-};
-
-export type UpdateType = "update" | "called" | "projection";
-
-export type Update = {
-  id: number;
-  time: string;
-  district: string;
-  message: string;
-  type: UpdateType;
-};
-
-export type ElectionData = {
-  [year in ElectionYear]: {
-    candidates: Candidate[];
-    totalVotes: number;
-    districts: District[];
-    updates: Update[];
-  };
-};
+export interface TransformedCandidate {
+  id: string
+  name: string
+  party: string
+  electoralVotes: number
+  popularVotes: number
+  image: string
+  color: string
+}
