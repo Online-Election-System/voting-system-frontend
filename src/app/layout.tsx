@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Footer from "@/components/ui/Footer"; // Ensure the path is correct
-import Header from "@/components/ui/Header"; // Fix double slashes "//ui/"
+import Footer from "@/components/ui/Footer";
+import Header from "@/components/ui/Header";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,9 +29,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Header /> {/* Add Header here */}
+        <Header />
         <main className="min-h-screen">{children}</main>
-        <Footer /> {/* Footer remains at the bottom */}
+        <Footer />
       </body>
     </html>
   );

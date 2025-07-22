@@ -42,7 +42,7 @@ export function ChiefOccupantForm({
   onConfirmPasswordChange,
 }: ChiefOccupantFormProps) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 ">
       <h3 className="text-xl font-semibold">Chief Occupant Registration</h3>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
@@ -100,6 +100,13 @@ export function ChiefOccupantForm({
                 selected={chiefOccupant.dob}
                 onSelect={(date) => onChange("dob", date)}
                 initialFocus
+                disabled={{ 
+                    after: new Date(), 
+                    before: new Date(new Date().setFullYear(new Date().getFullYear() - 120)) 
+                  }} // This disables future dates
+                captionLayout="dropdown" // Optional: adds year/month dropdowns
+                fromYear={1900} // Optional: set minimum year
+                toYear={new Date().getFullYear()}
               />
             </PopoverContent>
           </Popover>

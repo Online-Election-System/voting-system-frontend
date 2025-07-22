@@ -55,20 +55,20 @@ export default function FeaturesSection() {
   }
 
   return (
-    <section className="w-full py-12 md:py-24 lg:py-32 flex justify-center">
+    <section className="w-full py-12 md:py-24 lg:py-32 flex justify-center bg-gray-200">
       <div className="container mx-auto px-4 md:px-6 max-w-7xl">
         {/* Section Header */}
         <div className="flex flex-col items-center justify-center space-y-4 text-center mb-12">
           <div className="space-y-2">
-            <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">Secure Voting Made Simple</h2>
+            <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">Online Election System</h2>
             <p className="max-w-[900px] mx-auto text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-              Our platform provides all the tools you need to create, manage, and analyze votes with confidence.
+              This platform provides all the tools you need to create, manage, and analyze votes with confidence.
             </p>
           </div>
         </div>
 
         {/* Upcoming Election Card - Highlighted at the top */}
-        <div className="mb-12 p-6 rounded-xl border-2 border-primary/20 bg-primary/5 shadow-lg mx-auto">
+        <div className="mb-12 p-6 rounded-xl border-2 border-primary/20 bg-white/50 shadow-2xl mx-auto">
           <div className="flex flex-col md:flex-row items-center gap-6">
             <div className="flex-shrink-0 flex items-center justify-center h-16 w-16 rounded-full bg-primary/20">
               <Calendar className="h-8 w-8 text-primary" />

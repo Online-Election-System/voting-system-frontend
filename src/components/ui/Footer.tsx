@@ -2,11 +2,10 @@ import Link from "next/link";
 
 const Footer = () => {
   return (
-    <footer className="bg-gray-800 text-white text-center py-6">
+    <footer className="bg-whitw text-black text-center py-6">
       <div className="container mx-auto px-5">
         {/* Navigation Links */}
         <div className="flex justify-center space-x-6 mb-4">
-          <Link href="/" className="hover:underline">Home</Link>
           <Link href="/about" className="hover:underline">About</Link>
           <Link href="/contact" className="hover:underline">Contact</Link>
           <Link href="/privacy-policy" className="hover:underline">Privacy Policy</Link>
@@ -31,7 +30,7 @@ const Footer = () => {
 
         {/* Copyright */}
         <p className="text-sm mt-2">
-          © {new Date().getFullYear()} Your Company. All Rights Reserved.
+          © {new Date().getFullYear()} Election Commission of Sri Lanka.All Rights Reserved.
         </p>
       </div>
     </footer>

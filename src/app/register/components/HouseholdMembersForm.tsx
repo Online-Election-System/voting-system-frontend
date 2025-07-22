@@ -59,7 +59,7 @@ export function HouseholdMembersForm({
                 variant={"outline"}
                 className={cn(
                   "w-full justify-start text-left font-normal",
-                  !householdMembers[index]?.dob && "text-muted-foreground",
+                  !householdMembers[index]?.dob && "text-muted-foreground"
                 )}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
@@ -76,10 +76,18 @@ export function HouseholdMembersForm({
                 selected={householdMembers[index]?.dob}
                 onSelect={(date) => onChange(index, "dob", date)}
                 initialFocus
+                disabled={{
+                  after: new Date(),
+                  before: new Date(new Date().setFullYear(new Date().getFullYear() - 120)),
+                }}
+                captionLayout="dropdown"
+                fromYear={1900}
+                toYear={new Date().getFullYear()}
               />
             </PopoverContent>
           </Popover>
         </div>
+
         <div className="space-y-2">
           <Label>Gender</Label>
           <RadioGroup

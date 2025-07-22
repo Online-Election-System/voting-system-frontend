@@ -1,34 +1,58 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { EyeIcon, EyeOffIcon } from "lucide-react"
-import api from "../../lib/axios" 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Eye, EyeOff } from "lucide-react";
+import api from "../../lib/axios";
 
 export default function LoginForm() {
-  const [showPassword, setShowPassword] = useState(false)
-  const [nic, setNic] = useState("")
-  const [password, setPassword] = useState("")
-  const [loading, setLoading] = useState(false)
-  const router = useRouter()
+  const [showPassword, setShowPassword] = useState(false);
+  const [nic, setNic] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault();
+    setLoading(true);
 
     try {
       const response = await api.post("/voter-registration/api/v1/login", {
         nic,
         password,
-      })
+      });
 
-      const { token, userType, userId, fullName, message } = response.data;
+      const { token, userType: backendRole, userId, fullName, message } = response.data;
 
-      if (!token) throw new Error("Token missing in response")
+      // Map backend snake_case roles to frontend camelCase roles
+      const roleMap: Record<string, string> = {
+        admin: "admin",
+        government_official: "governmentOfficial",
+        election_commission: "electionCommission",
+        chief_occupant: "chiefOccupant",
+        household_member: "householdMember",
+      };
+
+      const userType = roleMap[backendRole] ?? backendRole;
+
+      console.log("🔍 Login Response Debug:");
+      console.log("Full response:", response.data);
+      console.log("backendRole received:", userType);
+      console.log("userType type:", typeof backendRole);
+      console.log("token received:", !!token);
+
+      if (!token) throw new Error("Token missing in response");
 
       // ✅ Store token
       localStorage.setItem("token", token);
@@ -36,30 +60,45 @@ export default function LoginForm() {
       localStorage.setItem("userId", userId);
       localStorage.setItem("fullName", fullName);
 
-      // ✅ Set default authorization header
-      api.defaults.headers.common["Authorization"] = `Bearer ${token}`
+      // 🔍 DEBUG: Verify what was actually stored
+      console.log("🔍 After storage - what's in localStorage:");
+      console.log("userType:", localStorage.getItem("userType"));
+      console.log("token:", !!localStorage.getItem("token"));
 
-      alert(`Welcome, ${fullName}!`)
-      // First-time login for household members
-    if (userType === "householdMember" && message.includes("First-time")) {
-      router.push("/change-password");
-    } else {
-      router.push("/dashboard");
-    }
-    } catch (error: any) {
-      console.error("Login error:", error);
-      alert("Login failed: Invalid NIC or password.");
-    } finally {
-      setLoading(false);
-    }
-  }
+      // ✅ Set default authorization header
+      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
+      // choose dashboard route per role
+      const roleToPath: Record<string, string> = {
+        admin: "/admin/dashboard",
+        governmentOfficial: "/government-official/dashboard",
+        electionCommission: "/election-commission/dashboard",
+        chief: "/dashboard/chief-occupant",
+        householdMember: "/household-member/dashboard",
+      };
+
+      if (userType === "householdMember" && message.includes("First-time")) {
+        router.push("/change-password");
+      } else {
+        router.push(roleToPath[userType] ?? "/dashboard");
+      }
+      } catch (error: any) {
+        console.error("Login error:", error);
+        alert("Login failed: Invalid NIC or password.");
+      } finally {
+        setLoading(false);
+      }
+  };
 
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
         <CardTitle className="text-xl font-black mx-auto">Login</CardTitle>
         <CardDescription className="mx-auto">
-          Don't have an account? <a href="/register" className="text-blue-600 underline">Register</a>
+          Don't have an account?{" "}
+          <a href="/register" className="text-blue-600 underline">
+            Register
+          </a>
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
@@ -92,7 +131,11 @@ export default function LoginForm() {
                 className="absolute right-2 top-1/2 -translate-y-1/2"
                 onClick={() => setShowPassword(!showPassword)}
               >
-                {showPassword ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
               </Button>
             </div>
           </div>
@@ -104,5 +147,5 @@ export default function LoginForm() {
         </CardFooter>
       </form>
     </Card>
-  )
+  );
 }

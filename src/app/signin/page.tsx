@@ -3,7 +3,7 @@ import { ArrowRight, UserCircle } from "lucide-react"
 
 export default function SigninPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-background/80 flex flex-col items-center justify-center p-5">
+    <div className="min-h-screen bg-gradient-to-b from-gray-200 to-gray-300 flex flex-col items-center justify-center p-5">
       <div className="w-full max-w-md mx-auto">
         {/* Logo/Brand Section */}
         <div className="text-center mb-8">
@@ -70,9 +70,6 @@ export default function SigninPage() {
         <div className="relative mt-12">
           <div className="absolute -top-6 -left-12 w-24 h-24 bg-primary/10 rounded-full blur-xl"></div>
           <div className="absolute -top-8 -right-8 w-20 h-20 bg-primary/20 rounded-full blur-xl"></div>
-          <div className="text-center text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Your Company. All rights reserved.
-          </div>
         </div>
       </div>
     </div>
