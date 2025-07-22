@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { AdminHeader } from "@/src/app/election-commission/elections/components/elec-com-header";
 import Providers from "../providers";
+import RoleGuard from "@/components/auth/RoleGuard";
 
 export const metadata: Metadata = {
   title: "Admin Dashboard | E-Voting System",
@@ -13,11 +13,12 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col h-screen bg-gray-100 dark:bg-gray-900">
-      <AdminHeader />
-      <Providers>
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
-      </Providers>
-    </div>
+    <RoleGuard requiredRole="electionCommission">
+      <div className="flex flex-col h-full bg-gray-100 dark:bg-gray-900 pb-8">
+        <Providers>
+          <main>{children}</main>
+        </Providers>
+      </div>
+    </RoleGuard>
   );
 }

@@ -1,8 +1,9 @@
 import Link from "next/link";
+import Image from "next/image";
 
 const Footer = () => {
   return (
-    <footer className="bg-gray-800 text-white text-center py-6">
+    <footer className="bg-black text-white text-center py-6">
       <div className="container mx-auto px-5">
         {/* Navigation Links */}
         <div className="flex justify-center space-x-6 mb-4">
@@ -16,13 +17,13 @@ const Footer = () => {
         {/* Social Media Links */}
         <div className="flex justify-center space-x-4 mb-4">
           <a href="https://twitter.com" target="_blank" rel="noopener noreferrer">
-            <img src="/icons/twitter.svg" alt="Twitter" className="w-6 h-6" />
+            <Image src="/icons/twitter.svg" alt="Twitter" width={24} height={24} />
           </a>
           <a href="https://facebook.com" target="_blank" rel="noopener noreferrer">
-            <img src="/icons/facebook.svg" alt="Facebook" className="w-6 h-6" />
+            <Image src="/icons/facebook.svg" alt="Facebook" width={24} height={24} />
           </a>
           <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer">
-            <img src="/icons/linked.svg" alt="LinkedIn" className="w-6 h-6" />
+            <Image src="/icons/linked.svg" alt="Linkedin" width={24} height={24} />
           </a>
         </div>
 

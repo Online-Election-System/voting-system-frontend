@@ -46,7 +46,7 @@ export default function LoginForm() {
 
       const userType = roleMap[backendRole] ?? backendRole;
 
-      console.log("🔍 Login Response Debug:");
+      console.log("Login Response Debug:");
       console.log("Full response:", response.data);
       console.log("backendRole received:", userType);
       console.log("userType type:", typeof backendRole);
@@ -54,18 +54,18 @@ export default function LoginForm() {
 
       if (!token) throw new Error("Token missing in response");
 
-      // ✅ Store token
+      // Store token
       localStorage.setItem("token", token);
       localStorage.setItem("userType", userType);
       localStorage.setItem("userId", userId);
       localStorage.setItem("fullName", fullName);
 
-      // 🔍 DEBUG: Verify what was actually stored
-      console.log("🔍 After storage - what's in localStorage:");
+      // DEBUG: Verify what was actually stored
+      console.log("After storage - what's in localStorage:");
       console.log("userType:", localStorage.getItem("userType"));
       console.log("token:", !!localStorage.getItem("token"));
 
-      // ✅ Set default authorization header
+      // Set default authorization header
       api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
       // choose dashboard route per role

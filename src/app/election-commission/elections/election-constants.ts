@@ -2,11 +2,6 @@ import { ElectionStatus } from "./election.types";
 
 export const ELECTION_TYPES = [
   { value: "Presidential Election", label: "Presidential Election" },
-  { value: "Parliamentary Election", label: "Parliamentary Election" },
-  {
-    value: "Provincial Council Elections",
-    label: "Provincial Council Elections",
-  },
 ];
 
 export const ELECTION_STATUSES: { value: ElectionStatus; label: string }[] = [

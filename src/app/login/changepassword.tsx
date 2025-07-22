@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import api from "@/lib/axios";
+import api from "@/src/lib/axios";
 
 export default function ChangePasswordPage() {
   const [oldPassword, setOldPassword] = useState("");
