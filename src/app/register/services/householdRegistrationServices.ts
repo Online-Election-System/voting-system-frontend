@@ -23,8 +23,8 @@ export const submitHouseholdRegistration = async (
       gender: chiefOccupant.gender,
       civilStatus: chiefOccupant.civilStatus,
       email: chiefOccupant.email,
-      passwordHash: password, // Backend will hash this
-      idCopyPath: null // Temporarily removed
+      passwordHash: password,
+      idCopyPath: chiefOccupant.idCopyPath
     },
     householdDetails: {
       electoralDistrict: householdDetails.electoralDistrict,
@@ -44,7 +44,7 @@ export const submitHouseholdRegistration = async (
         civilStatus: member.civilStatus,
         relationshipWithChiefOccupant: member.relationshipWithChiefOccupant,
         approvedByChief: member.approvedByChief,
-        idCopyPath: null // Temporarily removed
+        idCopyPath: member.idCopyPath
       })),
     },
   };
