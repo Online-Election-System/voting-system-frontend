@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
-import type { Vote, VoteCastRequest } from "@/types/voter";
+import type { Vote, VoteCastRequest, VoteRequest } from "@/src/app/vote/types/voter";
 
 // API Configuration
-const API_BASE_URL = 'http://localhost:9090/vote/api/v1';
+const API_BASE_URL = 'http://localhost:8080/vote/api/v1';
 
 // API utility functions
 async function apiRequest<T>(url: string, options: RequestInit = {}): Promise<T> {
@@ -32,7 +32,7 @@ async function apiRequest<T>(url: string, options: RequestInit = {}): Promise<T>
 }
 
 // API functions
-async function castVoteAPI(vote: Vote): Promise<void> {
+async function castVoteAPI(vote: VoteRequest): Promise<void> {
   return apiRequest('/votes/cast', {
     method: 'POST',
     body: JSON.stringify(vote),
@@ -57,19 +57,18 @@ export function useCastVote() {
   const [error, setError] = useState<Error | null>(null);
   const [result, setResult] = useState<any>(null);
 
-  const cast = useCallback(async (vote: Omit<Vote, 'id'>) => {
+  const cast = useCallback(async (voteInput: VoteCastRequest) => {
     setLoading(true);
     setError(null);
     setResult(null);
     
     try {
-      // Create the vote object with required fields matching Ballerina backend
-      const voteData: Vote = {
-        id: crypto.randomUUID(), // Generate ID for the vote
-        voterId: vote.voterId,
-        electionId: vote.electionId,
-        candidateId: vote.candidateId,
-        district: vote.district,
+      // Create the vote request object without readonly id field
+      const voteData: VoteRequest = {
+        voterId: voteInput.voterId,
+        electionId: voteInput.electionId,
+        candidateId: voteInput.candidateId,
+        district: voteInput.district,
         timestamp: new Date().toISOString()
       };
 

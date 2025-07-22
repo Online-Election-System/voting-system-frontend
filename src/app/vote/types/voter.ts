@@ -25,6 +25,7 @@ export interface Election {
   noOfCandidates: number // maps to no_of_candidates in DB
 }
 
+// Complete Vote type (matches backend exactly)
 export interface Vote {
   id: string // readonly in backend
   voterId: string // maps to voter_id in DB
@@ -34,19 +35,8 @@ export interface Vote {
   timestamp: string
 }
 
-export interface Election {
-  id: string
-  electionName: string
-  description: string
-  startDate: string // ISO date string
-  enrolDdl: string // ISO date string
-  endDate: string // ISO date string
-  noOfCandidates: number
-  candidateId: string
-}
-
-export interface Vote {
-  id: string
+// Vote request payload (without readonly id field - for sending to backend)
+export interface VoteRequest {
   voterId: string
   electionId: string
   candidateId: string
@@ -54,7 +44,7 @@ export interface Vote {
   timestamp: string
 }
 
-// Backend Candidate type (matches your Ballerina structure)
+// Backend Candidate type (matches your Ballerina structure) - UPDATED: Removed position
 export interface BackendCandidate {
   candidateId: string
   electionId: string
@@ -65,11 +55,10 @@ export interface BackendCandidate {
   candidateImage?: string
   popularVotes: number
   electoralVotes: number
-  position?: number
   isActive: boolean
 }
 
-// Frontend Candidate type (for display compatibility)
+// Frontend Candidate type (for display compatibility) - UPDATED: Removed position
 export interface Candidate {
   candidateId: string
   electionId: string
@@ -80,7 +69,6 @@ export interface Candidate {
   candidateImage?: string
   popularVotes: number
   electoralVotes: number
-  position?: number
   isActive: boolean
 }
 
@@ -112,7 +100,7 @@ export interface ApiError {
   details?: string
 }
 
-// Vote casting request payload
+// Vote casting request payload (what the UI component passes)
 export interface VoteCastRequest {
   voterId: string
   electionId: string
@@ -125,4 +113,23 @@ export interface VoteResult {
   voteId: string
   timestamp: string
   success: boolean
+}
+
+// NEW: Enrollment-related types
+export interface EnrollmentStatus {
+  voterId: string
+  electionId: string
+  isEnrolled: boolean
+}
+
+export interface VotingEligibility {
+  voterId: string
+  electionId: string
+  isEnrolled: boolean
+  alreadyVoted: boolean
+  eligible: boolean
+}
+
+export interface EnrolledCandidate extends Candidate {
+  enrolledVotes?: number // Vote count from EnrolCandidates table
 }

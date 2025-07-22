@@ -3,8 +3,9 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { User, Calendar, MapPin, Phone, Vote, Home } from "lucide-react"
-import type { VoterProfile as VoterProfileType, ValidationStatus } from "@/types/voter"
+import { User, Calendar, MapPin, Phone, Vote, Home, Bug } from "lucide-react"
+import { useState } from "react"
+import type { VoterProfile as VoterProfileType, ValidationStatus } from "@/src/app/vote/types/voter"
 
 interface VoterProfileProps {
   validationStatus: ValidationStatus
@@ -45,20 +46,23 @@ function calculateAge(dob: string | null | undefined): number | null {
 }
 
 export function VoterProfile({ validationStatus, voterProfile, onProceedToVoting }: VoterProfileProps) {
+  const [showDebug, setShowDebug] = useState(false)
   const age = voterProfile ? calculateAge(voterProfile.dob) : null
 
   return (
     <Card className="h-fit">
       <CardHeader>
-        <CardTitle className="flex items-center">
-          <User className="h-5 w-5 mr-2" />
-          Voter Profile
-        </CardTitle>
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center">
+            <User className="h-5 w-5 mr-2" />
+            Voter Profile
+          </div>
+         </CardTitle>
       </CardHeader>
       <CardContent>
         {validationStatus === "found" && voterProfile ? (
           <div className="space-y-4">
-            {/* Photo and Basic Info */}
+         {/* Photo and Basic Info */}
             <div className="flex items-start space-x-4 p-4 bg-gray-50 rounded-lg">
               <img
                 src={voterProfile.photo || "/placeholder.svg"}
@@ -66,9 +70,13 @@ export function VoterProfile({ validationStatus, voterProfile, onProceedToVoting
                 className="w-24 h-32 object-cover border-2 border-gray-300 rounded"
               />
               <div className="flex-1">
-                <h3 className="text-xl font-bold text-gray-800">{voterProfile.fullName}</h3>
-                <p className="text-gray-600 mb-2">NIC: {voterProfile.nationalId}</p>
-                <div className="mb-3">{getStatusBadge(voterProfile.status)}</div>
+                <h3 className="text-xl font-bold text-gray-800">
+                  {voterProfile.fullName || "Name Not Available"}
+                </h3>
+                <p className="text-gray-600 mb-2">
+                  NIC: {voterProfile.nationalId || "NIC Not Available"}
+                </p>
+                          <div className="mb-3">{getStatusBadge(voterProfile.status)}</div>
                 <div className="text-sm text-gray-600">
                   {age && (
                     <p className="flex items-center mb-1">
@@ -85,29 +93,37 @@ export function VoterProfile({ validationStatus, voterProfile, onProceedToVoting
 
             {/* Detailed Information */}
             <div className="grid grid-cols-1 gap-3 text-sm">
-              {voterProfile.address && (
+              {/* District - CRITICAL for voting */}
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded">
                 <div className="flex items-start">
-                  <MapPin className="h-4 w-4 mr-2 mt-0.5 text-gray-500" />
+                  <MapPin className="h-4 w-4 mr-2 mt-0.5 text-blue-500" />
                   <div>
-                    <p className="font-medium">Address:</p>
-                    <p className="text-gray-600">{voterProfile.address}</p>
+                    <p className="font-medium text-blue-800">Electoral District:</p>
+                    <p className="text-blue-700 font-bold">
+                      {voterProfile.district || "⚠️ District Not Available"}
+                    </p>
                   </div>
+                </div>
+              </div>
+
+            
+              {/* Polling Division */}
+              {voterProfile.pollingDivision && (
+                <div>
+                  <p className="font-medium">Polling Division:</p>
+                  <p className="text-gray-600">{voterProfile.pollingDivision}</p>
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
+              {/* Grama Niladhari */}
+              {voterProfile.gramaNiladhari && (
                 <div>
-                  <p className="font-medium">District:</p>
-                  <p className="text-gray-600">{voterProfile.district}</p>
+                  <p className="font-medium">Grama Niladhari:</p>
+                  <p className="text-gray-600">{voterProfile.gramaNiladhari}</p>
                 </div>
-                {voterProfile.gramaNiladhari && (
-                  <div>
-                    <p className="font-medium">Grama Niladhari:</p>
-                    <p className="text-gray-600">{voterProfile.gramaNiladhari}</p>
-                  </div>
-                )}
-              </div>
+              )}
 
+              {/* Household Information */}
               {voterProfile.householdNo && (
                 <div className="flex items-center">
                   <Home className="h-4 w-4 mr-2 text-gray-500" />
@@ -151,11 +167,27 @@ export function VoterProfile({ validationStatus, voterProfile, onProceedToVoting
                 Proceed to Voting Booth
               </Button>
             )}
+
+            {/* Show validation warnings */}
+            {!voterProfile.district && (
+              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded">
+                <p className="text-yellow-800 font-medium">⚠️ Warning:</p>
+                <p className="text-yellow-700 text-sm">
+                  District information is missing. This is required for voting.
+                </p>
+              </div>
+            )}
           </div>
         ) : (
           <div className="text-center py-12 text-gray-500">
             <User className="h-16 w-16 mx-auto mb-4 opacity-30" />
             <p>Enter NIC number to view voter profile</p>
+            {validationStatus === "checking" && (
+              <p className="text-blue-600 mt-2">Validating voter...</p>
+            )}
+            {validationStatus === "not-found" && (
+              <p className="text-red-600 mt-2">Voter not found or invalid credentials</p>
+            )}
           </div>
         )}
       </CardContent>
