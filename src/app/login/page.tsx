@@ -73,7 +73,7 @@ export default function LoginForm() {
         admin: "/admin/dashboard",
         governmentOfficial: "/government-official/dashboard",
         electionCommission: "/election-commission/dashboard",
-        chief: "/dashboard/chief-occupant",
+        chiefOccupant: "/chief-occupant/dashboard",
         householdMember: "/household-member/dashboard",
       };
 
@@ -82,12 +82,12 @@ export default function LoginForm() {
       } else {
         router.push(roleToPath[userType] ?? "/dashboard");
       }
-      } catch (error: any) {
-        console.error("Login error:", error);
-        alert("Login failed: Invalid NIC or password.");
-      } finally {
-        setLoading(false);
-      }
+    } catch (error: any) {
+      console.error("Login error:", error);
+      alert("Login failed: Invalid NIC or password.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

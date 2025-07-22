@@ -1,4 +1,5 @@
 import { ChiefOccupant, HouseholdDetails, MemberInfo } from "../types";
+import api from "../../../lib/axios";
 
 export const submitHouseholdRegistration = async (
   chiefOccupant: ChiefOccupant,
@@ -22,8 +23,8 @@ export const submitHouseholdRegistration = async (
       gender: chiefOccupant.gender,
       civilStatus: chiefOccupant.civilStatus,
       email: chiefOccupant.email,
-      passwordHash: password, // Backend will hash this
-      idCopyPath: null // Temporarily removed
+      passwordHash: password,
+      idCopyPath: chiefOccupant.idCopyPath
     },
     householdDetails: {
       electoralDistrict: householdDetails.electoralDistrict,
@@ -43,7 +44,7 @@ export const submitHouseholdRegistration = async (
         civilStatus: member.civilStatus,
         relationshipWithChiefOccupant: member.relationshipWithChiefOccupant,
         approvedByChief: member.approvedByChief,
-        idCopyPath: null // Temporarily removed
+        idCopyPath: member.idCopyPath
       })),
     },
   };
@@ -51,38 +52,12 @@ export const submitHouseholdRegistration = async (
   console.log("Final payload:", JSON.stringify(payload, null, 2));
 
   try {
-    const response = await fetch(
-      "http://localhost:8080/voter-registration/api/v1/register",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      }
-    );
-
-    console.log("Response status:", response.status);
-    console.log("Response headers:", response.headers);
-
-    if (!response.ok) {
-      let errorData;
-      try {
-        errorData = await response.json();
-        console.error("Error response:", errorData);
-      } catch (e) {
-        const errorText = await response.text();
-        console.error("Error text:", errorText);
-        errorData = { message: errorText };
-      }
-      throw new Error(errorData.message || `HTTP Error: ${response.status}`);
-    }
-
-    const result = await response.json();
-    console.log("Success response:", result);
-    return result;
-  } catch (error) {
+    const { data } = await api.post("/voter-registration/api/v1/register", payload);
+    console.log("Success response:", data);
+    return data;
+  } catch (error: any) {
     console.error("Registration error:", error);
-    throw error;
+    const message = error.response?.data?.message ?? error.message;
+    throw new Error(message);
   }
 };
