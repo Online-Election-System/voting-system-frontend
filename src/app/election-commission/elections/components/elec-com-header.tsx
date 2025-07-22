@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
 const navItems = [
   {
     label: "Dashboard",
-    href: "/election-commission",
+    href: "/election-commission/dashboard",
     icon: Home,
   },
   {
@@ -21,11 +21,6 @@ const navItems = [
     label: "Candidates",
     href: "/election-commission/candidates",
     icon: Users,
-  },
-  {
-    label: "Profile",
-    href: "/election-commission/profile",
-    icon: User,
   },
 ]
 

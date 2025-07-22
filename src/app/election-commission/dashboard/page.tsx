@@ -1,6 +1,7 @@
 // components/AdminDashboard.tsx
 "use client";
 
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -16,11 +17,13 @@ import {
   Loader2,
   UserCheck,
   Clock,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useElections } from "./elections/hooks/use-elections";
-import { useCandidates } from "./candidates/hooks/use-candidates";
-import { TimeOfDay } from "./elections/election.types";
+import { useElections } from "../elections/hooks/use-elections";
+import { useCandidates } from "../candidates/hooks/use-candidates";
+import { TimeOfDay } from "../elections/election.types";
+import { ElectionDialog } from "../elections/components/election-dialog";
 
 type SimpleDate = {
   year: number;
@@ -48,6 +51,10 @@ const LoadingCard = ({ title, icon: Icon }: { title: string; icon: any }) => (
 );
 
 export default function AdminDashboard() {
+  // State for election dialog
+  const [selectedElection, setSelectedElection] = useState(null);
+  const [isElectionDialogOpen, setIsElectionDialogOpen] = useState(false);
+
   // React Query hooks - much cleaner than context!
   const {
     data: electionsData,
@@ -67,6 +74,20 @@ export default function AdminDashboard() {
   const handleRefresh = () => {
     refetchElections();
     refetchCandidates();
+  };
+
+  // Handle election dialog
+  const handleElectionClick = (election: any) => {
+    setSelectedElection(election);
+    setIsElectionDialogOpen(true);
+  };
+
+  const handleElectionDelete = (electionId: string) => {
+    // You can implement delete functionality here if needed
+    console.log("Delete election:", electionId);
+    // For now, just close the dialog
+    setIsElectionDialogOpen(false);
+    setSelectedElection(null);
   };
 
   // Extract data with defaults
@@ -134,7 +155,7 @@ export default function AdminDashboard() {
           <h1 className="text-3xl font-bold">Admin Dashboard</h1>
           <Button onClick={handleRefresh} variant="outline">
             <RefreshCw className="h-4 w-4 mr-2" />
-            Retry
+            Refresh
           </Button>
         </div>
         <Card className="border-red-200 bg-red-50">
@@ -167,18 +188,26 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Active Election Alert */}
+      {/* Active Election Alert - Now Clickable */}
       {currentActiveElection && !electionsLoading && (
-        <Card className="ring-2 ring-green-500 bg-green-50 dark:bg-green-950/20">
+        <Card 
+          className="ring-2 ring-green-500 bg-green-50 dark:bg-green-950/20 cursor-pointer transition-all duration-200 hover:shadow-lg hover:ring-green-600"
+          onClick={() => handleElectionClick(currentActiveElection)}
+        >
           <CardHeader>
-            <CardTitle className="text-green-800 dark:text-green-400">
-              Live Election
-            </CardTitle>
-            <div className="flex items-center space-x-1">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-xs font-medium text-green-600">
-                IN PROGRESS
-              </span>
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <CardTitle className="text-green-800 dark:text-green-400 flex items-center gap-2">
+                  Live Election
+                  <ExternalLink className="h-4 w-4" />
+                </CardTitle>
+                <div className="flex items-center space-x-1">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <span className="text-xs font-medium text-green-600">
+                    IN PROGRESS - Click to view details
+                  </span>
+                </div>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -337,7 +366,8 @@ export default function AdminDashboard() {
                 upcomingElections.slice(0, 3).map((election) => (
                   <div
                     key={election.id}
-                    className="flex justify-between items-center"
+                    className="flex justify-between items-center cursor-pointer p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                    onClick={() => handleElectionClick(election)}
                   >
                     <div>
                       <p className="font-medium">{election.electionName}</p>
@@ -380,7 +410,10 @@ export default function AdminDashboard() {
               ) : (
                 <>
                   {currentActiveElection && (
-                    <div className="flex justify-between items-center p-2 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200">
+                    <div 
+                      className="flex justify-between items-center p-2 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 cursor-pointer hover:bg-green-100 dark:hover:bg-green-950/30 transition-colors"
+                      onClick={() => handleElectionClick(currentActiveElection)}
+                    >
                       <div>
                         <p className="font-medium text-green-800 dark:text-green-400">
                           Election Currently LIVE
@@ -432,6 +465,16 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Election Dialog */}
+      <ElectionDialog
+        election={selectedElection}
+        isOpen={isElectionDialogOpen}
+        onOpenChange={setIsElectionDialogOpen}
+        onDelete={handleElectionDelete}
+        isLoading={false}
+        error={null}
+      />
     </div>
   );
 }

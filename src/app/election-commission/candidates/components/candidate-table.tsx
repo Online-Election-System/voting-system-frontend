@@ -76,22 +76,30 @@ export const CandidateTable = ({
     { label: "Party (Z-A)", value: "party-desc" },
   ];
 
+  const fieldMap: Record<string, keyof Candidate> = {
+    name: "candidateName",
+    party: "partyName",
+  };
+
   // Handle custom sort option
   const handleSortOptionChange = (value: string) => {
     if (value === "all") return;
-    
+
     const [field, direction] = value.split('-');
-    updateSort(field);
-    
-    // If the direction doesn't match, toggle it
-    if (sortConfig.direction !== direction) {
-      updateSort(field); // This will toggle the direction
-    }
+    const mappedField = fieldMap[field] || (field as keyof Candidate);
+    const dir = direction === "desc" ? "desc" : "asc";
+    updateSort(mappedField as string, dir);
   };
 
   const getCurrentSortValue = () => {
     if (!sortConfig.field) return "all";
-    return `${sortConfig.field}-${sortConfig.direction}`;
+    // Reverse map to keep dropdown selection stable
+    const reverseMap: Record<string, string> = {
+      candidateName: "name",
+      partyName: "party",
+    };
+    const displayField = reverseMap[sortConfig.field] || sortConfig.field;
+    return `${displayField}-${sortConfig.direction}`;
   };
 
   // Filter by status
@@ -160,9 +168,9 @@ export const CandidateTable = ({
           <FilterControls hasActiveFilters={hasActiveFilters} onClearFilters={clearFilters}>
             <FilterSelect
               label="Political Party"
-              value={filters.party || "all"}
+              value={filters.partyName || "all"}
               options={partyFilterOptions}
-              onChange={(value) => updateFilter("party", value)}
+              onChange={(value) => updateFilter("partyName", value)}
             />
             <FilterSelect
               label="Status"
@@ -194,7 +202,7 @@ export const CandidateTable = ({
               <TableRow>
                 <TableHead>
                   <SortableHeader
-                    field="name"
+                    field="candidateName"
                     currentSort={sortConfig}
                     onSort={updateSort}
                   >
@@ -203,14 +211,13 @@ export const CandidateTable = ({
                 </TableHead>
                 <TableHead>
                   <SortableHeader
-                    field="party"
+                    field="partyName"
                     currentSort={sortConfig}
                     onSort={updateSort}
                   >
                     Political Party
                   </SortableHeader>
                 </TableHead>
-                <TableHead>Election ID</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -239,11 +246,6 @@ export const CandidateTable = ({
                   <TableRow key={candidate.id || candidate.candidateId} className="hover:bg-muted/50">
                     <TableCell className="font-medium">{candidate.candidateName}</TableCell>
                     <TableCell>{getPartyName(candidate)}</TableCell>
-                    <TableCell>
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
-                        {candidate.electionId || 'N/A'}
-                      </span>
-                    </TableCell>
                     <TableCell>
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                         candidate.isActive 

@@ -227,24 +227,6 @@ export default function EditElectionPage() {
             />
           </CardContent>
         </Card>
-
-        {/* Debug Info in Development */}
-        {process.env.NODE_ENV === 'development' && (
-          <Card className="bg-gray-50">
-            <CardHeader>
-              <CardTitle className="text-sm">Debug Information</CardTitle>
-            </CardHeader>
-            <CardContent className="text-xs space-y-2">
-              <div><strong>Election ID:</strong> {election.id}</div>
-              <div><strong>Real-time Status:</strong> {realTimeStatus}</div>
-              <div><strong>Database Status:</strong> {election.status}</div>
-              <div><strong>Query Status:</strong> {isLoading ? 'Loading' : 'Loaded'}</div>
-              <div><strong>Mutation Status:</strong> {updateElectionMutation.status}</div>
-              <div><strong>Is Updating:</strong> {updateElectionMutation.isPending ? 'Yes' : 'No'}</div>
-              <div><strong>Cache Hit:</strong> {electionsData?.elections?.some(e => e.id === id) ? 'Yes' : 'No'}</div>
-            </CardContent>
-          </Card>
-        )}
       </div>
     </div>
   );

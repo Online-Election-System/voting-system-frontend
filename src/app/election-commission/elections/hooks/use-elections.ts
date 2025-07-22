@@ -1,7 +1,7 @@
 // hooks/elections/useElections.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/components/ui/use-toast';
-import { Election, ElectionConfig, ElectionUpdate } from '../election.types';
+import { Election, ElectionCreate, ElectionUpdate } from '../election.types';
 import * as electionService from '../services/electionService';
 import { electionKeys } from './query-keys';
 import { calculateElectionStats } from '../utils/election-status-utils';
@@ -35,13 +35,28 @@ export const useElection = (id: string, options?: { enabled?: boolean }) => {
   });
 };
 
+// Fetch candidates for a specific election
+export const useElectionCandidates = (electionId: string, options?: { enabled?: boolean }) => {
+  return useQuery({
+    queryKey: [...electionKeys.detail(electionId), 'candidates'],
+    queryFn: () => {
+      // Get candidates from the election data itself
+      const queryClient = useQueryClient();
+      const electionData = queryClient.getQueryData(electionKeys.detail(electionId)) as Election;
+      return electionData?.enrolledCandidates || [];
+    },
+    enabled: options?.enabled ?? !!electionId,
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
 // Create election mutation with optimistic updates
 export const useCreateElection = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: electionService.createElection,
-    onMutate: async (newElection: ElectionConfig) => {
+    onMutate: async (newElection: ElectionCreate) => {
       await queryClient.cancelQueries({ queryKey: electionKeys.lists() });
 
       const previousElections = queryClient.getQueryData(electionKeys.lists());
@@ -64,11 +79,21 @@ export const useCreateElection = () => {
         variant: "destructive",
       });
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: "Success",
         description: "Election created successfully",
       });
+      
+      // Invalidate and refetch elections list
+      queryClient.invalidateQueries({ queryKey: electionKeys.lists() });
+      
+      // If candidates were enrolled, invalidate candidates query for this election
+      if (data?.id) {
+        queryClient.invalidateQueries({ 
+          queryKey: [...electionKeys.detail(data.id), 'candidates'] 
+        });
+      }
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: electionKeys.lists() });
@@ -123,10 +148,15 @@ export const useUpdateElection = () => {
         variant: "destructive",
       });
     },
-    onSuccess: () => {
+    onSuccess: (data, { id }) => {
       toast({
         title: "Success",
         description: "Election updated successfully",
+      });
+      
+      // If candidates were updated, invalidate candidates query
+      queryClient.invalidateQueries({ 
+        queryKey: [...electionKeys.detail(id), 'candidates'] 
       });
     },
     onSettled: (data, error, { id }) => {
@@ -171,6 +201,7 @@ export const useDeleteElection = () => {
     },
     onSuccess: (data, id) => {
       queryClient.removeQueries({ queryKey: electionKeys.detail(id) });
+      queryClient.removeQueries({ queryKey: [...electionKeys.detail(id), 'candidates'] });
       toast({
         title: "Success",
         description: "Election deleted successfully",
@@ -190,6 +221,19 @@ export const usePrefetchElection = () => {
     queryClient.prefetchQuery({
       queryKey: electionKeys.detail(id),
       queryFn: () => electionService.getElectionById(id),
+      staleTime: 5 * 60 * 1000,
+    });
+  };
+};
+
+// Prefetch election candidates
+export const usePrefetchElectionCandidates = () => {
+  const queryClient = useQueryClient();
+
+  return (electionId: string) => {
+    queryClient.prefetchQuery({
+      queryKey: electionKeys.detail(electionId),
+      queryFn: () => electionService.getElectionById(electionId),
       staleTime: 5 * 60 * 1000,
     });
   };
