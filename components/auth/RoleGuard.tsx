@@ -26,6 +26,11 @@ export default function RoleGuard({ requiredRole, children }: RoleGuardProps) {
     const storedRole =
       typeof window !== "undefined" ? localStorage.getItem("userType") : null;
 
+    // Move the debug logs inside useEffect where localStorage is safe to access
+    console.log("🔍 RoleGuard Debug:");
+    console.log("Required role:", requiredRole);
+    console.log("User type from localStorage:", storedRole);
+
     if (storedRole === requiredRole) {
       setAuthorized(true);
     } else {
@@ -37,10 +42,6 @@ export default function RoleGuard({ requiredRole, children }: RoleGuardProps) {
       });
     }
   }, [requiredRole, router, toast]);
-
-   console.log("🔍 RoleGuard Debug:");
-  console.log("Required role:", requiredRole);
-  console.log("User type from localStorage:", localStorage.getItem("userType"));
 
   // You could return a spinner here instead of null while deciding.
   if (authorized === null) return null;

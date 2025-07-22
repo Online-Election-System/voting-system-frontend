@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { createClient } from '@/lib/storage/supabase';
+import { createClient } from '@/src/lib/storage/supabase';
 
 interface UseFileUploadOptions {
   bucket: string;
