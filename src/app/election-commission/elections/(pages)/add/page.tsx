@@ -130,23 +130,6 @@ export default function AddElectionPage() {
             />
           </CardContent>
         </Card>
-
-        {/* Debug info in development */}
-        {process.env.NODE_ENV === 'development' && (
-          <Card className="bg-gray-50">
-            <CardHeader>
-              <CardTitle className="text-sm">Debug Information</CardTitle>
-            </CardHeader>
-            <CardContent className="text-xs space-y-2">
-              <div><strong>Mutation Status:</strong> {createElectionMutation.status}</div>
-              <div><strong>Is Pending:</strong> {createElectionMutation.isPending ? 'Yes' : 'No'}</div>
-              <div><strong>Is Error:</strong> {createElectionMutation.isError ? 'Yes' : 'No'}</div>
-              {createElectionMutation.error && (
-                <div><strong>Error:</strong> {createElectionMutation.error.message}</div>
-              )}
-            </CardContent>
-          </Card>
-        )}
       </div>
     </div>
   );

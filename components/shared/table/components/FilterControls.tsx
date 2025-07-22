@@ -13,7 +13,17 @@ interface FilterControlsProps {
 export function FilterControls({ hasActiveFilters, onClearFilters, children }: FilterControlsProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const activeFilterCount = React.Children.count(children);
+  // Count only active filters (value !== 'all')
+  const activeFilterCount = React.Children.toArray(children).reduce<number>((count, child) => {
+    if (React.isValidElement(child)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const value = (child.props as any)?.value as string | undefined;
+      if (value && value !== "all") {
+        return count + 1;
+      }
+    }
+    return count;
+  }, 0);
 
   return (
     <div className="flex items-center gap-2">

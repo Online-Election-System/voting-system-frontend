@@ -12,6 +12,7 @@ import {
   CardHeader, 
   CardTitle 
 } from "@/components/ui/card";
+import { useRouter } from "next/navigation";
 
 export default function ElectionsPage() {
   const {
@@ -27,6 +28,11 @@ export default function ElectionsPage() {
   const handleRefresh = () => {
     refetch();
   };
+
+  const router = useRouter();
+  const handleAddElection = () => {
+    router.push('/election-commission/elections/add');
+  }
 
   const handleDeleteElection = async (electionId: string) => {
     if (confirm("Are you sure you want to delete this election?")) {
@@ -91,7 +97,7 @@ export default function ElectionsPage() {
             <div className="text-center">
               <p className="text-red-600 mb-4">Error loading elections: {error.message}</p>
               <Button onClick={handleRefresh} variant="outline">
-                Try Again
+                Refresh
               </Button>
             </div>
           </CardContent>
@@ -120,7 +126,7 @@ export default function ElectionsPage() {
             <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button>
+          <Button onClick={handleAddElection}>
             <Plus className="h-4 w-4 mr-2" />
             Add Election
           </Button>

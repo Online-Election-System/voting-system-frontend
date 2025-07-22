@@ -1,6 +1,6 @@
+// election.types.ts
 import { ReactNode } from "react";
 
-// Types for election data
 export interface SimpleDate {
   year: number;
   month: number;
@@ -10,6 +10,15 @@ export interface SimpleDate {
 export interface TimeOfDay {
   hour: number;
   minute: number;
+}
+
+// Enrolled candidate type
+export interface EnrolledCandidate {
+  electionId: string;
+  candidateId: string;
+  numberOfVotes: number;
+  candidateName?: string;
+  partyName?: string;
 }
 
 export interface Election {
@@ -26,6 +35,7 @@ export interface Election {
   endDate?: SimpleDate;
   enrolDdl?: SimpleDate;
   noOfCandidates: number;
+  enrolledCandidates?: EnrolledCandidate[];
 }
 
 export type ElectionStatus =
@@ -35,7 +45,7 @@ export type ElectionStatus =
   | "Completed"
   | "Cancelled";
 
-export interface ElectionConfig {
+export interface ElectionCreate {
   electionName: string;
   electionType: string;
   electionDate: SimpleDate;
@@ -47,6 +57,7 @@ export interface ElectionConfig {
   endDate: SimpleDate;
   enrolDdl: SimpleDate;
   noOfCandidates: number;
+  candidateIds?: string[];
 }
 
 export interface ElectionUpdate {
@@ -61,4 +72,5 @@ export interface ElectionUpdate {
   endDate?: SimpleDate;
   enrolDdl?: SimpleDate;
   noOfCandidates?: number;
+  candidateIds?: string[];
 }

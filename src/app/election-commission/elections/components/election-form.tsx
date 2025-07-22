@@ -21,7 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
   Election,
-  ElectionConfig,
+  ElectionCreate,
   ElectionStatus,
   ElectionUpdate,
 } from "../election.types";
@@ -35,7 +35,7 @@ import { useCandidates } from "../../candidates/hooks/use-candidates";
 
 interface ElectionFormProps {
   editingElection: Election | null;
-  onSubmit: (data: ElectionConfig | ElectionUpdate) => Promise<void>;
+  onSubmit: (data: ElectionCreate | ElectionUpdate) => Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
 }
@@ -44,7 +44,7 @@ export function ElectionForm({
   editingElection,
   onSubmit,
   onCancel,
-  isLoading = false, // Default to false if not provided
+  isLoading = false,
 }: ElectionFormProps) {
   // Form state
   const [electionName, setElectionName] = useState("");
@@ -62,7 +62,10 @@ export function ElectionForm({
   const [timeError, setTimeError] = useState<string | null>(null);
   const [isCandidateDialogOpen, setIsCandidateDialogOpen] = useState(false);
   const [selectedCandidates, setSelectedCandidates] = useState<Candidate[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false); // Internal loading state
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Get candidates data
   const { data: candidatesData } = useCandidates();
   const candidates = candidatesData?.candidates || [];
 
@@ -75,7 +78,7 @@ export function ElectionForm({
   // Combined loading state
   const isFormLoading = isLoading || isSubmitting;
 
-  // Calculate status based on dates and times
+  // Calculate status based on dates and times - memoized to prevent infinite loops
   const calculateStatus = useCallback((): ElectionStatus => {
     const now = new Date();
 
@@ -118,7 +121,7 @@ export function ElectionForm({
     return "Scheduled";
   }, [startDate, endDate, electionDate, startTime, endTime]);
 
-  // Validate time inputs
+  // Validate time inputs - memoized to prevent infinite loops
   const validateTimes = useCallback((): {
     isValid: boolean;
     error?: string;
@@ -134,14 +137,7 @@ export function ElectionForm({
     return { isValid: true };
   }, [startTime, endTime]);
 
-  // Update status whenever relevant dates/times change
-  useEffect(() => {
-    if (!editingElection) {
-      setStatus(calculateStatus());
-    }
-  }, [calculateStatus, editingElection]);
-
-  // Date validation helpers
+  // Date validation helpers - memoized to prevent infinite loops
   const isDateBetween = (date: Date, start: Date, end: Date): boolean => {
     return date >= start && date <= end;
   };
@@ -182,39 +178,11 @@ export function ElectionForm({
     return { isValid: true };
   }, [startDate, endDate, electionDate, enrolDdl]);
 
-  // Validate whenever relevant fields change
+  // Initialize form when editing election changes - ONLY RUN ONCE
   useEffect(() => {
-    if (startDate && endDate && electionDate && enrolDdl) {
-      const dateValidation = validateDates();
-      setDateError(
-        dateValidation.isValid ? null : dateValidation.error || null
-      );
-    } else {
-      setDateError(null);
-    }
-
-    if (startTime && endTime) {
-      const timeValidation = validateTimes();
-      setTimeError(
-        timeValidation.isValid ? null : timeValidation.error || null
-      );
-    } else {
-      setTimeError(null);
-    }
-  }, [
-    startDate,
-    endDate,
-    electionDate,
-    enrolDdl,
-    startTime,
-    endTime,
-    validateDates,
-    validateTimes,
-  ]);
-
-  // Set form values when editing an election
-  useEffect(() => {
-    if (editingElection) {
+    if (editingElection && !isInitialized) {
+      console.log("Initializing form with editing election:", editingElection.id);
+      
       setElectionName(editingElection.electionName || "");
       setElectionType(editingElection.electionType || "");
       setDescription(editingElection.description || "");
@@ -234,8 +202,66 @@ export function ElectionForm({
       if (editingElection.endTime) {
         setEndTime(formatTimeOfDay(editingElection.endTime));
       }
+
+      setIsInitialized(true);
+    } else if (!editingElection && isInitialized) {
+      // Reset form for new election
+      console.log("Resetting form for new election");
+      setElectionName("");
+      setElectionType("");
+      setDescription("");
+      setStatus("Scheduled");
+      setNoOfCandidates(0);
+      setElectionDate(undefined);
+      setStartDate(undefined);
+      setEndDate(undefined);
+      setEnrolDdl(undefined);
+      setStartTime("");
+      setEndTime("");
+      setSelectedCandidates([]);
+      setIsInitialized(false);
     }
-  }, [editingElection]);
+  }, [editingElection?.id, isInitialized]); // Only depend on election ID change
+
+  // Set selected candidates from enrolled candidates - SEPARATE EFFECT
+  useEffect(() => {
+    if (editingElection?.enrolledCandidates && candidates.length > 0 && isInitialized) {
+      console.log("Setting selected candidates from enrolled candidates");
+      const enrolledCandidateIds = editingElection.enrolledCandidates.map(ec => ec.candidateId);
+      const matchingCandidates = candidates.filter(candidate => 
+        enrolledCandidateIds.includes(candidate.candidateId || (candidate as any).id)
+      );
+      setSelectedCandidates(matchingCandidates);
+    }
+  }, [editingElection?.enrolledCandidates, candidates, isInitialized]);
+
+  // Update status whenever relevant dates/times change - ONLY for new elections
+  useEffect(() => {
+    if (!editingElection && startDate && endDate && electionDate && startTime && endTime) {
+      const newStatus = calculateStatus();
+      setStatus(newStatus);
+    }
+  }, [calculateStatus, editingElection, startDate, endDate, electionDate, startTime, endTime]);
+
+  // Validate dates whenever they change
+  useEffect(() => {
+    if (startDate && endDate && electionDate && enrolDdl) {
+      const dateValidation = validateDates();
+      setDateError(dateValidation.isValid ? null : dateValidation.error || null);
+    } else {
+      setDateError(null);
+    }
+  }, [startDate, endDate, electionDate, enrolDdl, validateDates]);
+
+  // Validate times whenever they change
+  useEffect(() => {
+    if (startTime && endTime) {
+      const timeValidation = validateTimes();
+      setTimeError(timeValidation.isValid ? null : timeValidation.error || null);
+    } else {
+      setTimeError(null);
+    }
+  }, [startTime, endTime, validateTimes]);
 
   const handleSubmit = async () => {
     // Prevent multiple submissions
@@ -251,7 +277,7 @@ export function ElectionForm({
       return;
     }
 
-    // Candidate validation
+    // Candidate validation - applies to both create and edit
     if (selectedCandidates.length < noOfCandidates) {
       toast({
         title: "Validation Error",
@@ -319,10 +345,21 @@ export function ElectionForm({
           electionType,
           status: currentStatus,
           description,
+          noOfCandidates,
+          candidateIds: selectedCandidates.map(candidate => candidate.candidateId || (candidate as any).id),
         };
 
+        if (startDate) {
+          updateData.startDate = dateToSimpleDate(startDate);
+        }
+        if (endDate) {
+          updateData.endDate = dateToSimpleDate(endDate);
+        }
         if (electionDate) {
           updateData.electionDate = dateToSimpleDate(electionDate);
+        }
+        if (enrolDdl) {
+          updateData.enrolDdl = dateToSimpleDate(enrolDdl);
         }
         if (startTime) {
           updateData.startTime = parseTimeString(startTime);
@@ -333,8 +370,8 @@ export function ElectionForm({
 
         await onSubmit(updateData);
       } else {
-        // Create new election
-        const newElectionConfig: ElectionConfig = {
+        // Create new election with candidates
+        const newElectionCreate: ElectionCreate = {
           electionName,
           electionType,
           electionDate: dateToSimpleDate(electionDate!)!,
@@ -346,9 +383,10 @@ export function ElectionForm({
           endDate: dateToSimpleDate(endDate!)!,
           enrolDdl: dateToSimpleDate(enrolDdl!)!,
           noOfCandidates,
+          candidateIds: selectedCandidates.map(candidate => candidate.candidateId || (candidate as any).id),
         };
 
-        await onSubmit(newElectionConfig);
+        await onSubmit(newElectionCreate);
       }
     } catch (err) {
       console.error("Form submission error:", err);
@@ -367,25 +405,25 @@ export function ElectionForm({
     electionName &&
       electionType &&
       !isFormLoading &&
+      selectedCandidates.length === noOfCandidates &&
       (editingElection ||
         (electionDate &&
           startTime &&
           endTime &&
           !dateError &&
-          !timeError &&
-          selectedCandidates.length == noOfCandidates))
+          !timeError))
   );
 
   // Date selection handlers
-  const handleDateSelect = (
+  const handleDateSelect = useCallback((
     date: Date | undefined,
     setter: React.Dispatch<React.SetStateAction<Date | undefined>>,
     popoverSetter: React.Dispatch<React.SetStateAction<boolean>>
   ) => {
-    if (isFormLoading) return; // Prevent date changes while loading
+    if (isFormLoading) return;
     setter(date);
     setTimeout(() => popoverSetter(false), 50);
-  };
+  }, [isFormLoading]);
 
   return (
     <div className="space-y-6">
@@ -451,26 +489,27 @@ export function ElectionForm({
                 <Button
                   variant="outline"
                   onClick={() => setIsCandidateDialogOpen(true)}
-                  disabled={isFormLoading}
+                  disabled={isFormLoading || noOfCandidates === 0}
                 >
                   {selectedCandidates.length > 0
                     ? `${selectedCandidates.length} candidates selected`
                     : "Select Candidates"}
                 </Button>
               </div>
-              {selectedCandidates.length < noOfCandidates && (
-                <p className="text-sm text-red-500">
-                  {noOfCandidates - selectedCandidates.length} more candidates
-                  needs to be selected
-                </p>
-              )}
-              {selectedCandidates.length > noOfCandidates && (
-                <p className="text-sm text-red-500">
-                  Exceeded the candidate limit by{" "}
-                  {selectedCandidates.length - noOfCandidates}
-                </p>
-              )}
             </div>
+            {/* Candidate validation messages */}
+            {selectedCandidates.length < noOfCandidates && noOfCandidates > 0 && (
+              <p className="text-sm text-red-500">
+                {noOfCandidates - selectedCandidates.length} more candidates
+                need to be selected
+              </p>
+            )}
+            {selectedCandidates.length > noOfCandidates && (
+              <p className="text-sm text-red-500">
+                Exceeded the candidate limit by{" "}
+                {selectedCandidates.length - noOfCandidates}
+              </p>
+            )}
             {editingElection && (
               <div className="grid gap-2">
                 <Label htmlFor="status">
@@ -512,187 +551,190 @@ export function ElectionForm({
           </div>
         </div>
 
-        <div className="space-y-4 rounded-lg border p-4">
-          <h2 className="font-bold">Election Period</h2>
-          <div className="grid gap-4">
-            <div className="grid gap-2">
-              <Label>
-                Start Date<span className="text-red-500">*</span>
-              </Label>
-              <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !startDate && "text-muted-foreground"
-                    )}
-                    disabled={isFormLoading}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {startDate ? format(startDate, "PPP") : "Select start date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 z-[100]">
-                  <Calendar
-                    mode="single"
-                    selected={startDate}
-                    onSelect={(date) =>
-                      handleDateSelect(date, setStartDate, setStartDateOpen)
-                    }
-                    initialFocus
-                    disabled={isFormLoading}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="grid gap-2">
-              <Label>
-                End Date<span className="text-red-500">*</span>
-              </Label>
-              <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !endDate && "text-muted-foreground"
-                    )}
-                    disabled={isFormLoading}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {endDate ? format(endDate, "PPP") : "Select end date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={endDate}
-                    onSelect={(date) =>
-                      handleDateSelect(date, setEndDate, setEndDateOpen)
-                    }
-                    initialFocus
-                    disabled={isFormLoading}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="grid gap-2">
-              <Label>
-                Enrollment Deadline<span className="text-red-500">*</span>
-              </Label>
-              <Popover open={enrolDdlOpen} onOpenChange={setEnrolDdlOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !enrolDdl && "text-muted-foreground"
-                    )}
-                    disabled={isFormLoading}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {enrolDdl
-                      ? format(enrolDdl, "PPP")
-                      : "Select enrollment deadline"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={enrolDdl}
-                    onSelect={(date) =>
-                      handleDateSelect(date, setEnrolDdl, setEnrolDdlOpen)
-                    }
-                    initialFocus
-                    disabled={isFormLoading}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-            <div className="grid gap-2">
-              <Label>
-                Election Date<span className="text-red-500">*</span>
-              </Label>
-              <Popover
-                open={electionDateOpen}
-                onOpenChange={setElectionDateOpen}
-              >
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !electionDate && "text-muted-foreground"
-                    )}
-                    disabled={isFormLoading}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {electionDate ? format(electionDate, "PPP") : "Select date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 z-[100]">
-                  <Calendar
-                    mode="single"
-                    selected={electionDate}
-                    onSelect={(date) =>
-                      handleDateSelect(
-                        date,
-                        setElectionDate,
-                        setElectionDateOpen
-                      )
-                    }
-                    initialFocus
-                    disabled={isFormLoading}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
+        {/* Only show date/time section for new elections or when editing has dates */}
+        {(!editingElection || (editingElection && editingElection.electionDate)) && (
+          <div className="space-y-4 rounded-lg border p-4">
+            <h2 className="font-bold">Election Period</h2>
+            <div className="grid gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="startTime">
-                  Start Time<span className="text-red-500">*</span>
+                <Label>
+                  Start Date<span className="text-red-500">*</span>
                 </Label>
-                <div className="flex items-center">
-                  <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="startTime"
-                    type="time"
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    required
-                    disabled={isFormLoading}
-                  />
-                </div>
+                <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !startDate && "text-muted-foreground"
+                      )}
+                      disabled={isFormLoading}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {startDate ? format(startDate, "PPP") : "Select start date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 z-[100]">
+                    <Calendar
+                      mode="single"
+                      selected={startDate}
+                      onSelect={(date) =>
+                        handleDateSelect(date, setStartDate, setStartDateOpen)
+                      }
+                      initialFocus
+                      disabled={isFormLoading}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="grid gap-2">
+                <Label>
+                  End Date<span className="text-red-500">*</span>
+                </Label>
+                <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !endDate && "text-muted-foreground"
+                      )}
+                      disabled={isFormLoading}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {endDate ? format(endDate, "PPP") : "Select end date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={endDate}
+                      onSelect={(date) =>
+                        handleDateSelect(date, setEndDate, setEndDateOpen)
+                      }
+                      initialFocus
+                      disabled={isFormLoading}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="grid gap-2">
+                <Label>
+                  Enrollment Deadline<span className="text-red-500">*</span>
+                </Label>
+                <Popover open={enrolDdlOpen} onOpenChange={setEnrolDdlOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !enrolDdl && "text-muted-foreground"
+                      )}
+                      disabled={isFormLoading}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {enrolDdl
+                        ? format(enrolDdl, "PPP")
+                        : "Select enrollment deadline"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={enrolDdl}
+                      onSelect={(date) =>
+                        handleDateSelect(date, setEnrolDdl, setEnrolDdlOpen)
+                      }
+                      initialFocus
+                      disabled={isFormLoading}
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="endTime">
-                  End Time<span className="text-red-500">*</span>
+                <Label>
+                  Election Date<span className="text-red-500">*</span>
                 </Label>
-                <div className="flex items-center">
-                  <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="endTime"
-                    type="time"
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    required
-                    disabled={isFormLoading}
-                  />
+                <Popover
+                  open={electionDateOpen}
+                  onOpenChange={setElectionDateOpen}
+                >
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !electionDate && "text-muted-foreground"
+                      )}
+                      disabled={isFormLoading}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {electionDate ? format(electionDate, "PPP") : "Select date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 z-[100]">
+                    <Calendar
+                      mode="single"
+                      selected={electionDate}
+                      onSelect={(date) =>
+                        handleDateSelect(
+                          date,
+                          setElectionDate,
+                          setElectionDateOpen
+                        )
+                      }
+                      initialFocus
+                      disabled={isFormLoading}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="startTime">
+                    Start Time<span className="text-red-500">*</span>
+                  </Label>
+                  <div className="flex items-center">
+                    <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="startTime"
+                      type="time"
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                      required
+                      disabled={isFormLoading}
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="endTime">
+                    End Time<span className="text-red-500">*</span>
+                  </Label>
+                  <div className="flex items-center">
+                    <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="endTime"
+                      type="time"
+                      value={endTime}
+                      onChange={(e) => setEndTime(e.target.value)}
+                      required
+                      disabled={isFormLoading}
+                    />
+                  </div>
                 </div>
               </div>
+              {timeError && (
+                <div className="text-sm text-red-500">{timeError}</div>
+              )}
             </div>
-            {timeError && (
-              <div className="text-sm text-red-500">{timeError}</div>
-            )}
+
+            {/* Display date validation error */}
+            {dateError && <div className="text-sm text-red-500">{dateError}</div>}
           </div>
-
-          {/* Display date validation error */}
-          {dateError && <div className="text-sm text-red-500">{dateError}</div>}
-        </div>
+        )}
       </div>
 
       <div className="flex justify-end gap-2 pt-4">
@@ -718,6 +760,7 @@ export function ElectionForm({
         )}
       </div>
 
+      {/* Show candidate dialog for both new and edit */}
       <CandidateSelectionDialog
         open={isCandidateDialogOpen && !isFormLoading}
         onOpenChange={setIsCandidateDialogOpen}

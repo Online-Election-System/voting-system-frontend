@@ -31,6 +31,10 @@ export function useTableSearch<T>(
       if (value && value !== "all") {
         filtered = filtered.filter(item => {
           const itemValue = item[key as keyof T];
+          // If the item does not have this key (undefined), ignore this filter for that item
+          if (typeof itemValue === "undefined") {
+            return true;
+          }
           return itemValue === value;
         });
       }
@@ -63,11 +67,19 @@ export function useTableSearch<T>(
     setFilters(prev => ({ ...prev, [key]: value }));
   }, []);
 
-  const updateSort = useCallback((field: string) => {
-    setSortConfig(prev => ({
-      field,
-      direction: prev.field === field && prev.direction === "asc" ? "desc" : "asc"
-    }));
+  const updateSort = useCallback((field: string, desiredDirection?: "asc" | "desc") => {
+    setSortConfig(prev => {
+      // If explicit direction provided, set it directly
+      if (desiredDirection) {
+        return { field, direction: desiredDirection };
+      }
+
+      // Otherwise, toggle direction when clicking same field, or default to asc
+      return {
+        field,
+        direction: prev.field === field && prev.direction === "asc" ? "desc" : "asc",
+      };
+    });
   }, []);
 
   const clearFilters = useCallback(() => {

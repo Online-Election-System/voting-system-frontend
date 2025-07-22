@@ -1,7 +1,7 @@
 // hooks/candidates/useCandidates.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/components/ui/use-toast';
-import { Candidate, CandidateConfig, CandidateUpdate } from '../candidate.types';
+import { Candidate, CandidateConfig, CandidateFormData, CandidateUpdate } from '../candidate.types';
 import * as candidateService from '../services/candidateService';
 import { candidateKeys } from './query-keys';
 
@@ -26,19 +26,43 @@ const calculateCandidateStats = (candidates: Candidate[]) => {
     return acc;
   }, {} as Record<string, number>);
 
+  // Additional stats for enhanced system
+  const candidatesWithImages = candidates.filter(c => Boolean(c.candidateImage)).length;
+  const candidatesWithContact = candidates.filter(c => Boolean(c.email) || Boolean(c.phone)).length;
+
   return {
     totalCandidates: candidates.length,
     activeCandidates: activeCandidates.length,
+    inactiveCandidates: candidates.length - activeCandidates.length,
     partiesCount: uniqueParties.length,
     uniqueParties,
     candidatesByParty,
+    candidatesWithImages,
+    candidatesWithContact,
   };
 };
 
-// Fetch all active candidates
-export const useCandidates = () => {
+// Fetch all candidates (active and inactive)
+export const useCandidates = (activeOnly?: boolean) => {
   return useQuery({
-    queryKey: candidateKeys.lists(),
+    queryKey: candidateKeys.lists(activeOnly),
+    queryFn: activeOnly ? candidateService.getAllActiveCandidates : candidateService.getAllCandidates,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: true,
+    select: (data: Candidate[]) => {
+      const stats = calculateCandidateStats(data);
+      return {
+        candidates: data,
+        ...stats,
+      };
+    },
+  });
+};
+
+// Fetch all active candidates only
+export const useActiveCandidates = () => {
+  return useQuery({
+    queryKey: candidateKeys.active(),
     queryFn: candidateService.getAllActiveCandidates,
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: true,
@@ -85,7 +109,7 @@ export const useCandidatesByElectionAndParty = (electionId: string, partyName: s
 // Check if candidate is active
 export const useCandidateActiveStatus = (id: string) => {
   return useQuery({
-    queryKey: candidateKeys.active(id),
+    queryKey: candidateKeys.activeStatus(id),
     queryFn: () => candidateService.isCandidateActive(id),
     enabled: !!id,
     staleTime: 2 * 60 * 1000, // 2 minutes
@@ -97,22 +121,19 @@ export const useCreateCandidate = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: candidateService.createCandidate,
-    onMutate: async (newCandidate: CandidateConfig) => {
+    mutationFn: candidateService.createCandidate, // Now expects CandidateFormData
+    onMutate: async (newCandidate: CandidateFormData) => { // Changed type
       await queryClient.cancelQueries({ queryKey: candidateKeys.lists() });
-      if (newCandidate.electionId) {
-        await queryClient.cancelQueries({ queryKey: candidateKeys.byElection(newCandidate.electionId) });
-      }
 
       const previousCandidates = queryClient.getQueryData(candidateKeys.lists());
 
-      // Optimistically update cache
+      // Optimistically update cache - new candidates start as inactive
       queryClient.setQueryData(candidateKeys.lists(), (old: any) => {
-        if (!old) return [{ ...newCandidate, id: 'temp-' + Date.now() }];
+        if (!old) return [{ ...newCandidate, id: 'temp-' + Date.now(), isActive: false }];
         const candidates = old.candidates || old;
         return {
           ...old,
-          candidates: [...candidates, { ...newCandidate, id: 'temp-' + Date.now() }]
+          candidates: [...candidates, { ...newCandidate, id: 'temp-' + Date.now(), isActive: false }]
         };
       });
 
@@ -131,14 +152,12 @@ export const useCreateCandidate = () => {
     onSuccess: (data, variables) => {
       toast({
         title: "Success",
-        description: "Candidate created successfully",
+        description: "Candidate created successfully. They will be activated when enrolled in an election.",
       });
     },
     onSettled: (data, error, variables) => {
       queryClient.invalidateQueries({ queryKey: candidateKeys.lists() });
-      if (variables.electionId) {
-        queryClient.invalidateQueries({ queryKey: candidateKeys.byElection(variables.electionId) });
-      }
+      queryClient.invalidateQueries({ queryKey: candidateKeys.active() });
     },
   });
 };
@@ -157,10 +176,10 @@ export const useUpdateCandidate = () => {
       const previousCandidate = queryClient.getQueryData(candidateKeys.detail(id));
       const previousCandidates = queryClient.getQueryData(candidateKeys.lists());
 
-      // Optimistic update for single candidate
+      // Optimistic update for single candidate (preserve isActive status)
       queryClient.setQueryData(candidateKeys.detail(id), (old: Candidate) => ({
         ...old,
-        ...data,
+        ...data
       }));
 
       // Optimistic update for candidates list
@@ -171,7 +190,7 @@ export const useUpdateCandidate = () => {
           ...old,
           candidates: candidates.map((candidate: Candidate) =>
             (candidate.id === id || candidate.candidateId === id) 
-              ? { ...candidate, ...data } 
+              ? { ...candidate, ...data } // Preserve system-managed status
               : candidate
           ),
         };
@@ -195,12 +214,13 @@ export const useUpdateCandidate = () => {
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "Candidate updated successfully",
+        description: "Candidate updated successfully. Active status is managed automatically.",
       });
     },
     onSettled: (data, error, { id }) => {
       queryClient.invalidateQueries({ queryKey: candidateKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: candidateKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.active() });
     },
   });
 };
@@ -249,6 +269,31 @@ export const useDeleteCandidate = () => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: candidateKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.active() });
+    },
+  });
+};
+
+// Update candidate statuses system-wide (admin function)
+export const useUpdateCandidateStatuses = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: candidateService.updateCandidateStatuses,
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Candidate statuses updated based on current elections",
+      });
+      // Invalidate all candidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: candidateKeys.all });
+    },
+    onError: (err) => {
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to update candidate statuses",
+        variant: "destructive",
+      });
     },
   });
 };

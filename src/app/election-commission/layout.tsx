@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { AdminHeader } from "@/components/ui/admin-header";
+import { AdminHeader } from "@/src/app/election-commission/elections/components/elec-com-header";
 import Providers from "../providers";
 
 export const metadata: Metadata = {

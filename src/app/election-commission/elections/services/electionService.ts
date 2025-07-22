@@ -1,6 +1,6 @@
 // src/services/electionService.ts
 import { getAuthToken, getTestToken } from "@/lib/services/authService";
-import { Election, ElectionConfig, ElectionUpdate } from "../election.types";
+import { Election, ElectionCreate, ElectionUpdate } from "../election.types";
 
 // API base URL
 const API_BASE_URL = "http://localhost:8080";
@@ -50,78 +50,6 @@ export const getElections = async (): Promise<Election[]> => {
   }
 };
 
-// Get election count
-export const getElectionCount = async (): Promise<number> => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/election/api/v1/count`);
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch election count: ${response.status}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Error fetching election count:", error);
-    throw error instanceof Error
-      ? error
-      : new Error("An unknown error occurred while fetching election count");
-  }
-};
-
-// Get upcoming election count
-export const getUpcomingElectionCount = async (): Promise<number> => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/election/api/v1/count/upcoming`);
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch upcoming election count: ${response.status}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Error fetching upcoming election count:", error);
-    throw error instanceof Error
-      ? error
-      : new Error("An unknown error occurred while fetching upcoming election count");
-  }
-};
-
-// Get upcoming elections
-export const getUpcomingElections = async (): Promise<Election[]> => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/election/api/v1/elections/upcoming`);
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch upcoming elections: ${response.status}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Error fetching upcoming elections:", error);
-    throw error instanceof Error
-      ? error
-      : new Error("An unknown error occurred while fetching upcoming elections");
-  }
-};
-
-// Get active elections
-export const getActiveElections = async (): Promise<Election[]> => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/election/api/v1/elections/active`);
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch active elections: ${response.status}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Error fetching active elections:", error);
-    throw error instanceof Error
-      ? error
-      : new Error("An unknown error occurred while fetching active elections");
-  }
-};
-
 // Get a single election by ID
 export const getElectionById = async (
   electionId: string
@@ -146,9 +74,9 @@ export const getElectionById = async (
   }
 };
 
-// Create a new election
+// Create a new election with optional candidates
 export const createElection = async (
-  electionData: ElectionConfig
+  electionData: ElectionCreate
 ): Promise<Election> => {
   try {
     const response = await fetch(
@@ -156,7 +84,7 @@ export const createElection = async (
       {
         method: "POST",
         headers: getHeaders(),
-        body: JSON.stringify(electionData),
+        body: JSON.stringify(electionData), // Send complete data including candidateIds
       }
     );
 
@@ -182,18 +110,23 @@ export const createElection = async (
   }
 };
 
-// Update an existing election
+// Update an existing election with optional candidates
 export const updateElection = async (
   electionId: string,
   updateData: ElectionUpdate
 ): Promise<Election> => {
   try {
+    const payload = {
+      ...updateData,
+      candidateIds: updateData.candidateIds || [],
+    };
+
     const response = await fetch(
       `${API_BASE_URL}/election/api/v1/elections/${electionId}/update`,
       {
         method: "PUT",
         headers: getHeaders(),
-        body: JSON.stringify(updateData),
+        body: JSON.stringify(payload),
       }
     );
 
