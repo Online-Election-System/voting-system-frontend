@@ -1,37 +1,12 @@
 /* eslint-disable @next/next/no-img-element */
-/* eslint-disable react/jsx-no-comment-textnodes */
 import type React from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Crown, Trophy, Star, TrendingUp, Award } from "lucide-react"
 
-
-// Directly matches the backend's Candidate type
-export interface Candidate {
-  candidateId: string
-  electionId: string
-  candidateName: string
-  partyName: string
-  partySymbol?: string
-  partyColor: string
-  candidateImage?: string
-  popularVotes: number
-  electoralVotes: number
-  position?: number
-  isActive: boolean
-}
-
-
-
-interface CandidateCardsProps {
-  candidates: TransformedCandidate[];
-  totalVotes: number;
-}
-
-
-
+// Use the TransformedCandidate type - make sure this matches your main page component
 export interface TransformedCandidate {
-  candidateId: string;  // null, undefined හරිම අවස්ථාවල නෙමෙයි, string දාල හොඳයි
+  candidateId: string;
   image: string;
   id: string;
   name: string;
@@ -42,34 +17,28 @@ export interface TransformedCandidate {
   isWinner?: boolean;
 }
 
-
-
+interface CandidateCardsProps {
+  candidates: TransformedCandidate[];
+  totalVotes: number;
+}
 
 export function CandidateCards({ candidates, totalVotes }: CandidateCardsProps) {
   // Sort candidates by electoral votes in descending order
   const sortedCandidates = [...candidates].sort(
     (a, b) => (b.electoralVotes ?? 0) - (a.electoralVotes ?? 0)
   );
-  
-
-  function transformToCandidate(candidate: TransformedCandidate): Candidate {
-    throw new Error("Function not implemented.")
-  }
 
   return (
     <>
-      
-
-{sortedCandidates.map((candidate, index) => (
-  <CandidateCard
-    key={candidate.id} // id property එක TransformedCandidate එකේ තියෙනවා
-    candidate={transformToCandidate(candidate)}
-    totalVotes={totalVotes}
-    isWinner={index === 0}
-    position={index + 1}
-  />
-))}
-
+      {sortedCandidates.map((candidate, index) => (
+        <CandidateCard
+          key={candidate.candidateId} // Use candidateId as the unique key
+          candidate={candidate}
+          totalVotes={totalVotes}
+          isWinner={index === 0}
+          position={index + 1}
+        />
+      ))}
     </>
   )
 }
@@ -80,7 +49,7 @@ function CandidateCard({
   isWinner,
   position,
 }: {
-  candidate: Candidate
+  candidate: TransformedCandidate
   totalVotes: number
   isWinner: boolean
   position: number
@@ -93,14 +62,14 @@ function CandidateCard({
 
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-all duration-300">
-      <div className="h-2 w-full" style={{ backgroundColor: candidate.partyColor }}></div>
+      <div className="h-2 w-full" style={{ backgroundColor: candidate.color }}></div>
       <CardHeader className="pb-2 pt-4">
         <div className="flex items-center gap-3">
           <div className="relative">
             <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-gray-200">
               <img
-                src={candidate.candidateImage || "/placeholder.svg"}
-                alt={candidate.candidateName}
+                src={candidate.image || "/placeholder.svg"}
+                alt={candidate.name}
                 className="w-full h-full object-cover"
               />
             </div>
@@ -109,9 +78,9 @@ function CandidateCard({
             </div>
           </div>
           <div>
-            <h3 className="font-bold text-lg">{candidate.candidateName}</h3>
-            <p className="text-sm font-medium" style={{ color: candidate.partyColor }}>
-              {candidate.partyName}
+            <h3 className="font-bold text-lg">{candidate.name}</h3>
+            <p className="text-sm font-medium" style={{ color: candidate.color }}>
+              {candidate.party}
             </p>
           </div>
         </div>
@@ -120,8 +89,8 @@ function CandidateCard({
         <div className="space-y-4">
           <div>
             <div className="flex justify-between mb-1">
-              <span className="text-sm font-medium">Devisions</span>
-              <span className="text-sm font-bold">{candidate.electoralVotes}</span>
+              <span className="text-sm font-medium">Electoral Votes</span>
+              <span className="text-sm font-bold">{candidate.electoralVotes ?? 0}</span>
             </div>
           </div>
           <div>
@@ -135,7 +104,7 @@ function CandidateCard({
               style={
                 {
                   backgroundColor: "rgba(0,0,0,0.1)",
-                  "--progress-foreground": candidate.partyColor,
+                  "--progress-foreground": candidate.color,
                 } as React.CSSProperties
               }
             />
@@ -151,7 +120,7 @@ function WinnerCard({
   candidate,
   popularVotePercent,
 }: {
-  candidate: Candidate
+  candidate: TransformedCandidate
   totalVotes: number
   popularVotePercent: number
 }) {
@@ -171,31 +140,31 @@ function WinnerCard({
       </div>
       {/* Top colored bar with special styling */}
       <div
-        className="h-3 w-full relative"
-        style={{
-          background: `linear-gradient(90deg, ${candidate.partyColor} 0%, ${candidate.partyColor}dd 50%, ${candidate.partyColor} 100%)`,
-        }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30"></div>
-      </div>
+  className="h-3 w-full relative"
+  style={{
+    background: `linear-gradient(90deg, ${candidate.color} 0%, ${candidate.color}dd 50%, ${candidate.color} 100%)`,
+  }}
+>
+  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30"></div>
+</div>
+
       <CardHeader className="pb-2 pt-6 relative z-10">
         <div className="flex items-center gap-4">
           <div className="relative">
             <div
               className="relative w-16 h-16 rounded-full overflow-hidden border-4 shadow-lg"
-              style={{ borderColor: candidate.partyColor }}
+              style={{ borderColor: candidate.color }}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={candidate.candidateImage || "/placeholder.svg"}
-                alt={candidate.candidateName}
+                src={candidate.image || "/placeholder.svg"}
+                alt={candidate.name}
                 className="w-full h-full object-cover"
               />
             </div>
             {/* Winner crown */}
             <div
               className="absolute -top-2 -right-2 w-8 h-8 rounded-full flex items-center justify-center border-2 border-white shadow-lg"
-              style={{ backgroundColor: candidate.partyColor }}
+              style={{ backgroundColor: candidate.color }}
             >
               <Crown className="w-4 h-4 text-white" />
             </div>
@@ -209,9 +178,9 @@ function WinnerCard({
               <Trophy className="w-5 h-5 text-yellow-600" />
               <span className="text-sm font-bold text-yellow-800 uppercase tracking-wide">President Elect</span>
             </div>
-            <h3 className="font-bold text-xl text-gray-900">{candidate.candidateName}</h3>
-            <p className="text-sm font-semibold" style={{ color: candidate.partyColor }}>
-              {candidate.partyName}
+            <h3 className="font-bold text-xl text-gray-900">{candidate.name}</h3>
+            <p className="text-sm font-semibold" style={{ color: candidate.color }}>
+              {candidate.party}
             </p>
           </div>
         </div>
@@ -223,12 +192,12 @@ function WinnerCard({
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <Award className="w-4 h-4 text-yellow-600" />
-                <span className="text-sm font-bold text-gray-700">Devisions</span>
+                <span className="text-sm font-bold text-gray-700">Electoral Votes</span>
               </div>
               <Star className="w-4 h-4 text-yellow-500" />
             </div>
-            <div className="text-3xl font-bold" style={{ color: candidate.partyColor }}>
-              {candidate.electoralVotes}
+            <div className="text-3xl font-bold" style={{ color: candidate.color }}>
+              {candidate.electoralVotes ?? 0}
             </div>
             <p className="text-xs text-gray-600 mt-1">Seats Won</p>
           </div>
@@ -246,21 +215,21 @@ function WinnerCard({
               <Progress
                 value={popularVotePercent}
                 className="h-3 bg-gray-200"
-                style={
-                  {
-                    backgroundColor: "rgba(0,0,0,0.1)",
-                    "--progress-foreground": `linear-gradient(90deg, ${candidate.partyColor}, ${candidate.partyColor}cc)`,
-                  } as React.CSSProperties
-                }
+                style={{
+                  backgroundColor: "rgba(0,0,0,0.1)",
+                  "--progress-foreground": `linear-gradient(90deg, ${candidate.color}, ${candidate.color}cc)`,
+                } as React.CSSProperties}
+                
               />
               {/* Glow effect */}
               <div
-                className="absolute inset-0 h-3 rounded-full opacity-50 blur-sm"
-                style={{
-                  background: `linear-gradient(90deg, transparent, ${candidate.partyColor}44, transparent)`,
-                  width: `${popularVotePercent}%`,
-                }}
-              ></div>
+  className="absolute inset-0 h-3 rounded-full opacity-50 blur-sm"
+  style={{
+    background: `linear-gradient(90deg, transparent, ${candidate.color}44, transparent)`,
+    width: `${popularVotePercent}%`,
+  }}
+></div>
+
             </div>
             <div className="flex justify-between items-center mt-2">
               <p className="text-sm font-semibold text-gray-700">{candidate.popularVotes.toLocaleString()} votes</p>
@@ -284,6 +253,6 @@ function WinnerCard({
       <div className="absolute top-4 left-4 w-2 h-2 bg-yellow-400 rounded-full opacity-60 animate-bounce"></div>
       <div className="absolute top-8 right-8 w-1 h-1 bg-orange-400 rounded-full opacity-60 animate-bounce delay-300"></div>
       <div className="absolute bottom-6 left-6 w-1.5 h-1.5 bg-yellow-500 rounded-full opacity-60 animate-bounce delay-700"></div>
-    </Card>
-  )
+ </Card>
+ )
 }
