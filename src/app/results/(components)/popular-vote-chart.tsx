@@ -91,7 +91,11 @@ export function PopularVoteChart({ data }: PopularVoteChartProps) {
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ percentage }) => `${percentage}%`}
+                label={(props) => {
+                  // props.payload contains the chartData object
+                  const percentage = props.payload?.percentage
+                  return percentage ? `${percentage}%` : ""
+                }}
                 outerRadius={120}
                 fill="#8884d8"
                 dataKey="value"
@@ -113,7 +117,7 @@ export function PopularVoteChart({ data }: PopularVoteChartProps) {
             <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} fontSize={12} />
-              <YAxis tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`} />
+              <YAxis tickFormatter={(value: number) => `${(value / 1000000).toFixed(1)}M`} />
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                 {chartData.map((entry, index) => (

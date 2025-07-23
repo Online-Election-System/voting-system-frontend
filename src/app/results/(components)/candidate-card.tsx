@@ -2,7 +2,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Crown, Users, Vote } from "lucide-react"
+// Ensure TransformedCandidate is exported from "@/app/results/types"
+// If not, update the import to use the correct type name, e.g. CandidateType
 import type { TransformedCandidate } from "@/app/results/types"
+// If the correct type is CandidateType, use:
+// import type { CandidateType } from "@/app/results/types"
 
 
 
@@ -12,7 +16,9 @@ interface CandidateCardsProps {
 }
 
 export function CandidateCards({ candidates, totalVotes }: CandidateCardsProps) {
-  const sortedCandidates = [...candidates].sort((a, b) => b.electoralVotes - a.electoralVotes)
+  const sortedCandidates = [...candidates].sort(
+  (a, b) => (b.electoralVotes ?? 0) - (a.electoralVotes ?? 0)
+);
 
   return (
     <>
@@ -42,7 +48,7 @@ export function CandidateCards({ candidates, totalVotes }: CandidateCardsProps) 
                 <AvatarFallback style={{ backgroundColor: candidate.color, color: "white" }}>
                   {candidate.name
                     .split(" ")
-                    .map((n) => n[0])
+                    .map((n: string) => n[0])
                     .join("")}
                 </AvatarFallback>
               </Avatar>

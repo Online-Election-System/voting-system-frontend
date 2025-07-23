@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import type { TransformedCandidate } from "@/types/election"
+import type { TransformedCandidate } from "@/app/results/types"
 
 interface ElectoralMapProps {
   data: {
