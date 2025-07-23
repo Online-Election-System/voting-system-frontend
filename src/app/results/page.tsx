@@ -7,18 +7,63 @@ import { CandidateCards } from "@/app/results/(components)/candidate-cards"
 import { PopularVoteChart } from "@/app/results/(components)/popular-vote-chart"
 import { Loader2, RefreshCw, AlertCircle } from "lucide-react"
 import { ElectionStatsCard } from "@/app/results/(components)/election-stats-card"
-import type { 
-  ElectionResultsOverview, 
-  Candidate, 
-  DistrictResult,
-  ElectionSummary,
-  Election,
-  District
-} from "@/app/results/types"
 
-// Frontend-specific types for component compatibility
+// Import your fixed API configuration
+import { API_CONFIG, ENDPOINTS } from "@/app/results/lib/config/api"
+
+// Backend types (matching your Ballerina types exactly)
+interface BackendCandidate {
+  candidateId: string;
+  electionId: string;
+  candidateName: string;
+  partyName: string;
+  partySymbol?: string;
+  partyColor: string;
+  candidateImage?: string;
+  popularVotes: number;
+  electoralVotes: number;
+  position?: number;
+  isActive: boolean;
+}
+
+interface BackendDistrictResult {
+  districtCode: string;
+  electionId: string;
+  districtName: string;
+  totalVotes: number;
+  votesProcessed: number;
+  winner?: string;
+  status: string;
+}
+
+interface BackendElectionSummary {
+  electionId: string;
+  totalRegisteredVoters: number;
+  totalVotesCast: number;
+  totalRejectedVotes: number;
+  turnoutPercentage: number;
+  winnerCandidateId?: string;
+  electionStatus: string;
+}
+
+interface BackendElection {
+  id: string;
+  electionName: string;
+  description: string;
+  startDate: string;
+  enrolDdl: string;
+  electionDate: string;
+  endDate: string;
+  noOfCandidates: number;
+  electionType: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+}
+
+// Frontend component types
 export interface TransformedCandidate {
-  candidateId: string;  // null, undefined හරිම අවස්ථාවල නෙමෙයි, string දාල හොඳයි
+  candidateId: string;
   image: string;
   id: string;
   name: string;
@@ -29,20 +74,11 @@ export interface TransformedCandidate {
   isWinner?: boolean;
 }
 
-
 export interface ElectionSummaryApiResponse {
   electionYear: number
   totalVotes: number
   lastUpdated: string
-  candidates: {
-    candidateId: string
-    candidateName: string
-    partyName: string
-    electoralVotes: number
-    popularVotes: number
-    candidateImage: string
-    partyColor: string
-  }[]
+  candidates: TransformedCandidate[]
   districts: {
     districtId: string
     districtName: string
@@ -57,117 +93,149 @@ export interface ElectionSummaryApiResponse {
   }
 }
 
-type CandidateCardsProps = {
-  candidates: TransformedCandidate[];
-  totalVotes: number;
-}
-
 // API Service for Ballerina backend
 class ElectionApiService {
   private baseUrl: string
 
   constructor() {
-    this.baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/result/api/v1'
+    this.baseUrl = API_CONFIG.BASE_URL
   }
 
   async getElectionSummary(electionId: string): Promise<ElectionSummaryApiResponse> {
-    const response = await fetch(`${this.baseUrl}/election/${electionId}/summary`)
-    if (!response.ok) {
-      throw new Error(`Failed to fetch election summary: ${response.status} ${response.statusText}`)
+    try {
+      // Try to get the complete summary from your backend
+      const summaryResponse = await this.fetchWithTimeout(`${this.baseUrl}${ENDPOINTS.ELECTIONS.SUMMARY(electionId)}`)
+      
+      if (summaryResponse.ok) {
+        const summaryData = await summaryResponse.json()
+        return this.transformBackendSummaryResponse(summaryData, electionId)
+      }
+
+      // Fallback: fetch data separately if summary endpoint doesn't exist
+      console.log('Summary endpoint not available, fetching data separately...')
+      
+      const [candidatesResponse, electionResponse, statsResponse] = await Promise.all([
+        this.fetchWithTimeout(`${this.baseUrl}${ENDPOINTS.CANDIDATES.BY_ELECTION(electionId)}`),
+        this.fetchWithTimeout(`${this.baseUrl}${ENDPOINTS.ELECTIONS.BY_ID(electionId)}`),
+        this.fetchWithTimeout(`${this.baseUrl}${ENDPOINTS.ELECTIONS.SUMMARY_STATS(electionId)}`).catch(() => null)
+      ])
+
+      if (!candidatesResponse.ok) {
+        throw new Error(`Failed to fetch candidates: ${candidatesResponse.status}`)
+      }
+      if (!electionResponse.ok) {
+        throw new Error(`Failed to fetch election: ${electionResponse.status}`)
+      }
+
+      const candidates: BackendCandidate[] = await candidatesResponse.json()
+      const election: BackendElection = await electionResponse.json()
+      const stats: BackendElectionSummary | null = statsResponse?.ok ? await statsResponse.json() : null
+
+      // Try to get district results
+      let districts: BackendDistrictResult[] = []
+      try {
+        const districtsResponse = await this.fetchWithTimeout(`${this.baseUrl}${ENDPOINTS.ELECTIONS.DISTRICTS(electionId)}`)
+        if (districtsResponse.ok) {
+          districts = await districtsResponse.json()
+        }
+      } catch (e) {
+        console.log('Districts endpoint not available')
+      }
+
+      return this.transformSeparateResponses(candidates, election, stats, districts)
+
+    } catch (error) {
+      console.error('Error fetching election data:', error)
+      throw error
     }
-    const data = await response.json()
-    return this.transformApiResponse(data, electionId)
   }
 
-  async getElectionDetails(electionId: string): Promise<Election> {
-    const response = await fetch(`${this.baseUrl}/election/${electionId}`)
-    if (!response.ok) {
-      throw new Error(`Failed to fetch election details: ${response.status} ${response.statusText}`)
+  private async fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT)
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...options.headers,
+        },
+        signal: controller.signal,
+      })
+      clearTimeout(timeoutId)
+      return response
+    } catch (error) {
+      clearTimeout(timeoutId)
+      throw error
     }
-    return response.json()
   }
 
-  async getDistrictResults(electionId: string): Promise<DistrictResult[]> {
-    const response = await fetch(`${this.baseUrl}/election/${electionId}/districts`)
-    if (!response.ok) {
-      throw new Error(`Failed to fetch district results: ${response.status} ${response.statusText}`)
-    }
-    return response.json()
-  }
-
-  async getCandidates(electionId: string): Promise<Candidate[]> {
-    const response = await fetch(`${this.baseUrl}/election/${electionId}/candidates`)
-    if (!response.ok) {
-      throw new Error(`Failed to fetch candidates: ${response.status} ${response.statusText}`)
-    }
-    return response.json()
-  }
-
-  async getElectionWinner(electionId: string): Promise<{ winnerCandidateId: string }> {
-    const response = await fetch(`${this.baseUrl}/election/${electionId}/winner`)
-    if (!response.ok) {
-      throw new Error(`Failed to fetch election winner: ${response.status} ${response.statusText}`)
-    }
-    return response.json()
-  }
-
-  async getElectionStats(electionId: string): Promise<ElectionSummary> {
-  const response = await fetch(`${this.baseUrl}/election/${electionId}/summary-stats`)
-  if (!response.ok) {
-    throw new Error(`Failed to fetch election stats: ${response.status} ${response.statusText}`)
-  }
-  return response.json()
-}
-
-async getDistricts(): Promise<District[]> {
-  const response = await fetch(`${this.baseUrl}/districts`)
-  if (!response.ok) {
-    throw new Error(`Failed to fetch districts: ${response.status} ${response.statusText}`)
-  }
-  return response.json()
-}
-
-
-  // Transform Ballerina API response to match the component's expected format
-  private transformApiResponse(apiData: any, electionId: string): ElectionSummaryApiResponse {
-    // Handle different possible API response structures
-    const candidates = apiData.candidates || apiData.data?.candidates || []
-    const districts = apiData.districts || apiData.data?.districts || []
-    const election = apiData.election || apiData.data?.election || {}
-    const statistics = apiData.statistics || apiData.summary || apiData.data?.summary || {}
-
-    // Calculate total votes from candidates if not provided
-    const totalVotes = statistics.totalVotesCast || 
-      candidates.reduce((sum: number, candidate: any) => 
-        sum + (candidate.popularVotes || 0), 0) || 0
-
+  private transformBackendSummaryResponse(data: any, electionId: string): ElectionSummaryApiResponse {
+    // Handle your backend's ElectionSummaryResponse structure
+    const candidates = data.candidates || []
+    const districts = data.districts || []
+    const statistics = data.statistics || {}
+    
     return {
-      electionYear: new Date(election.electionDate || election.date || Date.now()).getFullYear(),
-      totalVotes,
-      lastUpdated: new Date().toISOString(),
-      candidates: candidates.map((candidate: any) => ({
-        candidateId: candidate.candidateId || candidate.id,
-        candidateName: candidate.candidateName || candidate.name,
-        partyName: candidate.partyName || candidate.party,
-        electoralVotes: candidate.electoralVotes || 0,
-        popularVotes: candidate.popularVotes || 0,
-        candidateImage: candidate.candidateImage || candidate.image || "/placeholder.svg?height=64&width=64",
-        partyColor: candidate.partyColor || candidate.color || this.getPartyColor(candidate.partyName || candidate.party),
-      })),
-      districts: districts.map((district: any) => ({
-        districtId: district.districtCode || district.districtId || district.id,
-        districtName: district.districtName || district.name,
-        winningCandidateId: district.winner || district.winningCandidateId || this.determineWinner(district),
-        totalVotes: district.totalVotes || 0,
-      })),
+      electionYear: new Date().getFullYear(),
+      totalVotes: data.totalVotes || candidates.reduce((sum: number, c: any) => sum + (c.popularVotes || 0), 0),
+      lastUpdated: data.lastUpdated || new Date().toISOString(),
+      candidates: this.transformCandidates(candidates),
+      districts: this.transformDistricts(districts),
       statistics: {
         totalRegisteredVoters: statistics.totalRegisteredVoters || 17000000,
-        totalVotesCast: totalVotes,
-        turnoutPercentage: statistics.turnoutPercentage || 
-          ((totalVotes / (statistics.totalRegisteredVoters || 17000000)) * 100),
-        electionStatus: statistics.electionStatus || election.status || "Live",
+        totalVotesCast: statistics.totalVotesCast || data.totalVotes || 0,
+        turnoutPercentage: statistics.turnoutPercentage || 0,
+        electionStatus: statistics.electionStatus || 'Live',
       },
     }
+  }
+
+  private transformSeparateResponses(
+    candidates: BackendCandidate[], 
+    election: BackendElection, 
+    stats: BackendElectionSummary | null, 
+    districts: BackendDistrictResult[]
+  ): ElectionSummaryApiResponse {
+    const totalVotes = candidates.reduce((sum, c) => sum + (c.popularVotes || 0), 0)
+    
+    return {
+      electionYear: new Date(election.electionDate).getFullYear(),
+      totalVotes,
+      lastUpdated: new Date().toISOString(),
+      candidates: this.transformCandidates(candidates),
+      districts: this.transformDistricts(districts),
+      statistics: {
+        totalRegisteredVoters: stats?.totalRegisteredVoters || 17000000,
+        totalVotesCast: stats?.totalVotesCast || totalVotes,
+        turnoutPercentage: stats?.turnoutPercentage || ((totalVotes / 17000000) * 100),
+        electionStatus: stats?.electionStatus || election.status || 'Live',
+      },
+    }
+  }
+
+  private transformCandidates(candidates: BackendCandidate[]): TransformedCandidate[] {
+    return candidates.map((c) => ({
+      candidateId: c.candidateId,
+      id: c.candidateId,
+      name: c.candidateName,
+      party: c.partyName,
+      electoralVotes: c.electoralVotes || 0,
+      popularVotes: c.popularVotes || 0,
+      image: c.candidateImage || "/placeholder.svg?height=64&width=64",
+      color: c.partyColor || this.getPartyColor(c.partyName),
+    }))
+  }
+
+  private transformDistricts(districts: BackendDistrictResult[]) {
+    return districts.map((d) => ({
+      districtId: d.districtCode,
+      districtName: d.districtName,
+      winningCandidateId: d.winner || '',
+      totalVotes: d.totalVotes || 0,
+    }))
   }
 
   private getPartyColor(partyName: string): string {
@@ -185,21 +253,10 @@ async getDistricts(): Promise<District[]> {
     }
     return partyColors[partyName] || '#6b7280'
   }
-
-  private determineWinner(district: any): string {
-    // If API doesn't provide winner, try to determine from results
-    if (district.results && Array.isArray(district.results)) {
-      const winner = district.results.reduce((prev: any, current: any) => 
-        (current.votes > prev.votes) ? current : prev
-      )
-      return winner.candidateId
-    }
-    return '1' // Default fallback
-  }
 }
 
 // Configuration
-const ELECTION_ID = process.env.NEXT_PUBLIC_ELECTION_ID || '2024-presidential'
+const ELECTION_ID = process.env.NEXT_PUBLIC_ELECTION_ID || 'elec-2020'
 const REFRESH_INTERVAL = 30000 // 30 seconds for live updates
 
 export default function Page() {
@@ -272,7 +329,7 @@ export default function Page() {
                 <h3 className="font-semibold text-lg mb-2">Failed to load election data</h3>
                 <p className="text-sm text-gray-600 mb-4">{error}</p>
                 <p className="text-xs text-gray-500 mb-4">
-                  Make sure your Ballerina backend is running on {process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080'}
+                  Make sure your Ballerina backend is running on {API_CONFIG.BASE_URL}
                 </p>
                 <button 
                   onClick={() => fetchElectionData()}
@@ -296,21 +353,7 @@ export default function Page() {
     )
   }
 
-  const transformCandidates = (candidates: ElectionSummaryApiResponse["candidates"]): TransformedCandidate[] => {
-    return candidates.map((c) => ({
-      candidateId: c.candidateId,  // මෙතන අනිවාර්යයෙන් එකතු කරන්න
-      id: c.candidateId,           // මේක optional, තියන්න පුළුවන්
-      name: c.candidateName,
-      party: c.partyName,
-      electoralVotes: c.electoralVotes,
-      popularVotes: c.popularVotes,
-      image: c.candidateImage || "/placeholder.svg?height=64&width=64",
-      color: c.partyColor || "#6b7280",
-    }))
-  }
-  
-
-  const transformedCandidates = transformCandidates(currentElectionData.candidates)
+  const transformedCandidates = currentElectionData.candidates
   const totalVotes = currentElectionData.totalVotes
 
   return (
@@ -329,7 +372,6 @@ export default function Page() {
               title="Refresh data"
             >
              <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
-
             </button>
           </div>
           
@@ -428,5 +470,5 @@ export default function Page() {
         </div>
       </div>
     </div>
-)
+  )
 }
