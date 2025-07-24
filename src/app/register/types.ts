@@ -31,4 +31,18 @@ export type HouseholdDetails = {
   householdMemberCount: number
 }
 
-export type FormStep = "chief" | "household" | "members"
+export type AddMemberRequest = {
+  addRequestId: string
+  chiefOccupantId: string
+  nicNumber: string
+  fullName: string
+  dateOfBirth: Date
+  gender: string
+  civilStatus: string
+  relationshipToChief: string
+  chiefOccupantApproval: 'pending' | 'approved' | 'rejected'
+  requestStatus: 'pending' | 'processed' | 'cancelled'
+  nicOrBirthCertificatePath?: string | null
+}
+
+export type FormStep = "chief" | "household" | "members" |"addmember"

@@ -13,21 +13,22 @@ function Calendar({
   className,
   classNames,
   showOutsideDays = true,
+  captionLayout = "dropdown",
   ...props
 }: CalendarProps) {
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
       className={cn("p-3", className)}
+      captionLayout={captionLayout}
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
         month: "space-y-2",
         caption: "flex justify-center items-center px-1 mb-2 relative",
-        caption_label: "text-sm font-medium",
+        caption_label: "text-sm font-medium hidden",
         caption_dropdowns: "flex justify-center gap-2 items-center",
-        dropdown_month: "px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-primary",
-        dropdown_year: "px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-primary",
-        dropdown: "px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-primary",
+        dropdown_month: "relative inline-flex px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-primary appearance-none",
+        dropdown_year: "relative inline-flex px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-primary appearance-none",
         nav: "flex items-center gap-1",
         nav_button: cn(
           buttonVariants({ variant: "outline" }),
@@ -60,4 +61,4 @@ function Calendar({
 }
 Calendar.displayName = "Calendar"
 
-export { Calendar}
+export { Calendar }

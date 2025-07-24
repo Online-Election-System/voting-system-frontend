@@ -98,7 +98,7 @@ export function useFileUpload(options: UseFileUploadOptions) {
     // Clean NIC number (remove any spaces or special characters)
     const cleanNicNumber = nicNumber.replace(/[^a-zA-Z0-9]/g, '');
     
-    return `nic-${cleanNicNumber}-${currentDate}-${timestamp}.${fileExtension}`;
+    return `NIC/nic-${cleanNicNumber}-${currentDate}-${timestamp}.${fileExtension}`;
   };
 
   const uploadFile = async (file: File, nicNumber: string, currentFileUrl?: string, shouldDeletePrevious: boolean = false): Promise<string | null> => {

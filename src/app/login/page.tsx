@@ -73,7 +73,7 @@ export default function LoginForm() {
         admin: "/admin/dashboard",
         governmentOfficial: "/government-official/dashboard",
         electionCommission: "/election-commission/dashboard",
-        chiefOccupant: "/chief-occupant/dashboard",
+        chiefOccupant: "/VoterDashboard",
         householdMember: "/household-member/dashboard",
       };
 
