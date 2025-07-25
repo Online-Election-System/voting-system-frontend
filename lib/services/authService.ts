@@ -86,17 +86,21 @@ export const loginVoter = async (credentials: VoterLogin): Promise<AuthResponse>
 
 // Store authentication token in local storage
 export const storeAuthToken = (token: string): void => {
-  localStorage.setItem('authToken', token);
+  localStorage.setItem('token', token);
 };
 
 // Get authentication token from local storage
 export const getAuthToken = (): string | null => {
-  return localStorage.getItem('authToken');
+  if (typeof window === 'undefined') return null; // SSR check
+  return localStorage.getItem('token');
 };
 
 // Remove authentication token from local storage (logout)
 export const removeAuthToken = (): void => {
-  localStorage.removeItem('authToken');
+  localStorage.removeItem('token');
+  localStorage.removeItem('userType');
+  localStorage.removeItem('userId');
+  localStorage.removeItem('fullName');
 };
 
 // Check if user is authenticated
@@ -111,12 +115,18 @@ export const getTestToken = (): string => {
 
 // Get authentication headers for API requests
 export const getAuthHeaders = (): Record<string, string> => {
-  const token = process.env.NODE_ENV === 'development' 
-    ? getTestToken() 
-    : getAuthToken();
-    
-  return {
-    'Authorization': `Bearer ${token}`,
+  // const token = process.env.NODE_ENV === 'development' 
+  //   ? getTestToken() 
+  //   : getAuthToken();
+
+  const token = getAuthToken();
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json'
   };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  return headers;
 };

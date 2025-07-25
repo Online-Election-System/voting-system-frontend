@@ -9,7 +9,7 @@ import { toast } from "@/lib/hooks/use-toast";
  */
 export async function logout() {
   try {
-    await api.post("/api/v1/logout", null, {
+    await api.post("/voter-registration/api/v1/logout", null, {
       validateStatus: (status) => status === 204 || status === 200,
     });
   } catch (err) {
