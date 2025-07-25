@@ -1,6 +1,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import RoleGuard from "@/components/auth/RoleGuard";
+import { describe } from "node:test";
 
 jest.mock("@/lib/hooks/use-toast", () => ({
   useToast: () => ({ toast: jest.fn() }),

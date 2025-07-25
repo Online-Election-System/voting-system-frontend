@@ -4,7 +4,7 @@
 
 body {
   font-family: Arial, Helvetica, sans-serif;
-  padding: 1vw 0 0 0; /* Adds padding only on top */
+  padding: 0 0 0 0; /* Adds padding only on top */
 }
 
 @layer base {

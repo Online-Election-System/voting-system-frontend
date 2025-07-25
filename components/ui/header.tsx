@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Home,
@@ -11,7 +11,6 @@ import {
   Users,
   FileText,
   Settings,
-  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -42,12 +41,13 @@ const navigationData: NavigationItem[] = [
     icon: FileText,
   },
   // Authentication-specific items
-  {
-    label: "Sign In",
-    href: "/signin",
-    icon: User,
-    loggedOutOnly: true,
-  },
+  // {
+  //   label: "Sign In",
+  //   href: "/signin",
+  //   icon: User,
+  //   loggedOutOnly: true,
+  //   requiresAuth: false,
+  // },
   // Election Commission specific navigation
   {
     label: "Dashboard",
@@ -106,6 +106,7 @@ const navigationData: NavigationItem[] = [
 
 export default function Header() {
   const pathname = usePathname();
+  const router = useRouter();
   const [userRole, setUserRole] = useState<UserRole>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -206,15 +207,23 @@ export default function Header() {
                 </Link>
               ))}
 
-              {isLoggedIn && (
+              {isLoggedIn ? (
                 <Button
-                  variant="ghost"
-                  size="sm"
+                  variant="outline"
                   className="gap-2 text-muted-foreground hover:text-black dark:hover:text-white"
                   onClick={logout}
                 >
                   <LogOut className="h-4 w-4" />
                   Logout
+                </Button>
+              ):(
+                <Button
+                  variant="outline"
+                  className="gap-2 text-muted-foreground hover:text-black dark:hover:text-white"
+                  onClick={() => router.push('/signin')}
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign In
                 </Button>
               )}
             </>

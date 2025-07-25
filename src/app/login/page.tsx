@@ -28,6 +28,7 @@ export default function LoginForm() {
     setLoading(true);
 
     try {
+      console.log("Login attempt with NIC:", nic);
       const response = await api.post("/voter-registration/api/v1/login", {
         nic,
         password,
@@ -42,6 +43,7 @@ export default function LoginForm() {
         election_commission: "electionCommission",
         chief_occupant: "chiefOccupant",
         household_member: "householdMember",
+        polling_station: "pollingStation",
       };
 
       const userType = roleMap[backendRole] ?? backendRole;
@@ -91,7 +93,7 @@ export default function LoginForm() {
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <Card className="w-full max-w-md mx-auto my-[5vw]">
       <CardHeader>
         <CardTitle className="text-xl font-black mx-auto">Login</CardTitle>
         <CardDescription className="mx-auto">

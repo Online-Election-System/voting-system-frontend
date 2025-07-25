@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import api from "@/lib/axios";
+import api from "../lib/axios";
 
 // Mock lucide-react to avoid ES module issues
 jest.mock('lucide-react', () => ({
@@ -43,7 +43,7 @@ describe("Login flow", () => {
     });
 
     // Import and render the component
-    const { default: LoginForm } = await import("@/app/login/page");
+    const { default: LoginForm } = await import("../app/login/page");
     render(React.createElement(LoginForm));
 
     fireEvent.change(screen.getByLabelText(/National Identity Card Number/i), { target: { value: "123" } });
