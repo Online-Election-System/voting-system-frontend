@@ -1,22 +1,22 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import type { Screen, Candidate } from "@/src/app/vote/types/voter"
+import type { Screen, Candidate } from "./types/voter"
 import { 
   useCastVote, 
   useVoterValidation, 
   useVoterEnrolledElections, 
   useCandidatesByElection,
   useVotingEligibility 
-} from "@/src/app/vote/hooks/useVote"
+} from "./hooks/useVote"
 
 // Components
-import { VotingHeader } from "@/src/app/vote/components/header"
-import { VoterSearch } from "@/src/app/vote/components/voter-search"
-import { VoterProfile } from "@/src/app/vote/components/voter-profile"
-import { VotingInterface } from "@/src/app/vote/components/voting-interface"
-import { VoteConfirmation } from "@/src/app/vote/components/vote-confirmation"
-import { SuccessMessage } from "@/src/app/vote/components/success-message"
+import { VotingHeader } from "./components/header"
+import { VoterSearch } from "./components/voter-search"
+import { VoterProfile } from "./components/voter-profile"
+import { VotingInterface } from "./components/voting-interface"
+import { VoteConfirmation } from "./components/vote-confirmation"
+import { SuccessMessage } from "./components/success-message"
 
 export default function VotingSystem() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("validation")

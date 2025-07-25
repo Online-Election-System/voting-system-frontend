@@ -34,49 +34,29 @@ export default function LoginForm() {
         password,
       });
 
-      const { token, userType: backendRole, userId, fullName, message } = response.data;
+      const {
+        userType: backendRole,
+        message,
+      } = response.data;
 
-      // Map backend snake_case roles to frontend camelCase roles
-      const roleMap: Record<string, string> = {
-        admin: "admin",
-        government_official: "governmentOfficial",
-        election_commission: "electionCommission",
-        chief_occupant: "chiefOccupant",
-        household_member: "householdMember",
-        polling_station: "pollingStation",
-      };
-
-      const userType = roleMap[backendRole] ?? backendRole;
+      const userType = backendRole;
 
       console.log("Login Response Debug:");
       console.log("Full response:", response.data);
-      console.log("backendRole received:", userType);
-      console.log("userType type:", typeof backendRole);
-      console.log("token received:", !!token);
+      console.log("backendRole received:", backendRole);
+      console.log("mapped userType:", userType);
 
-      if (!token) throw new Error("Token missing in response");
+      // No need to store anything - cookies are set by the server
+      // Session info will be available via getSessionInfo()
 
-      // Store token
-      localStorage.setItem("token", token);
-      localStorage.setItem("userType", userType);
-      localStorage.setItem("userId", userId);
-      localStorage.setItem("fullName", fullName);
-
-      // DEBUG: Verify what was actually stored
-      console.log("After storage - what's in localStorage:");
-      console.log("userType:", localStorage.getItem("userType"));
-      console.log("token:", !!localStorage.getItem("token"));
-
-      // Set default authorization header
-      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-
-      // choose dashboard route per role
+      // Choose dashboard route per role
       const roleToPath: Record<string, string> = {
         admin: "/admin/dashboard",
-        governmentOfficial: "/government-official/dashboard",
-        electionCommission: "/election-commission/dashboard",
-        chiefOccupant: "/chief-occupant/dashboard",
-        householdMember: "/household-member/dashboard",
+        government_official: "/government-official/dashboard",
+        election_commission: "/election-commission/dashboard",
+        chief_occupant: "/chief-occupant/dashboard",
+        household_member: "/household-member/dashboard",
+        polling_station: "/polling-station/vote",
       };
 
       if (userType === "householdMember" && message.includes("First-time")) {

@@ -1,4 +1,4 @@
-import { logout } from "../lib/auth";
+import { logout } from "@/src/lib/services/authService";
 import api from "../lib/axios";
 
 jest.mock("@/lib/axios", () => ({
