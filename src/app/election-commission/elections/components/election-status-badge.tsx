@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@/src/lib/utils";
 import { ElectionStatus } from "../election.types";
 import { STATUS_STYLES } from "../election-constants";
 

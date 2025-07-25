@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 export default function GovernmentDashboard() {
   return (
-    <RoleGuard requiredRole="governmentOfficial">
+    <RoleGuard requiredRole="government_official">
       <div className="flex h-screen items-center justify-center">
         <Card className="w-full max-w-md text-center">
           <CardHeader>
@@ -13,7 +13,7 @@ export default function GovernmentDashboard() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              ✅ RBAC allowed the <b>governmentOfficial</b> role.
+              ✅ RBAC allowed the <b>government_official</b> role.
             </p>
           </CardContent>
         </Card>

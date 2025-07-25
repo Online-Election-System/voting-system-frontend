@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
+import { cn } from "@/src/lib/utils";
 import {
   Election,
   ElectionCreate,
@@ -181,8 +181,11 @@ export function ElectionForm({
   // Initialize form when editing election changes - ONLY RUN ONCE
   useEffect(() => {
     if (editingElection && !isInitialized) {
-      console.log("Initializing form with editing election:", editingElection.id);
-      
+      console.log(
+        "Initializing form with editing election:",
+        editingElection.id
+      );
+
       setElectionName(editingElection.electionName || "");
       setElectionType(editingElection.electionType || "");
       setDescription(editingElection.description || "");
@@ -225,11 +228,19 @@ export function ElectionForm({
 
   // Set selected candidates from enrolled candidates - SEPARATE EFFECT
   useEffect(() => {
-    if (editingElection?.enrolledCandidates && candidates.length > 0 && isInitialized) {
+    if (
+      editingElection?.enrolledCandidates &&
+      candidates.length > 0 &&
+      isInitialized
+    ) {
       console.log("Setting selected candidates from enrolled candidates");
-      const enrolledCandidateIds = editingElection.enrolledCandidates.map(ec => ec.candidateId);
-      const matchingCandidates = candidates.filter(candidate => 
-        enrolledCandidateIds.includes(candidate.candidateId || (candidate as any).id)
+      const enrolledCandidateIds = editingElection.enrolledCandidates.map(
+        (ec) => ec.candidateId
+      );
+      const matchingCandidates = candidates.filter((candidate) =>
+        enrolledCandidateIds.includes(
+          candidate.candidateId || (candidate as any).id
+        )
       );
       setSelectedCandidates(matchingCandidates);
     }
@@ -237,17 +248,34 @@ export function ElectionForm({
 
   // Update status whenever relevant dates/times change - ONLY for new elections
   useEffect(() => {
-    if (!editingElection && startDate && endDate && electionDate && startTime && endTime) {
+    if (
+      !editingElection &&
+      startDate &&
+      endDate &&
+      electionDate &&
+      startTime &&
+      endTime
+    ) {
       const newStatus = calculateStatus();
       setStatus(newStatus);
     }
-  }, [calculateStatus, editingElection, startDate, endDate, electionDate, startTime, endTime]);
+  }, [
+    calculateStatus,
+    editingElection,
+    startDate,
+    endDate,
+    electionDate,
+    startTime,
+    endTime,
+  ]);
 
   // Validate dates whenever they change
   useEffect(() => {
     if (startDate && endDate && electionDate && enrolDdl) {
       const dateValidation = validateDates();
-      setDateError(dateValidation.isValid ? null : dateValidation.error || null);
+      setDateError(
+        dateValidation.isValid ? null : dateValidation.error || null
+      );
     } else {
       setDateError(null);
     }
@@ -257,7 +285,9 @@ export function ElectionForm({
   useEffect(() => {
     if (startTime && endTime) {
       const timeValidation = validateTimes();
-      setTimeError(timeValidation.isValid ? null : timeValidation.error || null);
+      setTimeError(
+        timeValidation.isValid ? null : timeValidation.error || null
+      );
     } else {
       setTimeError(null);
     }
@@ -346,7 +376,9 @@ export function ElectionForm({
           status: currentStatus,
           description,
           noOfCandidates,
-          candidateIds: selectedCandidates.map(candidate => candidate.candidateId || (candidate as any).id),
+          candidateIds: selectedCandidates.map(
+            (candidate) => candidate.candidateId || (candidate as any).id
+          ),
         };
 
         if (startDate) {
@@ -383,7 +415,9 @@ export function ElectionForm({
           endDate: dateToSimpleDate(endDate!)!,
           enrolDdl: dateToSimpleDate(enrolDdl!)!,
           noOfCandidates,
-          candidateIds: selectedCandidates.map(candidate => candidate.candidateId || (candidate as any).id),
+          candidateIds: selectedCandidates.map(
+            (candidate) => candidate.candidateId || (candidate as any).id
+          ),
         };
 
         await onSubmit(newElectionCreate);
@@ -407,23 +441,22 @@ export function ElectionForm({
       !isFormLoading &&
       selectedCandidates.length === noOfCandidates &&
       (editingElection ||
-        (electionDate &&
-          startTime &&
-          endTime &&
-          !dateError &&
-          !timeError))
+        (electionDate && startTime && endTime && !dateError && !timeError))
   );
 
   // Date selection handlers
-  const handleDateSelect = useCallback((
-    date: Date | undefined,
-    setter: React.Dispatch<React.SetStateAction<Date | undefined>>,
-    popoverSetter: React.Dispatch<React.SetStateAction<boolean>>
-  ) => {
-    if (isFormLoading) return;
-    setter(date);
-    setTimeout(() => popoverSetter(false), 50);
-  }, [isFormLoading]);
+  const handleDateSelect = useCallback(
+    (
+      date: Date | undefined,
+      setter: React.Dispatch<React.SetStateAction<Date | undefined>>,
+      popoverSetter: React.Dispatch<React.SetStateAction<boolean>>
+    ) => {
+      if (isFormLoading) return;
+      setter(date);
+      setTimeout(() => popoverSetter(false), 50);
+    },
+    [isFormLoading]
+  );
 
   return (
     <div className="space-y-6">
@@ -498,12 +531,13 @@ export function ElectionForm({
               </div>
             </div>
             {/* Candidate validation messages */}
-            {selectedCandidates.length < noOfCandidates && noOfCandidates > 0 && (
-              <p className="text-sm text-red-500">
-                {noOfCandidates - selectedCandidates.length} more candidates
-                need to be selected
-              </p>
-            )}
+            {selectedCandidates.length < noOfCandidates &&
+              noOfCandidates > 0 && (
+                <p className="text-sm text-red-500">
+                  {noOfCandidates - selectedCandidates.length} more candidates
+                  need to be selected
+                </p>
+              )}
             {selectedCandidates.length > noOfCandidates && (
               <p className="text-sm text-red-500">
                 Exceeded the candidate limit by{" "}
@@ -552,7 +586,8 @@ export function ElectionForm({
         </div>
 
         {/* Only show date/time section for new elections or when editing has dates */}
-        {(!editingElection || (editingElection && editingElection.electionDate)) && (
+        {(!editingElection ||
+          (editingElection && editingElection.electionDate)) && (
           <div className="space-y-4 rounded-lg border p-4">
             <h2 className="font-bold">Election Period</h2>
             <div className="grid gap-4">
@@ -571,7 +606,9 @@ export function ElectionForm({
                       disabled={isFormLoading}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {startDate ? format(startDate, "PPP") : "Select start date"}
+                      {startDate
+                        ? format(startDate, "PPP")
+                        : "Select start date"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0 z-[100]">
@@ -671,7 +708,9 @@ export function ElectionForm({
                       disabled={isFormLoading}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {electionDate ? format(electionDate, "PPP") : "Select date"}
+                      {electionDate
+                        ? format(electionDate, "PPP")
+                        : "Select date"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0 z-[100]">
@@ -732,7 +771,9 @@ export function ElectionForm({
             </div>
 
             {/* Display date validation error */}
-            {dateError && <div className="text-sm text-red-500">{dateError}</div>}
+            {dateError && (
+              <div className="text-sm text-red-500">{dateError}</div>
+            )}
           </div>
         )}
       </div>

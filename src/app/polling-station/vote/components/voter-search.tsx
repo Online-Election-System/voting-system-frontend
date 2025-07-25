@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { User, XCircle, Eye, EyeOff, Loader2, CheckCircle } from "lucide-react"
 import { useState } from "react"
-import type { ValidationStatus } from "@/src/app/vote/types/voter"
+import type { ValidationStatus } from "../types/voter"
 
 interface VoterSearchProps {
   nationalId: string

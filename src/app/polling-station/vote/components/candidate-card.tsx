@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card"
 import { CheckCircle } from "lucide-react"
-import type { Candidate } from "@/src/app/vote/types/voter"
+import type { Candidate } from "../types/voter"
 
 interface CandidateCardProps {
   candidate: Candidate

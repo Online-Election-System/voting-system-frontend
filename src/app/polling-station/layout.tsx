@@ -3,8 +3,8 @@ import Providers from "../providers";
 import RoleGuard from "@/components/auth/RoleGuard";
 
 export const metadata: Metadata = {
-  title: "Election Commission Dashboard | E-Voting System",
-  description: "Election Commission dashboard for managing the e-voting system",
+  title: "Voting Interface | E-Voting System",
+  description: "Voting Interface for managing the e-voting system",
 };
 
 export default function AdminLayout({
@@ -13,7 +13,7 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <RoleGuard requiredRole="election_commission">
+    <RoleGuard requiredRole="polling_station">
       <div className="flex flex-col h-full bg-gray-100 dark:bg-gray-900 pb-8">
         <Providers>
           <main>{children}</main>
