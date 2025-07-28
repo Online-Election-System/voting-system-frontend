@@ -1,5 +1,5 @@
-import { logout } from "@/lib/auth";
-import api from "@/lib/axios";
+import { logout } from "@/src/lib/services/authService";
+import api from "../lib/axios";
 
 jest.mock("@/lib/axios", () => ({
   __esModule: true,

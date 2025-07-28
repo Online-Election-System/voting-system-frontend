@@ -9,6 +9,7 @@ import { User, XCircle, Eye, EyeOff, Loader2, CheckCircle } from "lucide-react"
 import { useState } from "react"
 import type { ValidationStatus } from "@/src/app/polling-station/vote/types/voter"
 
+
 interface VoterSearchProps {
   nationalId: string
   setNationalId: (nationalId: string) => void

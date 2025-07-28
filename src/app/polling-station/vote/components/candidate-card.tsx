@@ -1,8 +1,10 @@
 "use client"
 
 import { Card, CardContent } from "@/components/ui/card"
-import { CheckCircle2, User } from "lucide-react"
+import { CheckCircle2} from "lucide-react"
 import type { Candidate } from "@/src/app/polling-station/vote/types/voter"
+
+
 
 interface CandidateCardProps {
   candidate: Candidate

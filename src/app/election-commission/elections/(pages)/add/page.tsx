@@ -21,7 +21,7 @@ export default function AddElectionPage() {
 
   const handleSubmit = async (data: any) => {
     try {
-      console.log("📝 Submitting new election data:", data);
+      console.log("Submitting new election data:", data);
       
       // Use React Query mutation
       await createElectionMutation.mutateAsync(data);
@@ -34,7 +34,7 @@ export default function AddElectionPage() {
 
       router.push("/election-commission/elections");
     } catch (error) {
-      console.error("❌ Error adding election:", error);
+      console.error("Error adding election:", error);
 
       toast({
         title: "Error",
@@ -90,6 +90,9 @@ export default function AddElectionPage() {
                   Creating an Election
                 </h3>
                 <p className="text-sm text-blue-700">
+                  All fields marked with * are required.
+                </p>
+                <p className="text-sm text-blue-700">
                   Make sure to set appropriate dates and times. The system will
                   automatically calculate the election status based on the
                   current date and time.
@@ -114,13 +117,6 @@ export default function AddElectionPage() {
 
         {/* Form Card */}
         <Card>
-          <CardHeader>
-            <CardTitle>Election Details</CardTitle>
-            <CardDescription>
-              Fill in the information below to create a new election. All fields
-              marked with * are required.
-            </CardDescription>
-          </CardHeader>
           <CardContent>
             <ElectionForm
               editingElection={null}

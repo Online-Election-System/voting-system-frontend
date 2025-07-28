@@ -1,26 +1,25 @@
 // pages/ElectionsPage.tsx
 "use client";
 
-import { useElections, useDeleteElection, usePrefetchElection } from "./hooks/use-elections";
+import {
+  useElections,
+  useDeleteElection,
+  usePrefetchElection,
+} from "./hooks/use-elections";
 import { Button } from "@/components/ui/button";
 import { Plus, Loader2, RefreshCw } from "lucide-react";
 import { ElectionsTable } from "./components/elections-table";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
 
 export default function ElectionsPage() {
-  const {
-    data: electionsData,
-    isLoading,
-    error,
-    refetch,
-  } = useElections();
+  const { data: electionsData, isLoading, error, refetch } = useElections();
 
   const deleteElectionMutation = useDeleteElection();
   const prefetchElection = usePrefetchElection();
@@ -31,16 +30,14 @@ export default function ElectionsPage() {
 
   const router = useRouter();
   const handleAddElection = () => {
-    router.push('/election-commission/elections/add');
-  }
+    router.push("/election-commission/elections/add");
+  };
 
   const handleDeleteElection = async (electionId: string) => {
-    if (confirm("Are you sure you want to delete this election?")) {
-      try {
-        await deleteElectionMutation.mutateAsync(electionId);
-      } catch (error) {
-        console.error("Failed to delete election:", error);
-      }
+    try {
+      await deleteElectionMutation.mutateAsync(electionId);
+    } catch (error) {
+      console.error("Failed to delete election:", error);
     }
   };
 
@@ -65,7 +62,7 @@ export default function ElectionsPage() {
             Loading...
           </Button>
         </div>
-        
+
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-center py-12">
@@ -95,7 +92,9 @@ export default function ElectionsPage() {
         <Card className="border-red-200 bg-red-50">
           <CardContent className="pt-6">
             <div className="text-center">
-              <p className="text-red-600 mb-4">Error loading elections: {error.message}</p>
+              <p className="text-red-600 mb-4">
+                Error loading elections: {error.message}
+              </p>
               <Button onClick={handleRefresh} variant="outline">
                 Refresh
               </Button>
@@ -118,12 +117,14 @@ export default function ElectionsPage() {
           </p>
         </div>
         <div className="flex gap-6">
-          <Button 
-            onClick={handleRefresh} 
+          <Button
+            onClick={handleRefresh}
             variant="outline"
             disabled={isLoading}
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
+            />
             Refresh
           </Button>
           <Button onClick={handleAddElection}>
@@ -151,7 +152,7 @@ export default function ElectionsPage() {
       ) : (
         <Card>
           <CardContent className="p-6">
-            <ElectionsTable 
+            <ElectionsTable
               elections={elections}
               onDelete={handleDeleteElection}
               itemsPerPage={10}

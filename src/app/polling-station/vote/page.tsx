@@ -3,12 +3,14 @@
 import { useState, useEffect } from "react"
 import { useSearchParams } from 'next/navigation'
 import type { Screen, Candidate } from "@/src/app/polling-station/vote/types/voter"
+
 import { 
   useCastVote, 
   useVoterValidation, 
   useVoterEnrolledElections, 
   useCandidatesByElection,
   useVotingEligibility 
+
 } from "@/src/app/polling-station/vote/hooks/useVote"
 
 // Components

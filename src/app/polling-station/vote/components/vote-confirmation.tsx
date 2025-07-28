@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, AlertCircle } from "lucide-react"
 import type { Candidate } from "@/src/app/polling-station/vote/types/voter"
 
+
 interface VoteConfirmationProps {
   selectedCandidate: Candidate | null
   onConfirm: () => Promise<void>

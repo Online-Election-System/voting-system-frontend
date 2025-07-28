@@ -1,9 +1,13 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Vote, RotateCcw, User, CheckCircle2 } from "lucide-react"
+import { Vote, RotateCcw, User} from "lucide-react"
 import { CandidateCard } from "@/src/app/polling-station/vote/components/candidate-card"
 import type { Candidate } from "@/src/app/polling-station/vote/types/voter"
+
+
+
+
 
 interface VotingInterfaceProps {
   candidates: Candidate[]
