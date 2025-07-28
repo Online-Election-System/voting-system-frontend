@@ -57,12 +57,27 @@ const navigationData: NavigationItem[] = [
     requiresAuth: true,
   },
   {
-    label: "Elections",
-    href: "/election-commission/elections",
-    icon: Vote,
-    roles: ["electionCommission"],
+    label: "Home",
+    href: "/enrollment/dashboard",
+    icon: Home,
+    roles: ["chiefOccupant"],
     requiresAuth: true,
   },
+  {
+    label: "Elections",
+    href: "/enrollment/elections",
+    icon: Vote,
+    roles: ["electionCommission","chiefOccupant"],
+    requiresAuth: true,
+  },
+  {
+    label: "Profile",
+    href: "/enrollment/profile",
+    icon: Home,
+    roles: ["chiefOccupant"],
+    requiresAuth: true,
+  },
+  
   {
     label: "Candidates",
     href: "/election-commission/candidates",
@@ -87,13 +102,13 @@ const navigationData: NavigationItem[] = [
     requiresAuth: true,
   },
   // Chief Occupant items
-  {
-    label: "Household Dashboard",
-    href: "/chief-occupant/dashboard",
-    icon: Home,
-    roles: ["chiefOccupant"],
-    requiresAuth: true,
-  },
+  // {
+  //   label: "Household Dashboard",
+  //   href: "/chief-occupant/dashboard",
+  //   icon: Home,
+  //   roles: ["chiefOccupant"],
+  //   requiresAuth: true,
+  // },
   // Household Member items
   {
     label: "My Dashboard",
@@ -102,6 +117,8 @@ const navigationData: NavigationItem[] = [
     roles: ["householdMember"],
     requiresAuth: true,
   },
+  
+  
 ];
 
 export default function Header() {

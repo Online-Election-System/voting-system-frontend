@@ -60,10 +60,14 @@ export default function LoginForm() {
       localStorage.setItem("userId", userId);
       localStorage.setItem("fullName", fullName);
 
+      // The `nic` variable is the one the user typed into the form.
+      localStorage.setItem("userNic", nic);
+
       // DEBUG: Verify what was actually stored
       console.log("After storage - what's in localStorage:");
       console.log("userType:", localStorage.getItem("userType"));
       console.log("token:", !!localStorage.getItem("token"));
+      console.log("userNic",localStorage.getItem("userNic"));
 
       // Set default authorization header
       api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
@@ -73,7 +77,7 @@ export default function LoginForm() {
         admin: "/admin/dashboard",
         governmentOfficial: "/government-official/dashboard",
         electionCommission: "/election-commission/dashboard",
-        chiefOccupant: "/chief-occupant/dashboard",
+        chiefOccupant: "/chief-Occupant/dashboard",
         householdMember: "/household-member/dashboard",
       };
 
