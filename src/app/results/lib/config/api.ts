@@ -1,4 +1,4 @@
-// Fixed resultService.ts - Consolidated API Configuration
+// Updated API Configuration - Aligned with Ballerina Backend
 export const API_CONFIG = {
   BASE_URL: 'http://localhost:8080',
   TIMEOUT: 30000, // 30 seconds
@@ -6,85 +6,131 @@ export const API_CONFIG = {
   RETRY_DELAY: 1000, // 1 second
 } as const;
 
-// Fixed API Endpoints - Results Service (matching your Ballerina backend exactly)
+// API Endpoints - Matching your Ballerina backend exactly
 export const ENDPOINTS = {
-  // Election Management Endpoints
+  // Admin Registration Service
+  ADMIN_REGISTRATION: {
+    GOV_OFFICIAL_REGISTER: '/admin-registration/api/v1/gov-official/register',
+    ELECTION_COMMISSION_REGISTER: '/admin-registration/api/v1/election-commission/register',
+    LOGOUT: '/admin-registration/api/v1/logout',
+  },
+
+  // Voter Registration Service
+  VOTER_REGISTRATION: {
+    REGISTER: '/voter-registration/api/v1/register',
+    LOGIN: '/voter-registration/api/v1/login',
+    LOGOUT: '/voter-registration/api/v1/logout',
+    CHANGE_PASSWORD: '/voter-registration/api/v1/change-password',
+    PROFILE: (voterId: string) => `/voter-registration/api/v1/profile/${voterId}`,
+    VOTER_ELECTIONS: (voterId: string) => `/voter-registration/api/v1/voter/${voterId}/elections`,
+  },
+
+  // Election Management Service
   ELECTIONS: {
-    // Main endpoint for frontend - matches your backend
-    SUMMARY: (electionId: string) => `/result/api/v1/election/${electionId}/summary`,
+    // Public endpoints
+    ALL: '/election/api/v1/elections',
+    BY_ID: (electionId: string) => `/election/api/v1/elections/${electionId}`,
     
-    // Election details
-    BY_ID: (electionId: string) => `/result/api/v1/election/${electionId}`,
+    // Voter enrollment endpoints
+    VOTER_ENROLLED: (voterId: string, electionId: string) => 
+      `/election/api/v1/voter/${voterId}/election/${electionId}/enrolled`,
+    VOTER_ELECTIONS: (voterId: string) => `/election/api/v1/voter/${voterId}/elections`,
     
-    // Election winner (candidate with most electoral votes)
-    WINNER: (electionId: string) => `/result/api/v1/election/${electionId}/winner`,
+    // Admin endpoints
+    CREATE: '/election/api/v1/elections/create',
+    UPDATE: (electionId: string) => `/election/api/v1/elections/${electionId}/update`,
+    DELETE: (electionId: string) => `/election/api/v1/elections/${electionId}/delete`,
     
-    // Popular vote winner
-    POPULAR_WINNER: (electionId: string) => `/result/api/v1/election/${electionId}/popular-winner`,
-    
-    // Victory margin analysis
-    MARGIN: (electionId: string) => `/result/api/v1/election/${electionId}/margin`,
-    
-    // Party summaries for election
-    PARTIES: (electionId: string) => `/result/api/v1/election/${electionId}/parties`,
-    
-    // Election summary statistics
-    SUMMARY_STATS: (electionId: string) => `/result/api/v1/election/${electionId}/summary-stats`,
-    
-    // District results for specific election
-    DISTRICTS: (electionId: string) => `/result/api/v1/election/${electionId}/districts`,
+    // Admin utilities
+    TOKEN_STATS: '/election/api/v1/admin/token-stats',
+    CLEANUP_TOKENS: '/election/api/v1/admin/cleanup-tokens',
   },
 
-  // Candidate Management Endpoints
+  // Candidate Management Service
   CANDIDATES: {
-    // Get all candidates for a specific election
-    BY_ELECTION: (electionId: string) => `/result/api/v1/election/${electionId}/candidates`,
+    // Get candidates
+    ALL: '/candidate/api/v1/candidates',
+    BY_ID: (candidateId: string) => `/candidate/api/v1/candidates/${candidateId}`,
+    BY_ELECTION: (electionId: string) => `/candidate/api/v1/elections/${electionId}/candidates`,
+    BY_ELECTION_AND_PARTY: (electionId: string, partyName: string) => 
+      `/candidate/api/v1/elections/${electionId}/candidates/party/${partyName}`,
+    BY_PARTY: (partyName: string) => `/candidate/api/v1/candidates/party/${partyName}`,
     
-    // Get specific candidate by ID
-    BY_ID: (candidateId: string) => `/result/api/v1/candidates/${candidateId}`,
+    // Candidate status
+    IS_ACTIVE: (candidateId: string) => `/candidate/api/v1/candidates/${candidateId}/active`,
+    ACTIVE_BY_ELECTION: (electionId: string) => `/candidate/api/v1/elections/${electionId}/candidates/active`,
     
-    // Get candidate metrics and analytics
-    METRICS: (candidateId: string) => `/result/api/v1/candidates/${candidateId}/metrics`,
+    // Voter-specific candidate endpoints
+    FOR_VOTER: (voterId: string) => `/candidate/api/v1/voter/${voterId}/candidates`,
+    FOR_VOTER_ELECTION: (voterId: string, electionId: string) => 
+      `/candidate/api/v1/voter/${voterId}/election/${electionId}/candidates`,
+    
+    // CRUD operations
+    CREATE: '/candidate/api/v1/candidates/create',
+    UPDATE: (candidateId: string) => `/candidate/api/v1/candidates/${candidateId}/update`,
+    DELETE: (candidateId: string) => `/candidate/api/v1/candidates/${candidateId}/delete`,
+    
+    // Admin utilities
+    UPDATE_STATUSES: '/candidate/api/v1/admin/update-candidate-statuses',
   },
 
-  // District Management Endpoints
-  DISTRICTS: {
-    // Get all districts
-    ALL: '/result/api/v1/districts',
-    
-    // Get specific district by ID
-    BY_ID: (districtId: string) => `/result/api/v1/districts/${districtId}`,
-    
-    // Get district results with detailed breakdown
-    RESULTS: (districtId: string) => `/result/api/v1/districts/${districtId}/results`,
-  },
-
-  // Province Management Endpoints
-  PROVINCES: {
-    // Get all provinces
-    ALL: '/result/api/v1/provinces',
-    
-    // Get specific province by ID
-    BY_ID: (provinceId: string) => `/result/api/v1/provinces/${provinceId}`,
-    
-    // Get districts by province ID
-    DISTRICTS: (provinceId: string) => `/result/api/v1/provinces/${provinceId}/districts`,
-  },
-
-  // Voting System Endpoints (if you still need these from other services)
+  // Voting Service
   VOTES: {
+    // Cast vote
     CAST: '/vote/api/v1/votes/cast',
+    
+    // Eligibility check
+    ELIGIBILITY: (voterId: string, electionId: string) => 
+      `/vote/api/v1/eligibility/${voterId}/election/${electionId}`,
+    
+    // Get votes
     BY_ELECTION: (electionId: string) => `/vote/api/v1/votes/election/${electionId}`,
     BY_VOTER: (voterId: string) => `/vote/api/v1/votes/voter/${voterId}`,
     BY_ELECTION_AND_DISTRICT: (electionId: string, district: string) => 
       `/vote/api/v1/votes/election/${electionId}/district/${encodeURIComponent(district)}`,
+    BY_HOUSEHOLD: (chiefOccupantId: string, electionId: string) => 
+      `/vote/api/v1/votes/household/${chiefOccupantId}/election/${electionId}`,
   },
 
-  // Voter Registration Endpoints (if you still need these from other services)
-  VOTERS: {
-    LOGIN: '/voter-registration/api/v1/login',
-    REGISTER: '/voter-registration/api/v1/register',
-    PROFILE: (voterId: string) => `/voter-registration/api/v1/voters/${voterId}`,
+  // Results Service - COMPREHENSIVE API
+  RESULTS: {
+    // Candidate totals and rankings
+    CANDIDATE_TOTALS: (electionId: string) => `/results/api/v1/elections/${electionId}/candidates/totals`,
+    UPDATE_CANDIDATE_TOTAL: (electionId: string, candidateId: string) => 
+      `/results/api/v1/elections/${electionId}/candidates/${candidateId}/update-total`,
+    BATCH_UPDATE_TOTALS: (electionId: string) => 
+      `/results/api/v1/elections/${electionId}/candidates/batch-update-totals`,
+    
+    // Candidate summaries and export
+    CANDIDATE_SUMMARY: (electionId: string) => `/results/api/v1/elections/${electionId}/candidates/summary`,
+    CANDIDATE_EXPORT: (electionId: string) => `/results/api/v1/elections/${electionId}/candidates/export`,
+    CANDIDATE_EXPORT_CSV: (electionId: string) => `/results/api/v1/elections/${electionId}/candidates/export/csv`,
+    
+    // District analysis
+    DISTRICT_ANALYSIS: (electionId: string) => `/results/api/v1/elections/${electionId}/districts/analysis`,
+    DISTRICT_TOTALS: (electionId: string) => `/results/api/v1/elections/${electionId}/districts/totals`,
+    DISTRICT_WINNERS: (electionId: string) => `/results/api/v1/elections/${electionId}/districts/winners`,
+    
+    // Election summary and overview
+    ELECTION_SUMMARY: (electionId: string) => `/results/api/v1/elections/${electionId}/summary`,
+    
+    // Data validation
+    VALIDATE: (electionId: string) => `/results/api/v1/elections/${electionId}/validate`,
+    
+    // Specific queries
+    WINNER: (electionId: string) => `/results/api/v1/elections/${electionId}/winner`,
+    TOP_CANDIDATES: (electionId: string, count: number) => 
+      `/results/api/v1/elections/${electionId}/candidates/top/${count}`,
+    CANDIDATE_RANK: (electionId: string, candidateId: string) => 
+      `/results/api/v1/elections/${electionId}/candidates/${candidateId}/rank`,
+    
+    // Advanced analytics
+    DISTRIBUTION_STATS: (electionId: string) => `/results/api/v1/elections/${electionId}/statistics/distribution`,
+    MARGIN_ANALYSIS: (electionId: string) => `/results/api/v1/elections/${electionId}/statistics/margins`,
+    
+    // Admin utilities
+    REFRESH_CALCULATIONS: (electionId: string) => 
+      `/results/api/v1/admin/elections/${electionId}/refresh-calculations`,
   },
 } as const;
 
@@ -92,6 +138,7 @@ export const ENDPOINTS = {
 export const HTTP_STATUS = {
   OK: 200,
   CREATED: 201,
+  NO_CONTENT: 204,
   BAD_REQUEST: 400,
   UNAUTHORIZED: 401,
   FORBIDDEN: 403,
@@ -114,7 +161,7 @@ export const CORS_CONFIG = {
   ],
   ALLOWED_HEADERS: ['Content-Type', 'Authorization'],
   ALLOWED_METHODS: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  ALLOW_CREDENTIALS: false,
+  ALLOW_CREDENTIALS: true,
 } as const;
 
 // Election Status Types
@@ -125,11 +172,21 @@ export const ELECTION_STATUS = {
   CANCELLED: 'CANCELLED',
 } as const;
 
-// Margin Types
-export const MARGIN_TYPES = {
-  POPULAR_VOTE: 'POPULAR_VOTE',
-  ELECTORAL_VOTE: 'ELECTORAL_VOTE',
-  INSUFFICIENT_DATA: 'INSUFFICIENT_DATA',
+// User Roles (from your auth system)
+export const USER_ROLES = {
+  ADMIN: 'ADMIN',
+  GOVERNMENT_OFFICIAL: 'GOVERNMENT_OFFICIAL',
+  ELECTION_COMMISSION: 'ELECTION_COMMISSION',
+  VOTER: 'VOTER',
+} as const;
+
+// Permissions
+export const PERMISSIONS = {
+  CREATE_ELECTION: 'CREATE_ELECTION',
+  DELETE_ELECTION: 'DELETE_ELECTION',
+  MANAGE_CANDIDATES: 'MANAGE_CANDIDATES',
+  MANAGE_USERS: 'MANAGE_USERS',
+  MANAGE_ELECTIONS: 'MANAGE_ELECTIONS',
 } as const;
 
 // API Response Status
@@ -139,6 +196,20 @@ export const API_RESPONSE_STATUS = {
   LOADING: 'loading',
 } as const;
 
+// Default Election ID for testing - UPDATED TO MATCH YOUR BACKEND
+export const DEFAULT_ELECTION_ID = 'PRE_2024';
+
+// Sri Lankan Districts - for reference and validation
+export const SRI_LANKAN_DISTRICTS = [
+  'Ampara', 'Anuradhapura', 'Badulla', 'Batticaloa', 'Colombo',
+  'Galle', 'Gampaha', 'Hambantota', 'Jaffna', 'Kalutara',
+  'Kandy', 'Kegalle', 'Kilinochchi', 'Kurunegala', 'Mannar',
+  'Matale', 'Matara', 'Monaragala', 'Mullaitivu', 'NuwaraEliya',
+  'Polonnaruwa', 'Puttalam', 'Ratnapura', 'Trincomalee', 'Vavuniya'
+] as const;
+
 export type ElectionStatus = typeof ELECTION_STATUS[keyof typeof ELECTION_STATUS];
-export type MarginType = typeof MARGIN_TYPES[keyof typeof MARGIN_TYPES];
+export type UserRole = typeof USER_ROLES[keyof typeof USER_ROLES];
+export type Permission = typeof PERMISSIONS[keyof typeof PERMISSIONS];
 export type ApiResponseStatus = typeof API_RESPONSE_STATUS[keyof typeof API_RESPONSE_STATUS];
+export type SriLankanDistrict = typeof SRI_LANKAN_DISTRICTS[number];
