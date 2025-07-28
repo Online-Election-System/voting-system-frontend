@@ -1,474 +1,407 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
-import { ElectoralMap } from "@/app/results/(components)/electoral-map"
-import { CandidateCards } from "@/app/results/(components)/candidate-cards"
-import { PopularVoteChart } from "@/app/results/(components)/popular-vote-chart"
-import { Loader2, RefreshCw, AlertCircle } from "lucide-react"
-import { ElectionStatsCard } from "@/app/results/(components)/election-stats-card"
+import { useState, useEffect } from "react"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { Progress } from "@/components/ui/progress"
+import { Trophy, Users, MapPin, AlertTriangle, Download, RefreshCw, BarChart3, PieChart } from "lucide-react"
+import { CandidateResultsCard } from "@/app/results/(components)/CandidateResultsCard"
+import { DistrictAnalysisCard } from "@/app/results/(components)/DistrictAnalysisCard"
+import { ElectionSummaryCard } from "@/app/results/(components)/ElectionSummaryCard"
+import { ValidationCard } from "@/app/results/(components)/ValidationCard"
+import { VoteDistributionChart } from "@/app/results/(components)/VoteDistributionChart"
+import { DistrictMapView } from "@/app/results/(components)/DistrictMapView"
+import type {
+  ElectionSummary,
+  CandidateExportData,
+  DistrictWinnerAnalysis,
+  ValidationResult,
+  DistrictVoteTotals,
+  CandidateDistrictAnalysis,
+} from "@/app/results/types"
 
-// Import your fixed API configuration
-import { API_CONFIG, ENDPOINTS } from "@/app/results/lib/config/api"
-
-// Backend types (matching your Ballerina types exactly)
-interface BackendCandidate {
-  candidateId: string;
-  electionId: string;
-  candidateName: string;
-  partyName: string;
-  partySymbol?: string;
-  partyColor: string;
-  candidateImage?: string;
-  popularVotes: number;
-  electoralVotes: number;
-  position?: number;
-  isActive: boolean;
-}
-
-interface BackendDistrictResult {
-  districtCode: string;
-  electionId: string;
-  districtName: string;
-  totalVotes: number;
-  votesProcessed: number;
-  winner?: string;
-  status: string;
-}
-
-interface BackendElectionSummary {
-  electionId: string;
-  totalRegisteredVoters: number;
-  totalVotesCast: number;
-  totalRejectedVotes: number;
-  turnoutPercentage: number;
-  winnerCandidateId?: string;
-  electionStatus: string;
-}
-
-interface BackendElection {
-  id: string;
-  electionName: string;
-  description: string;
-  startDate: string;
-  enrolDdl: string;
-  electionDate: string;
-  endDate: string;
-  noOfCandidates: number;
-  electionType: string;
-  startTime: string;
-  endTime: string;
-  status: string;
-}
-
-// Frontend component types
-export interface TransformedCandidate {
-  candidateId: string;
-  image: string;
-  id: string;
-  name: string;
-  party: string;
-  popularVotes: number;
-  color: string;
-  electoralVotes?: number;
-  isWinner?: boolean;
-}
-
-export interface ElectionSummaryApiResponse {
-  electionYear: number
-  totalVotes: number
-  lastUpdated: string
-  candidates: TransformedCandidate[]
-  districts: {
-    districtId: string
-    districtName: string
-    winningCandidateId: string
-    totalVotes: number
-  }[]
-  statistics: {
-    totalRegisteredVoters: number
-    totalVotesCast: number
-    turnoutPercentage: number
-    electionStatus: string
-  }
-}
-
-// API Service for Ballerina backend
-class ElectionApiService {
-  private baseUrl: string
-
-  constructor() {
-    this.baseUrl = API_CONFIG.BASE_URL
-  }
-
-  async getElectionSummary(electionId: string): Promise<ElectionSummaryApiResponse> {
-    try {
-      // Try to get the complete summary from your backend
-      const summaryResponse = await this.fetchWithTimeout(`${this.baseUrl}${ENDPOINTS.ELECTIONS.SUMMARY(electionId)}`)
-      
-      if (summaryResponse.ok) {
-        const summaryData = await summaryResponse.json()
-        return this.transformBackendSummaryResponse(summaryData, electionId)
-      }
-
-      // Fallback: fetch data separately if summary endpoint doesn't exist
-      console.log('Summary endpoint not available, fetching data separately...')
-      
-      const [candidatesResponse, electionResponse, statsResponse] = await Promise.all([
-        this.fetchWithTimeout(`${this.baseUrl}${ENDPOINTS.CANDIDATES.BY_ELECTION(electionId)}`),
-        this.fetchWithTimeout(`${this.baseUrl}${ENDPOINTS.ELECTIONS.BY_ID(electionId)}`),
-        this.fetchWithTimeout(`${this.baseUrl}${ENDPOINTS.ELECTIONS.SUMMARY_STATS(electionId)}`).catch(() => null)
-      ])
-
-      if (!candidatesResponse.ok) {
-        throw new Error(`Failed to fetch candidates: ${candidatesResponse.status}`)
-      }
-      if (!electionResponse.ok) {
-        throw new Error(`Failed to fetch election: ${electionResponse.status}`)
-      }
-
-      const candidates: BackendCandidate[] = await candidatesResponse.json()
-      const election: BackendElection = await electionResponse.json()
-      const stats: BackendElectionSummary | null = statsResponse?.ok ? await statsResponse.json() : null
-
-      // Try to get district results
-      let districts: BackendDistrictResult[] = []
-      try {
-        const districtsResponse = await this.fetchWithTimeout(`${this.baseUrl}${ENDPOINTS.ELECTIONS.DISTRICTS(electionId)}`)
-        if (districtsResponse.ok) {
-          districts = await districtsResponse.json()
-        }
-      } catch (e) {
-        console.log('Districts endpoint not available')
-      }
-
-      return this.transformSeparateResponses(candidates, election, stats, districts)
-
-    } catch (error) {
-      console.error('Error fetching election data:', error)
-      throw error
-    }
-  }
-
-  private async fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT)
-
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          ...options.headers,
-        },
-        signal: controller.signal,
-      })
-      clearTimeout(timeoutId)
-      return response
-    } catch (error) {
-      clearTimeout(timeoutId)
-      throw error
-    }
-  }
-
-  private transformBackendSummaryResponse(data: any, electionId: string): ElectionSummaryApiResponse {
-    // Handle your backend's ElectionSummaryResponse structure
-    const candidates = data.candidates || []
-    const districts = data.districts || []
-    const statistics = data.statistics || {}
-    
-    return {
-      electionYear: new Date().getFullYear(),
-      totalVotes: data.totalVotes || candidates.reduce((sum: number, c: any) => sum + (c.popularVotes || 0), 0),
-      lastUpdated: data.lastUpdated || new Date().toISOString(),
-      candidates: this.transformCandidates(candidates),
-      districts: this.transformDistricts(districts),
-      statistics: {
-        totalRegisteredVoters: statistics.totalRegisteredVoters || 17000000,
-        totalVotesCast: statistics.totalVotesCast || data.totalVotes || 0,
-        turnoutPercentage: statistics.turnoutPercentage || 0,
-        electionStatus: statistics.electionStatus || 'Live',
-      },
-    }
-  }
-
-  private transformSeparateResponses(
-    candidates: BackendCandidate[], 
-    election: BackendElection, 
-    stats: BackendElectionSummary | null, 
-    districts: BackendDistrictResult[]
-  ): ElectionSummaryApiResponse {
-    const totalVotes = candidates.reduce((sum, c) => sum + (c.popularVotes || 0), 0)
-    
-    return {
-      electionYear: new Date(election.electionDate).getFullYear(),
-      totalVotes,
-      lastUpdated: new Date().toISOString(),
-      candidates: this.transformCandidates(candidates),
-      districts: this.transformDistricts(districts),
-      statistics: {
-        totalRegisteredVoters: stats?.totalRegisteredVoters || 17000000,
-        totalVotesCast: stats?.totalVotesCast || totalVotes,
-        turnoutPercentage: stats?.turnoutPercentage || ((totalVotes / 17000000) * 100),
-        electionStatus: stats?.electionStatus || election.status || 'Live',
-      },
-    }
-  }
-
-  private transformCandidates(candidates: BackendCandidate[]): TransformedCandidate[] {
-    return candidates.map((c) => ({
-      candidateId: c.candidateId,
-      id: c.candidateId,
-      name: c.candidateName,
-      party: c.partyName,
-      electoralVotes: c.electoralVotes || 0,
-      popularVotes: c.popularVotes || 0,
-      image: c.candidateImage || "/placeholder.svg?height=64&width=64",
-      color: c.partyColor || this.getPartyColor(c.partyName),
-    }))
-  }
-
-  private transformDistricts(districts: BackendDistrictResult[]) {
-    return districts.map((d) => ({
-      districtId: d.districtCode,
-      districtName: d.districtName,
-      winningCandidateId: d.winner || '',
-      totalVotes: d.totalVotes || 0,
-    }))
-  }
-
-  private getPartyColor(partyName: string): string {
-    const partyColors: Record<string, string> = {
-      'National People\'s Power': '#dc2626',
-      'NPP': '#dc2626',
-      'Samagi Jana Balawegaya': '#16a34a', 
-      'SJB': '#16a34a',
-      'United National Party': '#2563eb',
-      'UNP': '#2563eb',
-      'Sri Lanka Podujana Peramuna': '#7c3aed',
-      'SLPP': '#7c3aed',
-      'Jathika Jana Balawegaya': '#f59e0b',
-      'JJB': '#f59e0b',
-    }
-    return partyColors[partyName] || '#6b7280'
-  }
-}
-
-// Configuration
-const ELECTION_ID = process.env.NEXT_PUBLIC_ELECTION_ID || 'elec-2020'
-const REFRESH_INTERVAL = 30000 // 30 seconds for live updates
-
-export default function Page() {
-  const [currentElectionData, setCurrentElectionData] = useState<ElectionSummaryApiResponse | null>(null)
+export default function ElectionDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
-  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [electionSummary, setElectionSummary] = useState<ElectionSummary | null>(null)
+  const [candidates, setCandidates] = useState<CandidateExportData[]>([])
+  const [districtAnalysis, setDistrictAnalysis] = useState<DistrictWinnerAnalysis | null>(null)
+  const [validation, setValidation] = useState<ValidationResult | null>(null)
+  const [districtTotals, setDistrictTotals] = useState<DistrictVoteTotals | null>(null)
+  const [candidateDistrictData, setCandidateDistrictData] = useState<CandidateDistrictAnalysis[]>([])
 
-  const electionApi = new ElectionApiService()
+  const electionId = "PRES2024" // Default election ID
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9090"
 
-  const fetchElectionData = async (showRefreshLoader = false) => {
+  useEffect(() => {
+    loadElectionData()
+  }, [])
+
+  const loadElectionData = async () => {
+    setLoading(true)
+    setError(null)
+
     try {
-      if (showRefreshLoader) {
-        setIsRefreshing(true)
-      } else {
-        setLoading(true)
-      }
-      setError(null)
+      // Try to fetch from API first, but fall back to mock data if it fails
+      let useMockData = true
 
-      const data = await electionApi.getElectionSummary(ELECTION_ID)
-      setCurrentElectionData(data)
-      setLastRefresh(new Date())
+      try {
+        // Test if API is available
+        const testResponse = await fetch(`${apiUrl}/health`, {
+          method: "GET",
+          signal: AbortSignal.timeout(5000), // 5 second timeout
+        })
+        if (testResponse.ok) {
+          useMockData = false
+        }
+      } catch (apiError) {
+        console.log("API not available, using mock data")
+        useMockData = true
+      }
+
+      if (useMockData) {
+        // Use mock data directly
+        const mockSummary: ElectionSummary = {
+          electionId,
+          totalCandidates: 38,
+          totalVotes: 17140354,
+          winner: "Anura Kumara Dissanayake",
+          winnerPercentage: 42.31,
+          totalDistrictsConsidered: 25,
+        }
+
+        const mockCandidates: CandidateExportData[] = [
+          {
+            candidateId: "AKD",
+            candidateName: "Anura Kumara Dissanayake",
+            partyName: "National People's Power",
+            partyColor: "#FF6B6B",
+            totalVotes: 7251956,
+            percentage: 42.31,
+            position: 1,
+            districtsWon: 21,
+            isActive: true,
+          },
+          {
+            candidateId: "SP",
+            candidateName: "Sajith Premadasa",
+            partyName: "Samagi Jana Balawegaya",
+            partyColor: "#4ECDC4",
+            totalVotes: 6863186,
+            percentage: 40.04,
+            position: 2,
+            districtsWon: 4,
+            isActive: true,
+          },
+          {
+            candidateId: "RW",
+            candidateName: "Ranil Wickremesinghe",
+            partyName: "Independent",
+            partyColor: "#45B7D1",
+            totalVotes: 2299767,
+            percentage: 13.42,
+            position: 3,
+            districtsWon: 0,
+            isActive: true,
+          },
+          {
+            candidateId: "NR",
+            candidateName: "Namal Rajapaksa",
+            partyName: "Sri Lanka Podujana Peramuna",
+            partyColor: "#8B5CF6",
+            totalVotes: 342781,
+            percentage: 2.0,
+            position: 4,
+            districtsWon: 0,
+            isActive: true,
+          },
+          {
+            candidateId: "WD",
+            candidateName: "Wijeyadasa Rajapakshe",
+            partyName: "Independent",
+            partyColor: "#F59E0B",
+            totalVotes: 267551,
+            percentage: 1.56,
+            position: 5,
+            districtsWon: 0,
+            isActive: true,
+          },
+          {
+            candidateId: "PS",
+            candidateName: "P. Ariyanethran",
+            partyName: "Tamil National Alliance",
+            partyColor: "#EF4444",
+            totalVotes: 48944,
+            percentage: 0.29,
+            position: 6,
+            districtsWon: 0,
+            isActive: true,
+          },
+        ]
+
+        const mockValidation: ValidationResult = {
+          isValid: true,
+          errors: [],
+          statistics: {
+            candidatesWithMismatchedTotals: 0,
+            candidatesWithNegativeVotes: 0,
+            candidatesWithMissingData: 1,
+          },
+        }
+
+        // Simulate loading delay for better UX
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+
+        setElectionSummary(mockSummary)
+        setCandidates(mockCandidates)
+        setValidation(mockValidation)
+      } else {
+        // Make actual API calls
+        const [summaryRes, candidatesRes, districtRes, validationRes, totalsRes] = await Promise.all([
+          fetch(`${apiUrl}/election/${electionId}/summary`),
+          fetch(`${apiUrl}/election/${electionId}/candidates`),
+          fetch(`${apiUrl}/election/${electionId}/district-winners`),
+          fetch(`${apiUrl}/election/${electionId}/validation`),
+          fetch(`${apiUrl}/election/${electionId}/district-totals`),
+        ])
+
+        if (!summaryRes.ok || !candidatesRes.ok) {
+          throw new Error("Failed to fetch election data from API")
+        }
+
+        const summary = await summaryRes.json()
+        const candidates = await candidatesRes.json()
+        const validation = await validationRes.json()
+
+        setElectionSummary(summary)
+        setCandidates(candidates)
+        setValidation(validation)
+      }
     } catch (err) {
-      console.error('Error fetching election data:', err)
-      setError(err instanceof Error ? err.message : "Failed to load election data")
+      console.error("Error loading election data:", err)
+      setError("Unable to load election data. Please try again later.")
     } finally {
       setLoading(false)
-      setIsRefreshing(false)
     }
   }
 
-  // Initial load
-  useEffect(() => {
-    fetchElectionData()
-  }, [])
+  const handleExportData = () => {
+    const dataToExport = {
+      electionSummary,
+      candidates,
+      districtAnalysis,
+      validation,
+      exportedAt: new Date().toISOString(),
+    }
 
-  // Auto-refresh for live updates
-  useEffect(() => {
-    if (!currentElectionData) return
-
-    const interval = setInterval(() => {
-      fetchElectionData(true)
-    }, REFRESH_INTERVAL)
-
-    return () => clearInterval(interval)
-  }, [currentElectionData])
-
-  const handleManualRefresh = () => {
-    fetchElectionData(true)
+    const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: "application/json" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `election-${electionId}-results.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
   }
 
-  if (loading && !currentElectionData) {
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-lg text-gray-600">
-        <Loader2 className="h-8 w-8 animate-spin mr-2" />
-        Loading election data...
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center space-y-4">
+            <RefreshCw className="h-8 w-8 animate-spin mx-auto text-blue-600" />
+            <p className="text-lg font-medium">Loading election data...</p>
+            <p className="text-sm text-gray-600">Election ID: {electionId}</p>
+          </div>
+        </div>
       </div>
     )
   }
 
-  if (error && !currentElectionData) {
+  if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-center p-4">
-        <Card className="max-w-md">
-          <CardContent className="pt-6">
-            <div className="flex flex-col items-center space-y-4">
-              <AlertCircle className="h-12 w-12 text-red-500" />
-              <div className="text-center">
-                <h3 className="font-semibold text-lg mb-2">Failed to load election data</h3>
-                <p className="text-sm text-gray-600 mb-4">{error}</p>
-                <p className="text-xs text-gray-500 mb-4">
-                  Make sure your Ballerina backend is running on {API_CONFIG.BASE_URL}
-                </p>
-                <button 
-                  onClick={() => fetchElectionData()}
-                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-                >
-                  Try Again
-                </button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="container mx-auto px-4 py-8">
+        <Alert className="max-w-2xl mx-auto">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription className="ml-2">
+            {error}
+            <Button variant="outline" size="sm" onClick={loadElectionData} className="ml-4 bg-transparent">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
       </div>
     )
   }
-
-  if (!currentElectionData) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-center p-4 text-gray-600">
-        <p>No election data available</p>
-      </div>
-    )
-  }
-
-  const transformedCandidates = currentElectionData.candidates
-  const totalVotes = currentElectionData.totalVotes
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto py-6 px-4 space-y-8">
-        {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="flex items-center justify-center gap-4">
-            <h1 className="text-4xl font-bold text-gray-900">
-              Sri Lanka Presidential Election {currentElectionData.electionYear}
-            </h1>
-            <button
-              onClick={handleManualRefresh}
-              disabled={isRefreshing}
-              className="p-2 rounded-full hover:bg-gray-200 transition-colors disabled:opacity-50"
-              title="Refresh data"
-            >
-             <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
-          
-          <div className="flex items-center justify-center gap-2">
-            <div className={`h-2 w-2 rounded-full ${
-              currentElectionData.statistics.electionStatus === 'Live' ? 'bg-red-500 animate-pulse' : 
-              currentElectionData.statistics.electionStatus === 'Final' ? 'bg-green-500' : 'bg-yellow-500'
-            }`}></div>
-            <p className="text-lg text-gray-600">
-              {currentElectionData.statistics.electionStatus} Results Dashboard
-            </p>
-          </div>
-          
-          <div className="flex justify-center items-center gap-4 text-sm text-gray-500">
-            <span>Total Votes: {totalVotes.toLocaleString()}</span>
-            <span>•</span>
-            <span>{currentElectionData.districts.length} Electoral Districts</span>
-            <span>•</span>
-            <span>
-              Turnout: {currentElectionData.statistics.turnoutPercentage.toFixed(1)}%
-            </span>
-            {lastRefresh && (
-              <>
-                <span>•</span>
-                <span>Updated: {lastRefresh.toLocaleTimeString()}</span>
-              </>
-            )}
-          </div>
+    <div className="container mx-auto px-4 py-6 space-y-6">
+      {/* Header Actions */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Election Results Dashboard</h1>
+          <p className="text-gray-600">Real-time analysis for {electionId}</p>
         </div>
-
-        {/* Error banner for refresh errors */}
-        {error && currentElectionData && (
-          <Card className="border-yellow-200 bg-yellow-50">
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-2 text-yellow-800">
-                <AlertCircle className="h-4 w-4" />
-                <span className="text-sm">Unable to refresh data: {error}</span>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Candidates */}
-        <Card className="shadow-lg">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-2xl">Presidential Candidates</CardTitle>
-            <CardDescription>Ranked by electoral votes</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <CandidateCards candidates={transformedCandidates} totalVotes={totalVotes} />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Map */}
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-2xl">District Results</CardTitle>
-            <CardDescription>
-              Click on districts to see detailed results
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ElectoralMap
-              data={{
-                candidates: transformedCandidates,
-                districts: currentElectionData.districts,
-              }}
-            />
-          </CardContent>
-        </Card>
-
-        {/* Chart */}
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-2xl">Election Summary</CardTitle>
-            <CardDescription>Popular vote analysis and trends</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <PopularVoteChart data={{ candidates: transformedCandidates, totalVotes }} />
-          </CardContent>
-        </Card>
-
-        {/* Stats */}
-        <ElectionStatsCard statistics={currentElectionData.statistics} />
-
-        {/* Footer */}
-        <div className="text-center py-6 border-t border-gray-200">
-          <p className="text-sm text-gray-500">
-            Election Commission of Sri Lanka • {currentElectionData.electionYear}
-          </p>
-          <p className="text-xs text-gray-400 mt-1">
-            Data provided via Ballerina Election API • Auto-refreshes every {REFRESH_INTERVAL/1000} seconds
-          </p>
+        <div className="flex items-center space-x-2">
+          <Button variant="outline" onClick={loadElectionData}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+          <Button onClick={handleExportData}>
+            <Download className="h-4 w-4 mr-2" />
+            Export Data
+          </Button>
         </div>
       </div>
+
+      {/* Connection Status */}
+      <div className="flex items-center justify-center">
+        <div className="flex items-center space-x-2 text-sm text-gray-600 bg-gray-50 px-3 py-1 rounded-full">
+          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+          <span>Using demo data - API connection not required</span>
+        </div>
+      </div>
+
+      {/* Election Summary */}
+      {electionSummary && <ElectionSummaryCard summary={electionSummary} />}
+
+      {/* Validation Status */}
+      {validation && <ValidationCard validation={validation} />}
+
+      {/* Main Content Tabs */}
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="overview" className="flex items-center space-x-2">
+            <BarChart3 className="h-4 w-4" />
+            <span>Overview</span>
+          </TabsTrigger>
+          <TabsTrigger value="candidates" className="flex items-center space-x-2">
+            <Users className="h-4 w-4" />
+            <span>Candidates</span>
+          </TabsTrigger>
+          <TabsTrigger value="districts" className="flex items-center space-x-2">
+            <MapPin className="h-4 w-4" />
+            <span>Districts</span>
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="flex items-center space-x-2">
+            <PieChart className="h-4 w-4" />
+            <span>Analytics</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Top Candidates */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Trophy className="h-5 w-5 text-yellow-600" />
+                  <span>Top Candidates</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {candidates.slice(0, 5).map((candidate, index) => (
+                  <div key={candidate.candidateId} className="flex items-center space-x-4">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-sm font-bold">
+                      {index + 1}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-medium">{candidate.candidateName}</span>
+                        <span className="text-sm font-bold">{candidate.percentage.toFixed(2)}%</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Progress value={candidate.percentage} className="flex-1" />
+                        <span className="text-xs text-gray-600">{candidate.totalVotes.toLocaleString()} votes</span>
+                      </div>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <Badge
+                          variant="outline"
+                          style={{ borderColor: candidate.partyColor, color: candidate.partyColor }}
+                        >
+                          {candidate.partyName}
+                        </Badge>
+                        <Badge variant="secondary">{candidate.districtsWon} districts won</Badge>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            {/* Vote Distribution Chart */}
+            <VoteDistributionChart candidates={candidates.slice(0, 6)} />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="candidates" className="space-y-6">
+          <CandidateResultsCard candidates={candidates} />
+        </TabsContent>
+
+        <TabsContent value="districts" className="space-y-6">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <DistrictAnalysisCard districtAnalysis={districtAnalysis} candidates={candidates} />
+            <DistrictMapView districtAnalysis={districtAnalysis} candidates={candidates} />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Turnout Analysis */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Voter Turnout Analysis</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span>Total Registered Voters</span>
+                    <span className="font-bold">17,140,354</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Votes Cast</span>
+                    <span className="font-bold">{electionSummary?.totalVotes.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Turnout Percentage</span>
+                    <span className="font-bold text-green-600">76.8%</span>
+                  </div>
+                  <Progress value={76.8} className="mt-2" />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Victory Margin Analysis */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Victory Margin Analysis</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {candidates.slice(0, 3).map((candidate, index) => (
+                    <div key={candidate.candidateId} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">{candidate.candidateName}</span>
+                        <span className="text-sm">{candidate.percentage.toFixed(2)}%</span>
+                      </div>
+                      {index === 0 && (
+                        <div className="text-sm text-green-600 font-medium">
+                          Victory margin: {(candidates[0].percentage - candidates[1].percentage).toFixed(2)}%
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
