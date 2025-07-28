@@ -20,6 +20,8 @@ export interface Election {
   electionName: string // maps to election_name in DB
   description: string
   startDate: string // time:Date in backend, but we'll use string in frontend
+  startTime: string // maps to start_time in DB, time:Date in backend
+  endTime: string // maps to end_time in DB, time:Date in backend
   enrolDdl: string // maps to enrol_ddl in DB, time:Date in backend
   endDate: string // maps to end_date in DB, time:Date in backend
   noOfCandidates: number // maps to no_of_candidates in DB

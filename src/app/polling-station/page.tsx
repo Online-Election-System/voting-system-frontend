@@ -8,6 +8,39 @@ import { TimeOfDay } from "../election-commission/elections/election.types";
 // API Base URL
 const API_BASE_URL = 'http://localhost:8080';
 
+// Storage keys for maintaining election selection across pages
+const STORAGE_KEYS = {
+  SELECTED_ELECTION_ID: 'votingSystem_selectedElectionId',
+  ELECTION_END_TIME: 'votingSystem_electionEndTime',
+  ELECTION_NAME: 'votingSystem_electionName'
+}
+
+// Utility function to save election to session storage
+const saveElectionToSession = (election: any) => {
+  if (typeof window !== 'undefined') {
+    sessionStorage.setItem(STORAGE_KEYS.SELECTED_ELECTION_ID, election.id)
+    sessionStorage.setItem(STORAGE_KEYS.ELECTION_NAME, election.electionName)
+    
+    // Calculate and store end time
+    if (election.endDate && election.endTime) {
+      const endDate = new Date(
+        election.endDate.year,
+        election.endDate.month - 1,
+        election.endDate.day,
+        election.endTime.hour || 23,
+        election.endTime.minute || 59
+      )
+      sessionStorage.setItem(STORAGE_KEYS.ELECTION_END_TIME, endDate.toISOString())
+    }
+    
+    console.log('Election saved to session from polling station:', {
+      id: election.id,
+      name: election.electionName,
+      endTime: election.endDate
+    })
+  }
+}
+
 // Get all elections
 const getElections = async () => {
   try {
@@ -64,13 +97,16 @@ const getElections = async () => {
   }
 }
 
-// Function to handle election click - navigates directly to voter search page
-const handleElectionClick = async (electionId: string) => {
+// Function to handle election click - navigates to voter search page with election data saved
+const handleElectionClick = async (election: any) => {
   try {
-    console.log('Clicking on election with ID:', electionId);
+    console.log('Clicking on election:', election);
     
-    // Navigate directly to the voter search page with election ID as query parameter
-    window.location.href = `/polling-station/vote?electionId=${electionId}`;
+    // Save complete election data to session storage
+    saveElectionToSession(election);
+    
+    // Navigate to the voter search page with election ID as query parameter
+    window.location.href = `/polling-station/vote?electionId=${election.id}`;
     
   } catch (error) {
     console.error('Error navigating to voting page:', error);
@@ -91,6 +127,19 @@ const formatTime = (timeOfDay?: TimeOfDay): string => {
   const ampm = timeOfDay.hour >= 12 ? "PM" : "AM";
 
   return `${hours}:${minutes} ${ampm}`;
+};
+
+const formatDate = (dateObj?: any): string => {
+  if (!dateObj || !dateObj.year || !dateObj.month || !dateObj.day) {
+    return "N/A";
+  }
+  
+  const date = new Date(dateObj.year, dateObj.month - 1, dateObj.day);
+  return date.toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric' 
+  });
 };
 
 export default function PollingStationPage() {
@@ -161,26 +210,28 @@ export default function PollingStationPage() {
   const currentActiveElection = activeElections[0] || null;
 
   return (
-    <div className="container py-8">
+    <div className="container py-8 max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold text-center mb-8">Polling Station</h1>
-      <p className="text-lg text-center mb-4">Welcome to the polling station. Please proceed to cast your vote.</p>
+      <p className="text-lg text-center mb-8">Welcome to the polling station. Please proceed to cast your vote.</p>
       
-      {currentActiveElection ? (
-        <Card 
-          className="ring-2 ring-green-500 bg-green-50 dark:bg-green-950/20 cursor-pointer transition-all duration-200 hover:shadow-lg hover:ring-green-600"
-          onClick={() => handleElectionClick(currentActiveElection.id)}
-        >
+      {/* Active Election Card - Centered */}
+      <div className="flex justify-center mb-6">
+        {currentActiveElection ? (
+          <Card 
+            className="ring-2 ring-green-500 bg-green-50 dark:bg-green-950/20 cursor-pointer transition-all duration-200 hover:shadow-lg hover:ring-green-600 w-full max-w-3xl"
+            onClick={() => handleElectionClick(currentActiveElection)}
+          >
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <CardTitle className="text-green-800 dark:text-green-400 flex items-center gap-2">
-                  Live Election
+                  🔴 Live Election
                   <ExternalLink className="h-4 w-4" />
                 </CardTitle>
                 <div className="flex items-center space-x-1">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                   <span className="text-xs font-medium text-green-600">
-                    IN PROGRESS - Click to view details
+                    IN PROGRESS - Click to vote
                   </span>
                 </div>
               </div>
@@ -197,10 +248,20 @@ export default function PollingStationPage() {
                     {currentActiveElection.electionType}
                   </p>
                   {currentActiveElection.description && (
-                    <p className="text-sm text-green-600 dark:text-green-300">
+                    <p className="text-sm text-green-600 dark:text-green-300 mt-2">
                       {currentActiveElection.description}
                     </p>
                   )}
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center text-sm text-green-600">
+                    <span className="font-medium">Start:</span>
+                    <span className="ml-2">{formatDate(currentActiveElection.startDate)} at {formatTime(currentActiveElection.startTime)}</span>
+                  </div>
+                  <div className="flex items-center text-sm text-green-600">
+                    <span className="font-medium">End:</span>
+                    <span className="ml-2">{formatDate(currentActiveElection.endDate)} at {formatTime(currentActiveElection.endTime)}</span>
+                  </div>
                 </div>
               </div>
               <div className="space-y-4">
@@ -235,18 +296,119 @@ export default function PollingStationPage() {
                 </div>
               </div>
             </div>
+            
+            {/* Click to vote prompt */}
+            <div className="mt-4 p-3 bg-green-100 dark:bg-green-900/30 rounded-lg text-center">
+              <p className="text-green-800 dark:text-green-300 font-medium">
+                🗳️ Click anywhere on this card to start voting
+              </p>
+              <p className="text-green-600 dark:text-green-400 text-sm">
+                Your election selection will be maintained throughout the voting process
+              </p>
+            </div>
           </CardContent>
         </Card>
-      ) : (
-        <Card className="text-center p-8">
-          <p className="text-lg text-gray-600">No active elections at the moment.</p>
-          {upcomingElections.length > 0 && (
-            <p className="text-sm text-gray-500 mt-2">
-              {upcomingCount} upcoming election{upcomingCount !== 1 ? 's' : ''} scheduled.
+        ) : (
+          <Card className="text-center p-8 w-full max-w-3xl">
+            <p className="text-lg text-gray-600">No active elections at the moment.</p>
+            {upcomingElections.length > 0 && (
+              <p className="text-sm text-gray-500 mt-2">
+                {upcomingCount} upcoming election{upcomingCount !== 1 ? 's' : ''} scheduled.
+              </p>
+            )}
+          </Card>
+        )}
+      </div>
+
+      {/* Show additional active elections if any */}
+      {activeElections.length > 1 && (
+        <div className="mb-6 max-w-4xl mx-auto">
+          <h2 className="text-xl font-bold mb-4 text-center">Other Active Elections</h2>
+          <div className="grid gap-4 max-w-3xl mx-auto">
+            {activeElections.slice(1).map((election: any, index: number) => (
+              <Card 
+                key={election.id}
+                className="ring-1 ring-orange-400 bg-orange-50 dark:bg-orange-950/20 cursor-pointer transition-all duration-200 hover:shadow-lg hover:ring-orange-500"
+                onClick={() => handleElectionClick(election)}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-orange-800 dark:text-orange-400">
+                        {election.electionName}
+                      </h3>
+                      <p className="text-sm text-orange-600 dark:text-orange-300">
+                        {election.electionType}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <div className="flex items-center space-x-1">
+                        <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+                        <span className="text-xs font-medium text-orange-600">ACTIVE</span>
+                      </div>
+                      <p className="text-xs text-orange-600 mt-1">
+                        Ends: {formatTime(election.endTime)}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Upcoming Elections Section */}
+      {upcomingElections.length > 0 && (
+        <div className="mb-6 max-w-4xl mx-auto">
+          <h2 className="text-xl font-bold mb-4 text-center">Upcoming Elections</h2>
+          <div className="grid gap-4 max-w-3xl mx-auto">
+            {upcomingElections.slice(0, 3).map((election: any) => (
+              <Card 
+                key={election.id}
+                className="ring-1 ring-blue-300 bg-blue-50 dark:bg-blue-950/20"
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-blue-800 dark:text-blue-400">
+                        {election.electionName}
+                      </h3>
+                      <p className="text-sm text-blue-600 dark:text-blue-300">
+                        {election.electionType}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <div className="flex items-center space-x-1">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <span className="text-xs font-medium text-blue-600">UPCOMING</span>
+                      </div>
+                      <p className="text-xs text-blue-600 mt-1">
+                        Starts: {formatDate(election.startDate)}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          {upcomingElections.length > 3 && (
+            <p className="text-center text-gray-500 text-sm mt-4">
+              + {upcomingElections.length - 3} more upcoming elections
             </p>
           )}
-        </Card>
+        </div>
       )}
+
+      {/* Additional Navigation */}
+      <div className="text-center mt-8">
+        <button 
+          onClick={() => window.location.href = '/polling-station/vote'}
+          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          Go to Vote Search Page
+        </button>
+      </div>
     </div>
   );
 }
