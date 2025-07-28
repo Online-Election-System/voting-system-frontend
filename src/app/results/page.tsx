@@ -85,16 +85,7 @@ export default function ElectionDashboard() {
   const { refreshCalculations, loading: refreshing, error: refreshError } = useRefreshCalculations()
   const { batchUpdate, loading: updating, error: updateError } = useBatchUpdateTotals()
 
-  // Auto-refresh functionality
-  useEffect(() => {
-    if (!autoRefresh) return
-    
-    const interval = setInterval(() => {
-      handleRefreshData()
-    }, 30000) // Refresh every 30 seconds
-    
-    return () => clearInterval(interval)
-  }, [autoRefresh])
+  
 
   // Determine overall loading state
   const loading = summaryLoading || candidatesLoading || districtLoading || validationLoading || totalsLoading
@@ -220,31 +211,8 @@ export default function ElectionDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Election Results Dashboard</h1>
-          <p className="text-gray-600">Real-time analysis for {electionId}</p>
-          {lastRefresh && (
-            <p className="text-xs text-gray-500">
-              Last updated: {lastRefresh.toLocaleTimeString()}
-            </p>
-          )}
         </div>
         <div className="flex items-center space-x-2">
-          <Button 
-            variant={autoRefresh ? "default" : "outline"}
-            size="sm"
-            onClick={toggleAutoRefresh}
-            className={autoRefresh ? "bg-green-600 hover:bg-green-700" : ""}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${autoRefresh ? 'animate-spin' : ''}`} />
-            {autoRefresh ? 'Auto ON' : 'Auto OFF'}
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={handleRefreshData}
-            disabled={refreshing}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-            {refreshing ? 'Refreshing...' : 'Refresh'}
-          </Button>
           <Button 
             variant="outline" 
             onClick={handleBatchUpdate}
