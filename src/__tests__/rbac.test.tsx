@@ -15,32 +15,32 @@ jest.mock("@/components/auth/Unauthorized", () => {
 
 const roles = [
   ["admin", "/admin/dashboard"],
-  ["governmentOfficial", "/government-official/dashboard"],
-  ["electionCommission", "/election-commission/dashboard"],
+  ["government_official", "/government-official/dashboard"],
+  ["election_commission", "/election-commission/dashboard"],
 ] as const;
 
 describe("RoleGuard component", () => {
   it.each(roles)("allows %s role", (role) => {
     (window.localStorage.getItem as jest.Mock).mockReturnValue(role);
-    
+
     render(
       <RoleGuard requiredRole={role}>
         <div>Allowed</div>
       </RoleGuard>
     );
-    
+
     expect(screen.getByText("Allowed")).toBeInTheDocument();
   });
 
   it.each(roles)("blocks other roles for %s", (role) => {
     (window.localStorage.getItem as jest.Mock).mockReturnValue("someOtherRole");
-    
+
     render(
       <RoleGuard requiredRole={role}>
         <div>ShouldNotSee</div>
       </RoleGuard>
     );
-    
+
     expect(screen.getByText("Unauthorized")).toBeInTheDocument();
   });
 });

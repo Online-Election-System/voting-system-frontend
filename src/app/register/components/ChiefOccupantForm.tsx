@@ -1,6 +1,6 @@
 import { CalendarIcon, Upload, X, Check, FileText } from "lucide-react";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { cn } from "@/src/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
@@ -57,9 +57,15 @@ export function ChiefOccupantForm({
     cleanupCurrentFiles,
     cleanupSpecificFile,
   } = useFileUpload({
-    bucket: 'nic-documents',
+    bucket: "nic-documents",
     maxFileSize: 5 * 1024 * 1024, // 5MB
-    allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'],
+    allowedTypes: [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/webp",
+      "application/pdf",
+    ],
     cleanupOnUnmount: false, // Don't auto-cleanup on unmount
   });
 
@@ -72,16 +78,24 @@ export function ChiefOccupantForm({
 
   const handleFileSelect = async (file: File) => {
     // Check if NIC number is available
-    if (!chiefOccupant.nic || chiefOccupant.nic.trim() === '') {
+    if (!chiefOccupant.nic || chiefOccupant.nic.trim() === "") {
       // You might want to show an error or prompt user to enter NIC first
-      alert('Please enter NIC number before uploading the file');
+      alert("Please enter NIC number before uploading the file");
       return;
     }
 
-    const currentFileUrl = typeof chiefOccupant.idCopyPath === 'string' ? chiefOccupant.idCopyPath : undefined;
+    const currentFileUrl =
+      typeof chiefOccupant.idCopyPath === "string"
+        ? chiefOccupant.idCopyPath
+        : undefined;
     // Pass true for shouldDeletePrevious when replacing a file
-    const uploadedFileUrl = await uploadFile(file, chiefOccupant.nic, currentFileUrl, !!currentFileUrl);
-    
+    const uploadedFileUrl = await uploadFile(
+      file,
+      chiefOccupant.nic,
+      currentFileUrl,
+      !!currentFileUrl
+    );
+
     if (uploadedFileUrl) {
       // Store the URL in idCopyPath for backend processing
       onChange("idCopyPath", uploadedFileUrl);
@@ -108,19 +122,25 @@ export function ChiefOccupantForm({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-    
+
     const file = e.dataTransfer.files[0];
-    if (file && (file.type.startsWith('image/') || file.type === 'application/pdf')) {
+    if (
+      file &&
+      (file.type.startsWith("image/") || file.type === "application/pdf")
+    ) {
       handleFileSelect(file);
     }
   };
 
   const removeImage = async () => {
     // Explicitly cleanup the current file when user clicks remove
-    if (chiefOccupant.idCopyPath && typeof chiefOccupant.idCopyPath === 'string') {
+    if (
+      chiefOccupant.idCopyPath &&
+      typeof chiefOccupant.idCopyPath === "string"
+    ) {
       await cleanupSpecificFile(chiefOccupant.idCopyPath);
     }
-    
+
     onChange("idCopyPath", null);
     resetUploadState();
     if (fileInputRef.current) {
@@ -129,10 +149,13 @@ export function ChiefOccupantForm({
   };
 
   // Check if idCopyPath is a URL string (uploaded) or null
-  const hasUploadedFile = chiefOccupant.idCopyPath && typeof chiefOccupant.idCopyPath === 'string';
-  
+  const hasUploadedFile =
+    chiefOccupant.idCopyPath && typeof chiefOccupant.idCopyPath === "string";
+
   // Determine if the uploaded file is a PDF
-  const isPdf = hasUploadedFile && (chiefOccupant.idCopyPath as string).toLowerCase().includes('.pdf');
+  const isPdf =
+    hasUploadedFile &&
+    (chiefOccupant.idCopyPath as string).toLowerCase().includes(".pdf");
 
   const renderUploadedFile = () => {
     if (!hasUploadedFile) return null;
@@ -144,7 +167,9 @@ export function ChiefOccupantForm({
         <div className="space-y-4">
           <div className="flex items-center justify-center space-x-2 text-green-600">
             <Check className="h-5 w-5" />
-            <span className="font-medium">NIC document uploaded successfully</span>
+            <span className="font-medium">
+              NIC document uploaded successfully
+            </span>
           </div>
           <div className="relative inline-block p-4 border-2 border-green-200 rounded-lg bg-green-50">
             <div className="flex items-center space-x-3">
@@ -172,7 +197,7 @@ export function ChiefOccupantForm({
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => window.open(fileUrl, '_blank')}
+              onClick={() => window.open(fileUrl, "_blank")}
             >
               View PDF
             </Button>
@@ -360,14 +385,21 @@ export function ChiefOccupantForm({
               dragOver && "border-blue-500 bg-blue-50",
               hasUploadedFile && "border-green-500 bg-green-50",
               uploadError && "border-red-500 bg-red-50",
-              !dragOver && !hasUploadedFile && !uploadError && "border-gray-300 hover:border-gray-400",
+              !dragOver &&
+                !hasUploadedFile &&
+                !uploadError &&
+                "border-gray-300 hover:border-gray-400",
               !chiefOccupant.nic && "opacity-50 cursor-not-allowed"
             )}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onClick={() => {
-              if (!uploading && chiefOccupant.nic && chiefOccupant.nic.trim() !== '') {
+              if (
+                !uploading &&
+                chiefOccupant.nic &&
+                chiefOccupant.nic.trim() !== ""
+              ) {
                 fileInputRef.current?.click();
               }
             }}
@@ -384,7 +416,9 @@ export function ChiefOccupantForm({
             {uploading ? (
               <div className="space-y-2">
                 <div className="animate-spin mx-auto h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full" />
-                <p className="text-sm text-gray-600">Uploading... {progress}%</p>
+                <p className="text-sm text-gray-600">
+                  Uploading... {progress}%
+                </p>
               </div>
             ) : hasUploadedFile ? (
               renderUploadedFile()
@@ -413,7 +447,9 @@ export function ChiefOccupantForm({
           )}
 
           <p className="text-xs text-gray-500">
-            Please upload a clear image or PDF of your National Identity Card (NIC). For images, both front and back sides should be visible and readable.
+            Please upload a clear image or PDF of your National Identity Card
+            (NIC). For images, both front and back sides should be visible and
+            readable.
           </p>
         </div>
       </div>

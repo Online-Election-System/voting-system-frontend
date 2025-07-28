@@ -2,8 +2,8 @@
 
 import { Button } from "@/components/ui/button"
 import { Vote, ArrowLeft, RotateCcw } from "lucide-react"
-import { CandidateCard } from "@/src/app/vote/components/candidate-card"
-import type { Candidate } from "@/src/app/vote/types/voter"
+import { CandidateCard } from "../components/candidate-card"
+import type { Candidate } from "../types/voter"
 
 interface VotingInterfaceProps {
   candidates: Candidate[]

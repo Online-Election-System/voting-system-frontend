@@ -1,6 +1,6 @@
 import { CalendarIcon, Upload, X, Check, FileText } from "lucide-react";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { cn } from "@/src/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
@@ -57,7 +57,13 @@ export function HouseholdMembersForm({
   } = useFileUpload({
     bucket: "nic-documents",
     maxFileSize: 5 * 1024 * 1024, // 5MB
-    allowedTypes: ["image/jpeg", "image/jpg", "image/png", "image/webp", "application/pdf"],
+    allowedTypes: [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/webp",
+      "application/pdf",
+    ],
     cleanupOnUnmount: false, // Don't auto-cleanup on unmount
   });
 
@@ -70,17 +76,24 @@ export function HouseholdMembersForm({
 
   const handleFileSelect = async (index: number, file: File) => {
     const member = householdMembers[index];
-    
+
     // Check if NIC number is available for this member
-    if (!member?.nic || member.nic.trim() === '') {
-      alert('Please enter NIC number for this member before uploading the file');
+    if (!member?.nic || member.nic.trim() === "") {
+      alert(
+        "Please enter NIC number for this member before uploading the file"
+      );
       return;
     }
 
     const currentFileUrl =
       typeof member?.idCopyPath === "string" ? member.idCopyPath : undefined;
     // Pass true for shouldDeletePrevious when replacing a file
-    const uploadedFileUrl = await uploadFile(file, member.nic, currentFileUrl, !!currentFileUrl);
+    const uploadedFileUrl = await uploadFile(
+      file,
+      member.nic,
+      currentFileUrl,
+      !!currentFileUrl
+    );
 
     if (uploadedFileUrl) {
       onChange(index, "idCopyPath", uploadedFileUrl);
@@ -110,19 +123,22 @@ export function HouseholdMembersForm({
     setDragOverStates((prev) => ({ ...prev, [index]: false }));
 
     const file = e.dataTransfer.files[0];
-    if (file && (file.type.startsWith("image/") || file.type === "application/pdf")) {
+    if (
+      file &&
+      (file.type.startsWith("image/") || file.type === "application/pdf")
+    ) {
       handleFileSelect(index, file);
     }
   };
 
   const removeImage = async (index: number) => {
     const member = householdMembers[index];
-    
+
     // Explicitly cleanup the current file when user clicks remove
-    if (member?.idCopyPath && typeof member.idCopyPath === 'string') {
+    if (member?.idCopyPath && typeof member.idCopyPath === "string") {
       await cleanupSpecificFile(member.idCopyPath);
     }
-    
+
     onChange(index, "idCopyPath", null);
     resetUploadState();
     if (fileInputRefs.current[index]) {
@@ -132,21 +148,20 @@ export function HouseholdMembersForm({
 
   const renderUploadedFile = (index: number) => {
     const member = householdMembers[index];
-    const hasUploadedFile = member?.idCopyPath && typeof member.idCopyPath === "string";
-    
+    const hasUploadedFile =
+      member?.idCopyPath && typeof member.idCopyPath === "string";
+
     if (!hasUploadedFile) return null;
 
     const fileUrl = member.idCopyPath as string;
-    const isPdf = fileUrl.toLowerCase().includes('.pdf');
+    const isPdf = fileUrl.toLowerCase().includes(".pdf");
 
     if (isPdf) {
       return (
         <div className="space-y-3">
           <div className="flex items-center justify-center space-x-2 text-green-600">
             <Check className="h-4 w-4" />
-            <span className="text-sm font-medium">
-              NIC document uploaded
-            </span>
+            <span className="text-sm font-medium">NIC document uploaded</span>
           </div>
           <div className="relative inline-block p-3 border-2 border-green-200 rounded-lg bg-green-50">
             <div className="flex items-center space-x-2">
@@ -174,7 +189,7 @@ export function HouseholdMembersForm({
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => window.open(fileUrl, '_blank')}
+              onClick={() => window.open(fileUrl, "_blank")}
             >
               View PDF
             </Button>
@@ -198,9 +213,7 @@ export function HouseholdMembersForm({
         <div className="space-y-3">
           <div className="flex items-center justify-center space-x-2 text-green-600">
             <Check className="h-4 w-4" />
-            <span className="text-sm font-medium">
-              NIC image uploaded
-            </span>
+            <span className="text-sm font-medium">NIC image uploaded</span>
           </div>
           <div className="relative inline-block">
             <img
@@ -242,7 +255,7 @@ export function HouseholdMembersForm({
     const hasUploadedFile =
       member?.idCopyPath && typeof member.idCopyPath === "string";
     const dragOver = dragOverStates[index] || false;
-    const memberHasNic = member?.nic && member.nic.trim() !== '';
+    const memberHasNic = member?.nic && member.nic.trim() !== "";
 
     return (
       <div key={index} className="space-y-6 border p-4 rounded-md">
@@ -426,7 +439,9 @@ export function HouseholdMembersForm({
             )}
 
             <p className="text-xs text-gray-500">
-              Please upload a clear image or PDF of your National Identity Card (NIC). For images, both front and back sides should be visible and readable.
+              Please upload a clear image or PDF of your National Identity Card
+              (NIC). For images, both front and back sides should be visible and
+              readable.
             </p>
           </div>
         </div>
@@ -503,7 +518,8 @@ export function HouseholdMembersForm({
       )}
 
       <div className="text-sm text-muted-foreground">
-        Please ensure all information is accurate. NIC documents (images or PDFs) are required for all members.
+        Please ensure all information is accurate. NIC documents (images or
+        PDFs) are required for all members.
       </div>
     </div>
   );

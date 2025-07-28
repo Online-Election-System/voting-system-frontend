@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { ReactNode, useEffect, useState } from "react";
 import Unauthorized from "./Unauthorized";
-import { useToast } from "@/lib/hooks/use-toast";
+import { useToast } from "@/src/lib/hooks/use-toast";
+import { getUserType } from "@/src/lib/cookies";
 
 interface RoleGuardProps {
   requiredRole: string;
@@ -11,25 +12,19 @@ interface RoleGuardProps {
 }
 
 /**
- * Simple client-side role guard that checks the `userType` stored in
- * `localStorage`. If the stored role does not match `requiredRole`, the user
- * is shown a 403 screen. For production you may want to tighten this (SSR
- * checks, token claims, etc.) but it is sufficient to prove RBAC wiring.
+ * Client-side role guard that checks the userType from session cookie.
  */
 export default function RoleGuard({ requiredRole, children }: RoleGuardProps) {
   const router = useRouter();
   const [authorized, setAuthorized] = useState<null | boolean>(null);
-
   const { toast } = useToast();
 
   useEffect(() => {
-    const storedRole =
-      typeof window !== "undefined" ? localStorage.getItem("userType") : null;
+    const storedRole = getUserType();
 
-    // Move the debug logs inside useEffect where localStorage is safe to access
-    console.log("🔍 RoleGuard Debug:");
+    console.log("RoleGuard Debug:");
     console.log("Required role:", requiredRole);
-    console.log("User type from localStorage:", storedRole);
+    console.log("User type from session cookie:", storedRole);
 
     if (storedRole === requiredRole) {
       setAuthorized(true);
@@ -43,7 +38,6 @@ export default function RoleGuard({ requiredRole, children }: RoleGuardProps) {
     }
   }, [requiredRole, router, toast]);
 
-  // You could return a spinner here instead of null while deciding.
   if (authorized === null) return null;
 
   return authorized ? <>{children}</> : <Unauthorized />;
