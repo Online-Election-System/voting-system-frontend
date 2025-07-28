@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, AlertCircle } from "lucide-react"
-import type { Candidate } from "@/src/app/vote/types/voter"
+import type { Candidate } from "@/src/app/polling-station/vote/types/voter"
 
 interface VoteConfirmationProps {
   selectedCandidate: Candidate | null
