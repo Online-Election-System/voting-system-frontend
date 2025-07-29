@@ -3,15 +3,15 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Map, MapPin } from "lucide-react"
-import { SRI_LANKAN_DISTRICTS } from "@/app/results/types"
-import type { DistrictWinnerAnalysis, CandidateExportData } from "@/app/results/types"
+import { SRI_LANKAN_DISTRICTS } from "../types"
+import type { DistrictWinnerAnalysis, CandidateExportData } from "../types"
 
 interface DistrictMapViewProps {
   districtAnalysis: DistrictWinnerAnalysis | null
   candidates: CandidateExportData[]
 }
 
-export function DistrictMapView({ candidates }: DistrictMapViewProps) {
+export function DistrictMapView({ districtAnalysis, candidates }: DistrictMapViewProps) {
   // Mock district winners for demonstration
   const mockDistrictWinners = SRI_LANKAN_DISTRICTS.reduce(
     (acc, district, index) => {

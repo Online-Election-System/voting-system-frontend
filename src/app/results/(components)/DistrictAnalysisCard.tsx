@@ -4,8 +4,8 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { MapPin, Trophy, TrendingUp } from "lucide-react"
-import { SRI_LANKAN_DISTRICTS } from "@/app/results/types"
-import type { DistrictWinnerAnalysis, CandidateExportData } from "@/app/results/types"
+import { SRI_LANKAN_DISTRICTS } from "../types"
+import type { DistrictWinnerAnalysis, CandidateExportData } from "../types"
 
 interface DistrictAnalysisCardProps {
   districtAnalysis: DistrictWinnerAnalysis | null

@@ -1,13 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { 
   API_CONFIG, 
-  ENDPOINTS, 
-  HTTP_STATUS, 
+  ENDPOINTS,  
   DEFAULT_HEADERS,
   ApiResponseStatus,
   API_RESPONSE_STATUS,
   DEFAULT_ELECTION_ID
-} from '@/app/results/lib/config/api';
+} from '../lib/config/api';
 
 // Import types from the result service
 export interface CandidateTotal {

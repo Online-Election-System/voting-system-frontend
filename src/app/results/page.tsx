@@ -8,12 +8,11 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Trophy, Users, MapPin, AlertTriangle, Download, RefreshCw, BarChart3, PieChart } from "lucide-react"
-import { CandidateResultsCard } from "@/app/results/(components)/CandidateResultsCard"
-import { DistrictAnalysisCard } from "@/app/results/(components)/DistrictAnalysisCard"
-import { ElectionSummaryCard } from "@/app/results/(components)/ElectionSummaryCard"
-import { ValidationCard } from "@/app/results/(components)/ValidationCard"
-import { VoteDistributionChart } from "@/app/results/(components)/VoteDistributionChart"
-import { DistrictMapView } from "@/app/results/(components)/DistrictMapView"
+import { CandidateResultsCard } from "./(components)/CandidateResultsCard"
+import { DistrictAnalysisCard } from "./(components)/DistrictAnalysisCard"
+import { ElectionSummaryCard } from "./(components)/ElectionSummaryCard"
+import { VoteDistributionChart } from "./(components)/VoteDistributionChart"
+import { DistrictMapView } from "./(components)/DistrictMapView"
 
 // Import the updated hooks with correct path and default election ID
 import {
@@ -31,10 +30,10 @@ import {
   type DistrictWinnerAnalysis,
   type ValidationResult,
   type DistrictVoteTotals,
-} from "@/app/results/hooks/useReslult" 
+} from "./hooks/useReslult" 
 
 // Import the default election ID from config
-import { DEFAULT_ELECTION_ID } from "@/app/results/lib/config/api"
+import { DEFAULT_ELECTION_ID } from "./lib/config/api"
 
 export default function ElectionDashboard() {
   // Updated to use the correct election ID for your backend
