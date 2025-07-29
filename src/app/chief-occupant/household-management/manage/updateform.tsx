@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useFileUpload } from "@/src/app/register/hooks/use-file-upload-hook"
 import { Check, X, Upload, FileText } from "lucide-react"
 import { v4 as uuidv4 } from 'uuid'
-import { cn } from "@/lib/utils"
+import { cn } from "@/src/lib/utils"
 
 export interface HouseholdMember {
   memberId: string

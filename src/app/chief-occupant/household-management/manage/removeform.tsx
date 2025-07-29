@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useFileUpload } from "@/src/app/register/hooks/use-file-upload-hook"
 import { Check, X, Upload, FileText, Trash2 } from "lucide-react"
 import { v4 as uuidv4 } from 'uuid'
-import { cn } from "@/lib/utils"
+import { cn } from "@/src/lib/utils"
 
 interface HouseholdMember {
   memberId: string
