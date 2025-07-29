@@ -114,8 +114,6 @@ export const ENDPOINTS = {
     // Election summary and overview
     ELECTION_SUMMARY: (electionId: string) => `/results/api/v1/elections/${electionId}/summary`,
     
-    // Data validation
-    VALIDATE: (electionId: string) => `/results/api/v1/elections/${electionId}/validate`,
     
     // Specific queries
     WINNER: (electionId: string) => `/results/api/v1/elections/${electionId}/winner`,

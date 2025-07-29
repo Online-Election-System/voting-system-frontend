@@ -20,7 +20,6 @@ import {
   useElectionSummary,
   useCandidateExportData,
   useDistrictWinners,
-  useElectionValidation,
   useDistrictTotals,
   useRefreshCalculations,
   useBatchUpdateTotals,
@@ -68,13 +67,6 @@ export default function ElectionDashboard() {
   } = useDistrictWinners()
 
   const { 
-    data: validation, 
-    loading: validationLoading, 
-    error: validationError, 
-    refetch: refetchValidation 
-  } = useElectionValidation()
-
-  const { 
     data: districtTotals, 
     loading: totalsLoading, 
     error: totalsError, 
@@ -88,10 +80,10 @@ export default function ElectionDashboard() {
   
 
   // Determine overall loading state
-  const loading = summaryLoading || candidatesLoading || districtLoading || validationLoading || totalsLoading
+  const loading = summaryLoading || candidatesLoading || districtLoading || totalsLoading
   
   // Determine if there are any errors
-  const error = summaryError || candidatesError || districtError || validationError || totalsError || refreshError || updateError
+  const error = summaryError || candidatesError || districtError  || totalsError || refreshError || updateError
 
   const handleRefreshData = async () => {
     try {
@@ -102,7 +94,6 @@ export default function ElectionDashboard() {
       refetchSummary()
       refetchCandidates()
       refetchDistricts()
-      refetchValidation()
       refetchTotals()
       
       setLastRefresh(new Date())
@@ -129,7 +120,6 @@ export default function ElectionDashboard() {
       electionSummary,
       candidates,
       districtAnalysis,
-      validation,
       districtTotals,
       exportedAt: new Date().toISOString(),
       exportedBy: "Election Dashboard",
@@ -251,9 +241,6 @@ export default function ElectionDashboard() {
 
       {/* Election Summary */}
       {electionSummary && <ElectionSummaryCard summary={electionSummary} />}
-
-      {/* Validation Status */}
-      {validation && <ValidationCard validation={validation} />}
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="overview" className="space-y-6">
@@ -597,17 +584,7 @@ export default function ElectionDashboard() {
           Data source: Results API v1 | 
           {autoRefresh ? 'Auto-refresh: ON (30s)' : 'Auto-refresh: OFF'}
         </p>
-        {validation && (
-          <p className="mt-1">
-            Data validation: {validation.isValid ? '✅ Passed' : '❌ Failed'} | 
-            Errors: {validation.errors.length} | 
-            Candidates with issues: {
-              validation.statistics.candidatesWithMismatchedTotals + 
-              validation.statistics.candidatesWithNegativeVotes + 
-              validation.statistics.candidatesWithMissingData
-            }
-          </p>
-        )}
+        
         {candidates && (
           <p className="mt-1 text-xs">
             Showing results for {candidates.length} candidates across {electionSummary?.totalDistrictsConsidered || 25} districts

@@ -302,16 +302,6 @@ export class ResultsService {
   }
 
   // ============================================================================
-  // DATA VALIDATION
-  // ============================================================================
-
-  async validateElectionData(electionId: string = DEFAULT_ELECTION_ID): Promise<ValidationResult> {
-    return this.makeRequest<ValidationResult>(
-      ENDPOINTS.RESULTS.VALIDATE(electionId)
-    );
-  }
-
-  // ============================================================================
   // SPECIFIC QUERIES
   // ============================================================================
 
@@ -379,18 +369,16 @@ export class ResultsService {
    */
   async getElectionResults(electionId: string = DEFAULT_ELECTION_ID) {
     try {
-      const [summary, winner, totals, validation] = await Promise.all([
+      const [summary, winner, totals] = await Promise.all([
         this.getElectionSummary(electionId),
         this.getElectionWinner(electionId),
         this.getCandidateTotals(electionId),
-        this.validateElectionData(electionId)
       ]);
 
       return {
         summary,
         winner,
         candidateTotals: totals,
-        validation,
         electionId
       };
     } catch (error) {

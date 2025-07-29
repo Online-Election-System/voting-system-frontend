@@ -328,15 +328,6 @@ export const useElectionSummary = (electionId: string = DEFAULT_ELECTION_ID) => 
   );
 };
 
-// Data validation
-export const useElectionValidation = (electionId: string = DEFAULT_ELECTION_ID) => {
-  return useApi<ValidationResult>(
-    ENDPOINTS.RESULTS.VALIDATE(electionId),
-    {},
-    [electionId]
-  );
-};
-
 // Specific queries
 export const useElectionWinner = (electionId: string = DEFAULT_ELECTION_ID) => {
   return useApi<ElectionWinner>(
@@ -929,20 +920,17 @@ export const useElectionResults = (electionId: string = DEFAULT_ELECTION_ID) => 
   const summary = useElectionSummary(electionId);
   const winner = useElectionWinner(electionId);
   const totals = useCandidateTotals(electionId);
-  const validation = useElectionValidation(electionId);
-
+  
   return {
     summary,
     winner,
     totals,
-    validation,
-    loading: summary.loading || winner.loading || totals.loading || validation.loading,
-    error: summary.error || winner.error || totals.error || validation.error,
+    loading: summary.loading || winner.loading || totals.loading ,
+    error: summary.error || winner.error || totals.error ,
     refetch: () => {
       summary.refetch();
       winner.refetch();
       totals.refetch();
-      validation.refetch();
     }
   };
 };

@@ -11,7 +11,7 @@ interface DistrictMapViewProps {
   candidates: CandidateExportData[]
 }
 
-export function DistrictMapView({ districtAnalysis, candidates }: DistrictMapViewProps) {
+export function DistrictMapView({ candidates }: DistrictMapViewProps) {
   // Mock district winners for demonstration
   const mockDistrictWinners = SRI_LANKAN_DISTRICTS.reduce(
     (acc, district, index) => {
