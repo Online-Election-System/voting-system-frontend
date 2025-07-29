@@ -99,7 +99,7 @@ const navigationData: NavigationItem[] = [
     label: "Manage Household",
     href: "/chief-occupant/household-management",
     icon: Users,
-    roles: ["chiefOccupant"],
+    roles: ["chief_occupant"],
     requiresAuth: true,
   },
   // Household Member items
