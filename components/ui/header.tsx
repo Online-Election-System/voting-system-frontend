@@ -20,10 +20,12 @@ import { getUserType, isAuthenticated } from "@/src/lib/cookies";
 
 type UserRole =
   | "admin"
-  | "government_official"
-  | "election_commission"
-  | "chief_occupant"
-  | "household_member"
+  | "governmentOfficial"
+  | "electionCommission"
+  | "chiefOccupant"
+  | "householdMember"
+  | "verifiedChiefOccupant"
+  | "verifiedHouseholdMember"
   | "polling_station"
   | null;
 
@@ -51,12 +53,27 @@ const navigationData: NavigationItem[] = [
     requiresAuth: true,
   },
   {
-    label: "Elections",
-    href: "/election-commission/elections",
-    icon: Vote,
-    roles: ["election_commission"],
+    label: "Home",
+    href: "/enrollment/dashboard",
+    icon: Home,
+    roles: ["verifiedChiefOccupant","verifiedHouseholdMember"],
     requiresAuth: true,
   },
+  {
+    label: "Elections",
+    href: "/enrollment/elections",
+    icon: Vote,
+    roles: ["electionCommission","verifiedChiefOccupant","verifiedHouseholdMember"],
+    requiresAuth: true,
+  },
+  {
+    label: "Profile",
+    href: "/enrollment/profile",
+    icon: Home,
+    roles: ["verifiedChiefOccupant","verifiedHouseholdMember"],
+    requiresAuth: true,
+  },
+  
   {
     label: "Candidates",
     href: "/election-commission/candidates",
@@ -78,6 +95,8 @@ const navigationData: NavigationItem[] = [
     roles: ["government_official"],
     requiresAuth: true,
   },
+
+  //Chief Occupant items
   {
     label: "Household Dashboard",
     href: "/chief-occupant/dashboard",
@@ -94,6 +113,8 @@ const navigationData: NavigationItem[] = [
     requiresAuth: true,
   },
 
+  
+  // Household Member items
   {
     label: "My Dashboard",
     href: "/household-member/dashboard",
@@ -101,6 +122,8 @@ const navigationData: NavigationItem[] = [
     roles: ["household_member"],
     requiresAuth: true,
   },
+  
+  
 ];
 
 export default function Header() {
