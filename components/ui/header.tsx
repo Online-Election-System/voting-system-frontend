@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Home,
   Vote,
@@ -11,66 +11,59 @@ import {
   Users,
   FileText,
   Settings,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { logout } from "@/src/lib/auth";
+import { cn } from "@/src/lib/utils";
+import { logout } from "@/src/lib/services/authService";
+import { getUserType, isAuthenticated } from "@/src/lib/cookies";
 
 type UserRole =
   | "admin"
-  | "governmentOfficial"
-  | "electionCommission"
-  | "chiefOccupant"
-  | "householdMember"
+  | "government_official"
+  | "election_commission"
+  | "chief_occupant"
+  | "household_member"
+  | "polling_station"
   | null;
 
 type NavigationItem = {
   label: string;
   href: string;
   icon: typeof Home;
-  roles?: UserRole[]; // If undefined, shows for all roles
-  requiresAuth?: boolean; // If true, only shows when logged in
-  loggedOutOnly?: boolean; // If true, only shows when logged out
+  roles?: UserRole[];
+  requiresAuth?: boolean;
+  loggedOutOnly?: boolean;
 };
 
 const navigationData: NavigationItem[] = [
-  // Public navigation (shows for everyone)
+  // ... keep your existing navigationData ...
   {
     label: "About",
     href: "/about",
     icon: FileText,
   },
-  // Authentication-specific items
-  // {
-  //   label: "Sign In",
-  //   href: "/signin",
-  //   icon: User,
-  //   loggedOutOnly: true,
-  //   requiresAuth: false,
-  // },
-  // Election Commission specific navigation
   {
     label: "Dashboard",
     href: "/election-commission/dashboard",
     icon: Home,
-    roles: ["electionCommission"],
+    roles: ["election_commission"],
     requiresAuth: true,
   },
   {
     label: "Elections",
     href: "/election-commission/elections",
     icon: Vote,
-    roles: ["electionCommission"],
+    roles: ["election_commission"],
     requiresAuth: true,
   },
   {
     label: "Candidates",
     href: "/election-commission/candidates",
     icon: Users,
-    roles: ["electionCommission"],
+    roles: ["election_commission"],
     requiresAuth: true,
   },
-  // Admin specific items
   {
     label: "Admin Dashboard",
     href: "/admin/dashboard",
@@ -78,20 +71,18 @@ const navigationData: NavigationItem[] = [
     roles: ["admin"],
     requiresAuth: true,
   },
-  // Government Official items
   {
     label: "Gov Dashboard",
     href: "/government-official/dashboard",
     icon: Home,
-    roles: ["governmentOfficial"],
+    roles: ["government_official"],
     requiresAuth: true,
   },
-  // Chief Occupant items
   {
     label: "Household Dashboard",
     href: "/chief-occupant/dashboard",
     icon: Home,
-    roles: ["chiefOccupant"],
+    roles: ["chief_occupant"],
     requiresAuth: true,
   },
 
@@ -102,12 +93,12 @@ const navigationData: NavigationItem[] = [
     roles: ["chief_occupant"],
     requiresAuth: true,
   },
-  // Household Member items
+
   {
     label: "My Dashboard",
     href: "/household-member/dashboard",
     icon: Home,
-    roles: ["householdMember"],
+    roles: ["household_member"],
     requiresAuth: true,
   },
 ];
@@ -119,37 +110,42 @@ export default function Header() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  const checkAuthStatus = useCallback(() => {
+    const authenticated = isAuthenticated();
+    const userType = getUserType() as UserRole;
+
+    console.log("Header Auth Check:", {
+      authenticated,
+      userType,
+      timestamp: new Date().toISOString(),
+    });
+
+    setIsLoggedIn(authenticated);
+    setUserRole(authenticated ? userType : null);
+    setIsLoading(false);
+  }, []);
+
   useEffect(() => {
-    const checkAuthStatus = () => {
-      if (typeof window === "undefined") return;
-
-      const token = localStorage.getItem("token");
-      const userType = localStorage.getItem("userType") as UserRole;
-
-      setIsLoggedIn(!!token);
-      setUserRole(token ? userType : null);
-      setIsLoading(false);
-
-      console.log("Header Auth Status:", {
-        token: !!token,
-        userType,
-        isLoggedIn: !!token,
-      });
-    };
-
     // Initial check
     checkAuthStatus();
 
-    // Listen for storage changes (login/logout events)
-    const handleStorageChange = () => {
-      checkAuthStatus();
-    };
-
-    window.addEventListener("storage", handleStorageChange);
+    // Check every 500ms instead of 1000ms for more responsive updates
+    const interval = setInterval(checkAuthStatus, 500);
 
     return () => {
-      window.removeEventListener("storage", handleStorageChange);
+      clearInterval(interval);
     };
+  }, [checkAuthStatus]);
+
+  const handleLogout = useCallback(async () => {
+    console.log("Logout button clicked");
+
+    // Immediately update state to show logging out
+    setIsLoggedIn(false);
+    setUserRole(null);
+
+    // Perform actual logout
+    await logout();
   }, []);
 
   // Filter navigation items based on user role and auth status
@@ -157,23 +153,18 @@ export default function Header() {
     if (isLoading) return [];
 
     return navigationData.filter((item) => {
-      // If item is for logged out users only
       if (item.loggedOutOnly && isLoggedIn) {
         return false;
       }
 
-      // If item requires auth but user is not logged in
       if (item.requiresAuth && !isLoggedIn) {
         return false;
       }
 
-      // If item is role-specific
       if (item.roles && item.roles.length > 0) {
-        // User must be logged in and have the required role
         return isLoggedIn && item.roles.includes(userRole);
       }
 
-      // Show public items
       return true;
     });
   };
@@ -187,7 +178,7 @@ export default function Header() {
           <Link href="/" className="flex items-center gap-2">
             <Vote className="h-6 w-6 text-primary" />
             <span className="font-bold text-xl">
-              {userRole === "electionCommission"
+              {userRole === "election_commission"
                 ? "Election Admin"
                 : "Election"}
             </span>
@@ -196,7 +187,9 @@ export default function Header() {
 
         <div className="hidden md:flex items-center gap-6">
           {isLoading ? (
-            <div className="text-sm text-gray-500">Loading...</div>
+            <div className="p-1">
+              <Loader2 className="mr-2 h-7 w-7 animate-spin" />
+            </div>
           ) : (
             <>
               {visibleNavItems.map((item) => (
@@ -219,18 +212,18 @@ export default function Header() {
                 <Button
                   variant="outline"
                   className="gap-2 text-muted-foreground hover:text-black dark:hover:text-white"
-                  onClick={logout}
+                  onClick={handleLogout}
                 >
                   <LogOut className="h-4 w-4" />
                   Logout
                 </Button>
-              ):(
+              ) : (
                 <Button
                   variant="outline"
                   className="gap-2 text-muted-foreground hover:text-black dark:hover:text-white"
-                  onClick={() => router.push('/signin')}
+                  onClick={() => router.push("/signin")}
                 >
-                  <LogOut className="h-4 w-4" />
+                  <User className="h-4 w-4" />
                   Sign In
                 </Button>
               )}

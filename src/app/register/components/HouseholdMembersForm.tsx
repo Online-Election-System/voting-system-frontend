@@ -1,6 +1,6 @@
 import { CalendarIcon, Upload, X, Check, FileText } from "lucide-react";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { cn } from "@/src/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
@@ -175,6 +175,7 @@ export function HouseholdMembersForm({
     const file = e.dataTransfer.files[0];
     if (file && file.type.startsWith("image/")) {
       handleProfilePhotoSelect(index, file);
+
     }
   };
 
@@ -185,7 +186,7 @@ export function HouseholdMembersForm({
     if (member?.idCopyPath && typeof member.idCopyPath === 'string') {
       await cleanupSpecificNicFile(member.idCopyPath);
     }
-    
+
     onChange(index, "idCopyPath", null);
     resetNicUploadState();
     if (nicFileInputRefs.current[index]) {
@@ -210,12 +211,13 @@ export function HouseholdMembersForm({
   // Render uploaded NIC file
   const renderUploadedNicFile = (index: number) => {
     const member = householdMembers[index];
-    const hasUploadedFile = member?.idCopyPath && typeof member.idCopyPath === "string";
-    
+    const hasUploadedFile =
+      member?.idCopyPath && typeof member.idCopyPath === "string";
+
     if (!hasUploadedFile) return null;
 
     const fileUrl = member.idCopyPath as string;
-    const isPdf = fileUrl.toLowerCase().includes('.pdf');
+    const isPdf = fileUrl.toLowerCase().includes(".pdf");
 
     if (isPdf) {
       return (
@@ -250,7 +252,7 @@ export function HouseholdMembersForm({
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => window.open(fileUrl, '_blank')}
+              onClick={() => window.open(fileUrl, "_blank")}
             >
               View PDF
             </Button>
@@ -618,7 +620,9 @@ export function HouseholdMembersForm({
             )}
 
             <p className="text-xs text-gray-500">
-              Please upload a clear image or PDF of your National Identity Card (NIC). For images, both front and back sides should be visible and readable.
+              Please upload a clear image or PDF of your National Identity Card
+              (NIC). For images, both front and back sides should be visible and
+              readable.
             </p>
           </div>
         </div>
@@ -693,7 +697,6 @@ export function HouseholdMembersForm({
           <p>No additional household members to register.</p>
         </div>
       )}
-
       <div className="text-sm text-muted-foreground">
         Please ensure all information is accurate. NIC documents (images or PDFs) and profile photos are required for all members.
       </div>

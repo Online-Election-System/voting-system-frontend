@@ -1,6 +1,6 @@
 import { CalendarIcon, Upload, X, Check, FileText } from "lucide-react";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { cn } from "@/src/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
@@ -183,7 +183,7 @@ export function ChiefOccupantForm({
     if (chiefOccupant.idCopyPath && typeof chiefOccupant.idCopyPath === 'string') {
       await cleanupSpecificNicFile(chiefOccupant.idCopyPath);
     }
-    
+
     onChange("idCopyPath", null);
     resetNicUploadState();
     if (nicFileInputRef.current) {
@@ -219,7 +219,9 @@ export function ChiefOccupantForm({
         <div className="space-y-4">
           <div className="flex items-center justify-center space-x-2 text-green-600">
             <Check className="h-5 w-5" />
-            <span className="font-medium">NIC document uploaded successfully</span>
+            <span className="font-medium">
+              NIC document uploaded successfully
+            </span>
           </div>
           <div className="relative inline-block p-4 border-2 border-green-200 rounded-lg bg-green-50">
             <div className="flex items-center space-x-3">
@@ -247,7 +249,7 @@ export function ChiefOccupantForm({
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => window.open(fileUrl, '_blank')}
+              onClick={() => window.open(fileUrl, "_blank")}
             >
               View PDF
             </Button>
@@ -556,6 +558,7 @@ export function ChiefOccupantForm({
             onClick={() => {
               if (!uploadingNic && chiefOccupant.nic && chiefOccupant.nic.trim() !== '') {
                 nicFileInputRef.current?.click();
+
               }
             }}
           >
@@ -572,6 +575,7 @@ export function ChiefOccupantForm({
               <div className="space-y-2">
                 <div className="animate-spin mx-auto h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full" />
                 <p className="text-sm text-gray-600">Uploading... {nicProgress}%</p>
+
               </div>
             ) : hasUploadedNicFile ? (
               renderUploadedNicFile()
@@ -600,7 +604,9 @@ export function ChiefOccupantForm({
           )}
 
           <p className="text-xs text-gray-500">
-            Please upload a clear image or PDF of your National Identity Card (NIC). For images, both front and back sides should be visible and readable.
+            Please upload a clear image or PDF of your National Identity Card
+            (NIC). For images, both front and back sides should be visible and
+            readable.
           </p>
         </div>
       </div>

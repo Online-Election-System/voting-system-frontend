@@ -25,10 +25,19 @@ export function middleware(req: NextRequest) {
   if (pathname.startsWith("/admin") && role !== "admin") {
     return redirectUnauthorized();
   }
-  if (pathname.startsWith("/government-official") && role !== "governmentOfficial") {
+  if (
+    pathname.startsWith("/government-official") &&
+    role !== "government_official"
+  ) {
     return redirectUnauthorized();
   }
-  if (pathname.startsWith("/election-commission") && role !== "electionCommission") {
+  if (
+    pathname.startsWith("/election-commission") &&
+    role !== "election_commission"
+  ) {
+    return redirectUnauthorized();
+  }
+  if (pathname.startsWith("/polling-station") && role !== "polling_station") {
     return redirectUnauthorized();
   }
 
