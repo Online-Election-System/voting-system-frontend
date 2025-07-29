@@ -29,7 +29,7 @@ export default function ChiefOccupantDashboard() {
   }, [])
 
   return (
-    <RoleGuard requiredRole="chiefOccupant">
+    <RoleGuard requiredRole="chief_occupant">
       <div className="flex min-h-screen flex-col">
         <main className="flex flex-1 flex-col items-center justify-center p-4 md:p-6">
           <div className="max-w-3xl text-center">
