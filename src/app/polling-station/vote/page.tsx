@@ -1,30 +1,110 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import type { Screen, Candidate } from "@/src/app/vote/types/voter"
+import { useSearchParams } from 'next/navigation'
+import type { Screen, Candidate } from "@/src/app/polling-station/vote/types/voter"
+
 import { 
   useCastVote, 
   useVoterValidation, 
   useVoterEnrolledElections, 
   useCandidatesByElection,
   useVotingEligibility 
-} from "@/src/app/vote/hooks/useVote"
+
+} from "@/src/app/polling-station/vote/hooks/useVote"
 
 // Components
-import { VotingHeader } from "@/src/app/vote/components/header"
-import { VoterSearch } from "@/src/app/vote/components/voter-search"
-import { VoterProfile } from "@/src/app/vote/components/voter-profile"
-import { VotingInterface } from "@/src/app/vote/components/voting-interface"
-import { VoteConfirmation } from "@/src/app/vote/components/vote-confirmation"
-import { SuccessMessage } from "@/src/app/vote/components/success-message"
+import { VotingHeader } from "@/src/app/polling-station/vote/components/header"
+import { VoterSearch } from "@/src/app/polling-station/vote/components/voter-search"
+import { VoterProfile } from "@/src/app/polling-station/vote/components/voter-profile"
+import { VotingInterface } from "@/src/app/polling-station/vote/components/voting-interface"
+import { VoteConfirmation } from "@/src/app/polling-station/vote/components/vote-confirmation"
+import { SuccessMessage } from "@/src/app/polling-station/vote/components/success-message"
+
+// Storage keys for maintaining election selection
+const STORAGE_KEYS = {
+  SELECTED_ELECTION_ID: 'votingSystem_selectedElectionId',
+  ELECTION_END_TIME: 'votingSystem_electionEndTime',
+  ELECTION_NAME: 'votingSystem_electionName'
+}
+
+// Utility functions for election storage management
+const saveElectionToSession = (electionId: string, electionName?: string, endTime?: string) => {
+  if (typeof window !== 'undefined') {
+    sessionStorage.setItem(STORAGE_KEYS.SELECTED_ELECTION_ID, electionId)
+    if (electionName) {
+      sessionStorage.setItem(STORAGE_KEYS.ELECTION_NAME, electionName)
+    }
+    if (endTime) {
+      sessionStorage.setItem(STORAGE_KEYS.ELECTION_END_TIME, endTime)
+    }
+    console.log('Election saved to session:', { electionId, electionName, endTime })
+  }
+}
+
+const getElectionFromSession = () => {
+  if (typeof window !== 'undefined') {
+    const electionId = sessionStorage.getItem(STORAGE_KEYS.SELECTED_ELECTION_ID)
+    const electionName = sessionStorage.getItem(STORAGE_KEYS.ELECTION_NAME)
+    const endTime = sessionStorage.getItem(STORAGE_KEYS.ELECTION_END_TIME)
+    
+    // Check if election has ended
+    if (endTime) {
+      const endDate = new Date(endTime)
+      const now = new Date()
+      if (now > endDate) {
+        console.log('Election has ended, clearing session storage')
+        clearElectionFromSession()
+        return null
+      }
+    }
+    
+    return electionId ? { electionId, electionName, endTime } : null
+  }
+  return null
+}
+
+const clearElectionFromSession = () => {
+  if (typeof window !== 'undefined') {
+    sessionStorage.removeItem(STORAGE_KEYS.SELECTED_ELECTION_ID)
+    sessionStorage.removeItem(STORAGE_KEYS.ELECTION_NAME)
+    sessionStorage.removeItem(STORAGE_KEYS.ELECTION_END_TIME)
+    console.log('Election session data cleared')
+  }
+}
+
+const resetVotingSystem = () => {
+  console.log("=== RESETTING TO VOTE SEARCH ===")
+  // Clear form data but keep election selection
+  const currentUrl = new URL(window.location.href)
+  const electionId = currentUrl.searchParams.get('electionId')
+  
+  if (electionId) {
+    // If there's an election ID in URL, redirect to vote search with same election
+    window.location.href = `/polling-station/vote?electionId=${electionId}`
+  } else {
+    // Try to get from session storage
+    const sessionElection = getElectionFromSession()
+    if (sessionElection?.electionId) {
+      window.location.href = `/polling-station/vote?electionId=${sessionElection.electionId}`
+    } else {
+      // Fallback to basic vote search page
+      window.location.href = '/polling-station/vote'
+    }
+  }
+}
 
 export default function VotingSystem() {
+  const searchParams = useSearchParams()
+  const electionIdFromUrl = searchParams.get('electionId')
+  
   const [currentScreen, setCurrentScreen] = useState<Screen>("validation")
   const [nicNumber, setNicNumber] = useState("")
   const [password, setPassword] = useState("")
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null)
   const [voteSubmitted, setVoteSubmitted] = useState(false)
   const [currentElectionId, setCurrentElectionId] = useState<string>("")
+  const [persistentElectionName, setPersistentElectionName] = useState<string>("")
 
   // Hooks
   const { validationStatus, voterProfile, isValidating, validateVoter } = useVoterValidation()
@@ -47,34 +127,95 @@ export default function VotingSystem() {
     currentElectionId
   )
 
-  // Auto-select the first enrolled election when elections are loaded
+  // Initialize election ID from URL or session storage
   useEffect(() => {
-    if (enrolledElections.length > 0 && !currentElectionId) {
-      console.log('Auto-selecting first enrolled election:', enrolledElections[0])
-      setCurrentElectionId(enrolledElections[0].id)
+    if (electionIdFromUrl) {
+      console.log('Setting election ID from URL:', electionIdFromUrl)
+      setCurrentElectionId(electionIdFromUrl)
+      // Save to session storage for persistence
+      saveElectionToSession(electionIdFromUrl)
+    } else {
+      // Try to get from session storage
+      const sessionElection = getElectionFromSession()
+      if (sessionElection?.electionId) {
+        console.log('Setting election ID from session:', sessionElection.electionId)
+        setCurrentElectionId(sessionElection.electionId)
+        setPersistentElectionName(sessionElection.electionName || "")
+      }
     }
-  }, [enrolledElections, currentElectionId])
+  }, [electionIdFromUrl])
+
+  // Save election info when enrolled elections are loaded
+  useEffect(() => {
+    if (currentElectionId && enrolledElections.length > 0) {
+      const currentElection = enrolledElections.find(e => e.id === currentElectionId)
+      if (currentElection) {
+        const electionName = currentElection.electionName || currentElection.election_name
+        setPersistentElectionName(electionName)
+        // Calculate end time if available
+        let endTime = null
+        if (currentElection.endDate && currentElection.endTime) {
+          // Construct end datetime (this depends on your date/time structure)
+          const endDate = new Date(
+            currentElection.endDate.year,
+            currentElection.endDate.month - 1,
+            currentElection.endDate.day,
+            currentElection.endTime.hour || 23,
+            currentElection.endTime.minute || 59
+          )
+          endTime = endDate.toISOString()
+        }
+        saveElectionToSession(currentElectionId, electionName)
+      }
+    }
+  }, [currentElectionId, enrolledElections])
+
+  // Auto-select the first enrolled election when elections are loaded (only if no URL election ID and no session)
+  useEffect(() => {
+    if (enrolledElections.length > 0 && !currentElectionId && !electionIdFromUrl) {
+      console.log('Auto-selecting first enrolled election:', enrolledElections[0])
+      const firstElection = enrolledElections[0]
+      setCurrentElectionId(firstElection.id)
+      const electionName = firstElection.electionName || firstElection.election_name
+      setPersistentElectionName(electionName)
+      saveElectionToSession(firstElection.id, electionName)
+    }
+  }, [enrolledElections, currentElectionId, electionIdFromUrl])
 
   // Debug logging
   useEffect(() => {
     console.log('=== SYSTEM STATE DEBUG ===')
+    console.log('Election ID from URL:', electionIdFromUrl)
+    console.log('Session Election:', getElectionFromSession())
     console.log('Voter Profile:', voterProfile)
     console.log('District:', voterProfile?.district)
     console.log('Enrolled Elections:', enrolledElections)
     console.log('Current Election ID:', currentElectionId)
+    console.log('Persistent Election Name:', persistentElectionName)
     console.log('Candidates:', candidates)
     console.log('Eligibility:', eligibility)
-  }, [voterProfile, enrolledElections, currentElectionId, candidates, eligibility])
+  }, [voterProfile, enrolledElections, currentElectionId, persistentElectionName, candidates, eligibility, electionIdFromUrl])
 
   const proceedToVoting = () => {
     console.log('=== PROCEEDING TO VOTING ===')
     console.log('Available enrolled elections:', enrolledElections)
     console.log('Current election ID:', currentElectionId)
+    console.log('Election ID from URL:', electionIdFromUrl)
     
-    // Ensure we have an enrolled election selected
-    if (!currentElectionId && enrolledElections.length > 0) {
-      console.log('Setting election ID to first enrolled election:', enrolledElections[0].id)
-      setCurrentElectionId(enrolledElections[0].id)
+    // Use URL election ID if available, otherwise use first enrolled election
+    if (!currentElectionId) {
+      if (electionIdFromUrl) {
+        console.log('Setting election ID from URL:', electionIdFromUrl)
+        setCurrentElectionId(electionIdFromUrl)
+        saveElectionToSession(electionIdFromUrl)
+      } else if (enrolledElections.length > 0) {
+        console.log('Setting election ID to first enrolled election:', enrolledElections[0].id)
+        const firstElection = enrolledElections[0]
+        setCurrentElectionId(firstElection.id)
+        const electionName = firstElection.electionName || firstElection.election_name
+        setPersistentElectionName(electionName)
+        saveElectionToSession(firstElection.id, electionName)
+      }
     }
     
     setCurrentScreen("voting")
@@ -120,21 +261,19 @@ export default function VotingSystem() {
       setVoteSubmitted(true)
       setCurrentScreen("success")
       
-      // Auto-refresh after successful vote casting
+      // Auto-refresh after successful vote casting - return to vote search
       setTimeout(() => {
-        console.log("=== AUTO-REFRESHING TO NEW LOGIN ===")
-        // Force a complete page refresh to reset all state and return to login
-        window.location.reload()
-      }, 3000) // Show success message for 3 seconds before refresh
+        console.log("=== AUTO-REFRESHING TO VOTE SEARCH ===")
+        resetVotingSystem()
+      }, 3000) // Show success message for 3 seconds before redirect
     } catch (error) {
       console.error("Failed to cast vote:", error)
     }
   }
 
   const resetSystem = () => {
-    // Instead of just resetting state, force a page refresh for complete reset
-    console.log("=== MANUAL RESET - REFRESHING PAGE ===")
-    window.location.reload()
+    // Reset to vote search page instead of polling station
+    resetVotingSystem()
   }
 
   const goBack = () => {
@@ -152,6 +291,23 @@ export default function VotingSystem() {
       <div className="min-h-screen bg-gray-50 p-4">
         <div className="max-w-4xl mx-auto">
           <VotingHeader />
+
+          {/* Show current election info */}
+          {(currentElectionId || persistentElectionName) && (
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-blue-800 font-medium">
+                🗳️ Selected Election: {persistentElectionName || currentElectionId}
+              </p>
+              <p className="text-blue-600 text-sm">
+                Please validate your voter credentials to proceed with voting.
+              </p>
+              {persistentElectionName && (
+                <p className="text-blue-500 text-xs mt-1">
+                  Election selection will be maintained throughout your voting session.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Show enrollment loading state */}
           {voterProfile && electionsLoading && (
@@ -185,7 +341,7 @@ export default function VotingSystem() {
           )}
 
           {/* Show no enrollment warning */}
-          {voterProfile && !electionsLoading && enrolledElections.length === 0 && (
+          {voterProfile && !electionsLoading && enrolledElections.length === 0 && !electionIdFromUrl && (
             <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p className="text-yellow-800 font-medium">⚠️ No Elections Available</p>
               <p className="text-yellow-700 text-sm">
@@ -221,6 +377,22 @@ export default function VotingSystem() {
               onProceedToVoting={proceedToVoting}
             />
           </div>
+
+          {/* Reset Vote Search Button - stays in voting system */}
+          <div className="mt-6 text-center">
+            <button
+              onClick={resetVotingSystem}
+              className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors mr-4"
+            >
+              🔄 New Vote Search
+            </button>
+            <button
+              onClick={() => window.location.href = '/polling-station'}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            >
+              ← Return to Polling Station
+            </button>
+          </div>
         </div>
       </div>
     )
@@ -229,11 +401,11 @@ export default function VotingSystem() {
   if (currentScreen === "voting") {
     // Check eligibility first
     if (eligibility && !eligibility.eligible) {
-      // Auto-refresh after showing ineligibility message
+      // Auto-refresh after showing ineligibility message - return to vote search
       setTimeout(() => {
-        console.log("=== VOTER NOT ELIGIBLE - AUTO-REFRESHING ===")
-        window.location.reload()
-      }, 4000) // Show message for 4 seconds before refresh
+        console.log("=== VOTER NOT ELIGIBLE - RETURNING TO VOTE SEARCH ===")
+        resetVotingSystem()
+      }, 4000) // Show message for 4 seconds before redirect
 
       return (
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -247,13 +419,13 @@ export default function VotingSystem() {
               <p className="text-orange-600 mb-4">🗳️ You have already voted in this election.</p>
             )}
             <p className="text-gray-500 text-sm mb-4">
-              Returning to login in a few seconds...
+              Returning to vote search in a few seconds...
             </p>
             <button 
-              onClick={() => window.location.reload()}
+              onClick={resetVotingSystem}
               className="bg-gray-800 text-white px-4 py-2 rounded hover:bg-gray-900"
             >
-              Return to Login
+              Return to Vote Search
             </button>
           </div>
         </div>
@@ -266,7 +438,9 @@ export default function VotingSystem() {
           <div className="text-center">
             <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900 mx-auto"></div>
             <p className="mt-4 text-lg">Loading candidates...</p>
-            <p className="mt-2 text-sm text-gray-600">Election ID: {currentElectionId}</p>
+            <p className="mt-2 text-sm text-gray-600">
+              Election: {persistentElectionName || currentElectionId}
+            </p>
           </div>
         </div>
       )
@@ -279,7 +453,9 @@ export default function VotingSystem() {
             <div className="text-red-500 text-6xl mb-4">⚠️</div>
             <h2 className="text-xl font-bold text-gray-800 mb-2">Error Loading Candidates</h2>
             <p className="text-red-600 mb-4">{candidatesError.message}</p>
-            <p className="text-gray-600 text-sm mb-4">Election ID: {currentElectionId}</p>
+            <p className="text-gray-600 text-sm mb-4">
+              Election: {persistentElectionName || currentElectionId}
+            </p>
             <button 
               onClick={() => setCurrentScreen("validation")}
               className="bg-gray-800 text-white px-4 py-2 rounded hover:bg-gray-900"
@@ -298,7 +474,9 @@ export default function VotingSystem() {
             <div className="text-gray-400 text-6xl mb-4">🗳️</div>
             <h2 className="text-xl font-bold text-gray-800 mb-2">No Candidates Available</h2>
             <p className="text-gray-600 mb-4">There are no active candidates for this election.</p>
-            <p className="text-gray-500 text-sm mb-4">Election ID: {currentElectionId}</p>
+            <p className="text-gray-500 text-sm mb-4">
+              Election: {persistentElectionName || currentElectionId}
+            </p>
             <button 
               onClick={() => setCurrentScreen("validation")}
               className="bg-gray-800 text-white px-4 py-2 rounded hover:bg-gray-900"
