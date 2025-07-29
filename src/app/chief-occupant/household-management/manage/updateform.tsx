@@ -1,0 +1,461 @@
+"use client"
+
+import { useState, useEffect, useRef, useMemo } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import { useFileUpload } from "@/src/app/register/hooks/use-file-upload-hook"
+import { Check, X, Upload, FileText } from "lucide-react"
+import { v4 as uuidv4 } from 'uuid'
+import { cn } from "@/lib/utils"
+
+export interface HouseholdMember {
+  memberId: string
+  memberName: string
+  nic: string
+  relationship: string
+}
+
+export interface ChiefOccupant {
+  memberId: string
+  fullName: string
+  nic: string
+}
+
+interface UpdateRequestData {
+  updateRequestId: string
+  chiefOccupantId: string  // The chief occupant making the request
+  householdMemberId: string  // Use special value for chief occupant updates
+  newFullName: string
+  requestStatus: string
+  relevantCertificatePath: string
+  newResidentArea: string | null
+}
+
+interface UpdateHouseholdMemberFormProps {
+  householdMembers?: HouseholdMember[]
+  chiefOccupant?: ChiefOccupant
+  onSuccess?: () => void
+}
+
+export function UpdateHouseholdMemberForm({ 
+  householdMembers = [], 
+  chiefOccupant, 
+  onSuccess 
+}: UpdateHouseholdMemberFormProps) {
+  // State variables
+  const [selectedMember, setSelectedMember] = useState<string>("")
+  const [newName, setNewName] = useState<string>("")
+  const [newResidentArea, setNewResidentArea] = useState<string>("")
+  const [loading, setLoading] = useState<boolean>(false)
+  const [error, setError] = useState<string | null>(null)
+  const [documentUrl, setDocumentUrl] = useState<string | null>(null)
+  const [dragOver, setDragOver] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // File upload hook
+  const {
+    uploadFileToFolder,
+    uploading,
+    progress,
+    error: uploadError,
+    resetUploadState,
+    cleanupSpecificFile,
+  } = useFileUpload({
+    bucket: 'verification',
+    maxFileSize: 5 * 1024 * 1024,
+    allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'],
+    cleanupOnUnmount: false,
+  })
+
+  // Combined members array - include both chief occupant and household members (memoized)
+  const allMembers = useMemo(() => [
+    ...(chiefOccupant ? [{
+      id: chiefOccupant.memberId,
+      nic: chiefOccupant.nic,
+      name: chiefOccupant.fullName,
+      relationship: "Chief Occupant",
+      isChiefOccupant: true
+    }] : []),
+    ...householdMembers.map(member => ({
+      id: member.memberId,
+      nic: member.nic,
+      name: member.memberName,
+      relationship: member.relationship,
+      isChiefOccupant: false
+    }))
+  ], [chiefOccupant, householdMembers])
+
+  // Effect to set name when member is selected
+  useEffect(() => {
+    if (selectedMember) {
+      const member = allMembers.find(m => m.id === selectedMember)
+      if (member) {
+        setNewName(member.name)
+      }
+    } else {
+      setNewName("")
+      setNewResidentArea("")
+    }
+  }, [selectedMember, allMembers])
+
+  // Document upload handler
+  const handleDocumentUpload = async (file: File) => {
+    if (!selectedMember) {
+      alert('Please select a household member first')
+      return null
+    }
+
+    const member = allMembers.find(m => m.id === selectedMember)
+    if (!member) return null
+
+    // Use the member's NIC as the nicNumber parameter
+    const nicNumber = member.nic || member.id // fallback to ID if NIC is not available
+    
+    console.log('Uploading file for member:', member.name, 'NIC:', nicNumber)
+    
+    try {
+      // Use the new uploadFileToFolder method
+      const uploadedUrl = await uploadFileToFolder(
+        file, 
+        'UpdateRequestDocs', // folder path
+        nicNumber,
+        documentUrl ?? undefined, // current file URL (for replacement) - convert null to undefined
+        false // don't delete previous automatically
+      )
+      
+      if (uploadedUrl) {
+        console.log('File uploaded successfully to UpdateRequestDocs folder:', uploadedUrl)
+        setDocumentUrl(uploadedUrl)
+      }
+      return uploadedUrl
+    } catch (error) {
+      console.error('File upload failed:', error)
+      alert('File upload failed. Please try again.')
+      return null
+    }
+  }
+
+  // File input change handler
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      handleDocumentUpload(file)
+    }
+  }
+
+  // Drag and drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+    const file = e.dataTransfer.files[0]
+    if (file && (file.type.startsWith('image/') || file.type === 'application/pdf')) {
+      handleDocumentUpload(file)
+    }
+  }
+
+  // Remove document handler
+  const removeDocument = async () => {
+    if (documentUrl) {
+      await cleanupSpecificFile(documentUrl)
+      setDocumentUrl(null)
+      resetUploadState()
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
+    }
+  }
+
+  // Form submit handler
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+    
+    if (!selectedMember) {
+      setError('Please select a household member')
+      setLoading(false)
+      return
+    }
+
+    if (!documentUrl) {
+      setError('Please upload a supporting document')
+      setLoading(false)
+      return
+    }
+
+    try {
+      const member = allMembers.find(m => m.id === selectedMember)
+      if (!member) {
+        throw new Error('Selected member not found')
+      }
+
+      // Check if selected member is the chief occupant
+      const selectedMemberData = allMembers.find(m => m.id === selectedMember);
+      const isChiefOccupant = selectedMemberData?.isChiefOccupant || false;
+      
+      // Create request data with proper logic:
+      // - If updating household member: householdMemberId = member ID
+      // - If updating chief occupant: householdMemberId = special sentinel value
+      const requestData: UpdateRequestData = {
+        updateRequestId: uuidv4(),
+        chiefOccupantId: chiefOccupant?.memberId || "", // Always the chief occupant making the request
+        householdMemberId: isChiefOccupant ? "CHIEF_OCCUPANT_UPDATE" : selectedMember, // Special value for chief occupant updates
+        newFullName: newName || member.name,
+        newResidentArea: newResidentArea.trim() || null,
+        requestStatus: 'PENDING',
+        relevantCertificatePath: documentUrl
+      }
+
+      console.log('Submitting request data:', requestData)
+      console.log('Selected member type:', isChiefOccupant ? 'Chief Occupant' : 'Household Member')
+      console.log('Selected member ID:', selectedMember)
+      console.log('Chief occupant ID (requester):', chiefOccupant?.memberId)
+      console.log('Household member ID (target):', isChiefOccupant ? 'CHIEF_OCCUPANT_UPDATE (updating chief occupant)' : selectedMember)
+
+      const response = await fetch('http://localhost:8080/household-management/api/v1/update-member', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to submit update request')
+      }
+
+      const result = await response.json()
+      alert(`Update request submitted successfully! Request ID: ${result.requestId}`)
+
+      // Reset form
+      setSelectedMember('')
+      setNewName('')
+      setNewResidentArea('')
+      setDocumentUrl(null)
+      resetUploadState()
+      if (fileInputRef.current) fileInputRef.current.value = ''
+
+      if (onSuccess) onSuccess()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to submit update request')
+      console.error("Update error:", err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Render uploaded file component
+  const renderUploadedFile = () => {
+    if (!documentUrl) return null
+
+    const isPdf = documentUrl.toLowerCase().includes('.pdf')
+
+    return (
+      <div className="space-y-3 mt-2">
+        <div className="flex items-center justify-center space-x-2 text-green-600">
+          <Check className="h-4 w-4" />
+          <span className="font-medium">Document uploaded</span>
+        </div>
+        
+        {isPdf ? (
+          <div className="relative inline-block p-3 border-2 border-green-200 rounded-lg bg-green-50">
+            <div className="flex items-center space-x-2">
+              <FileText className="h-6 w-6 text-red-500" />
+              <div>
+                <p className="font-medium text-xs">PDF Document</p>
+                <p className="text-xs text-gray-500">Supporting Document</p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0"
+              onClick={removeDocument}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        ) : (
+          <div className="relative inline-block">
+            <img
+              src={documentUrl}
+              alt="Supporting Document"
+              className="max-h-32 rounded-lg border"
+            />
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0"
+              onClick={removeDocument}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
+
+        <div className="flex space-x-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => window.open(documentUrl, '_blank')}
+          >
+            View {isPdf ? 'PDF' : 'Image'}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Replace
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <Card className="w-full max-w-2xl">
+      <CardHeader>
+        <CardTitle>Update Household Member</CardTitle>
+        <CardDescription>
+          Select a member to update their details and upload relevant supporting documents.
+          Documents will be stored in the verification/UpdateRequestDocs folder.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="select-member">Select Member *</Label>
+            <Select 
+              value={selectedMember} 
+              onValueChange={setSelectedMember} 
+              required
+            >
+              <SelectTrigger id="select-member">
+                <SelectValue placeholder="Select a household member" />
+              </SelectTrigger>
+              <SelectContent>
+                {allMembers.map((member) => (
+                  <SelectItem key={member.id} value={member.id}>
+                    {member.name} ({member.nic}) - {member.relationship}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {selectedMember && (
+            <>
+              <div className="grid gap-2">
+                <Label htmlFor="new-name">New Full Name</Label>
+                <Input
+                  id="new-name"
+                  placeholder="Leave blank to keep current name"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                />
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="new-address">New Resident Area</Label>
+                <Textarea
+                  id="new-address"
+                  placeholder="(Optional) Enter new resident area if changed"
+                  value={newResidentArea}
+                  onChange={(e) => setNewResidentArea(e.target.value)}
+                />
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="document-upload">
+                  Supporting Document (PDF/Image) *
+                </Label>
+                <div
+                  className={cn(
+                    "border-2 border-dashed rounded-lg p-4 text-center transition-colors cursor-pointer",
+                    dragOver && "border-blue-500 bg-blue-50",
+                    documentUrl && "border-green-500 bg-green-50",
+                    uploading && "border-gray-300 bg-gray-50",
+                    !dragOver && !documentUrl && !uploading && "border-gray-300 hover:border-gray-400"
+                  )}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={() => !uploading && fileInputRef.current?.click()}
+                >
+                  <input
+                    ref={fileInputRef}
+                    id="document-upload"
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    className="hidden"
+                    onChange={handleFileInputChange}
+                    required
+                  />
+
+                  {uploading ? (
+                    <div className="space-y-2">
+                      <div className="animate-spin mx-auto h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+                      <p className="text-sm text-gray-600">Uploading... {progress}%</p>
+                    </div>
+                  ) : documentUrl ? (
+                    renderUploadedFile()
+                  ) : (
+                    <div className="space-y-2">
+                      <Upload className="h-8 w-8 mx-auto text-gray-400" />
+                      <div>
+                        <p className="text-sm text-gray-600">
+                          <strong>Click to upload</strong> or drag and drop
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          PDF or images up to 5MB
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {uploadError && (
+                  <p className="text-sm text-red-500">{uploadError}</p>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">
+                  Documents will be stored in: verification/UpdateRequestDocs
+                </p>
+              </div>
+
+              {error && (
+                <p className="text-sm text-red-500">{error}</p>
+              )}
+
+              <Button 
+                type="submit" 
+                className="w-full mt-2"
+                disabled={loading || uploading || !documentUrl}
+              >
+                {loading ? "Submitting..." : "Submit Update Request"}
+              </Button>
+            </>
+          )}
+        </form>
+      </CardContent>
+    </Card>
+  )
+}
