@@ -45,101 +45,176 @@ export function ChiefOccupantForm({
   onConfirmPasswordChange,
   onRegisterCleanup,
 }: ChiefOccupantFormProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [dragOver, setDragOver] = useState(false);
+  // Refs for file inputs
+  const nicFileInputRef = useRef<HTMLInputElement>(null);
+  const profilePhotoInputRef = useRef<HTMLInputElement>(null);
+  
+  // Drag state
+  const [dragOverNic, setDragOverNic] = useState(false);
+  const [dragOverProfile, setDragOverProfile] = useState(false);
 
+  // NIC Document Upload Hook
   const {
-    uploadFile,
-    uploading,
-    progress,
-    error: uploadError,
-    resetUploadState,
-    cleanupCurrentFiles,
-    cleanupSpecificFile,
+    uploadFile: uploadNicFile,
+    uploading: uploadingNic,
+    progress: nicProgress,
+    error: nicUploadError,
+    resetUploadState: resetNicUploadState,
+    cleanupCurrentFiles: cleanupNicFiles,
+    cleanupSpecificFile: cleanupSpecificNicFile,
   } = useFileUpload({
-    bucket: 'nic-documents',
+    bucket: 'verification',
     maxFileSize: 5 * 1024 * 1024, // 5MB
     allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'],
-    cleanupOnUnmount: false, // Don't auto-cleanup on unmount
+    cleanupOnUnmount: false,
   });
 
-  // Register cleanup function with parent
+  // Profile Photo Upload Hook
+  const {
+    uploadFile: uploadProfilePhoto,
+    uploading: uploadingProfile,
+    progress: profileProgress,
+    error: profileUploadError,
+    resetUploadState: resetProfileUploadState,
+    cleanupCurrentFiles: cleanupProfileFiles,
+    cleanupSpecificFile: cleanupSpecificProfileFile,
+  } = useFileUpload({
+    bucket: 'verification',
+    maxFileSize: 5 * 1024 * 1024, // 5MB
+    allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
+    cleanupOnUnmount: false,
+  });
+
+  // Register cleanup functions with parent
   useEffect(() => {
     if (onRegisterCleanup) {
-      onRegisterCleanup(cleanupCurrentFiles);
+      onRegisterCleanup(async () => {
+        await Promise.all([cleanupNicFiles(), cleanupProfileFiles()]);
+      });
     }
-  }, [onRegisterCleanup, cleanupCurrentFiles]);
+  }, [onRegisterCleanup, cleanupNicFiles, cleanupProfileFiles]);
 
-  const handleFileSelect = async (file: File) => {
-    // Check if NIC number is available
+  const handleNicFileSelect = async (file: File) => {
     if (!chiefOccupant.nic || chiefOccupant.nic.trim() === '') {
-      // You might want to show an error or prompt user to enter NIC first
-      alert('Please enter NIC number before uploading the file');
+      alert('Please enter NIC number before uploading the document');
       return;
     }
 
     const currentFileUrl = typeof chiefOccupant.idCopyPath === 'string' ? chiefOccupant.idCopyPath : undefined;
-    // Pass true for shouldDeletePrevious when replacing a file
-    const uploadedFileUrl = await uploadFile(file, chiefOccupant.nic, currentFileUrl, !!currentFileUrl);
+    const uploadedFileUrl = await uploadNicFile(file, chiefOccupant.nic, currentFileUrl, !!currentFileUrl);
     
     if (uploadedFileUrl) {
-      // Store the URL in idCopyPath for backend processing
       onChange("idCopyPath", uploadedFileUrl);
     }
   };
 
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handleFileSelect(file);
+  const handleProfilePhotoSelect = async (file: File) => {
+    if (!chiefOccupant.nic || chiefOccupant.nic.trim() === '') {
+      alert('Please enter NIC number before uploading the profile photo');
+      return;
+    }
+
+    const currentFileUrl = typeof chiefOccupant.photoCopyPath === 'string' ? chiefOccupant.photoCopyPath : undefined;
+    const uploadedFileUrl = await uploadProfilePhoto(file, chiefOccupant.nic, currentFileUrl, !!currentFileUrl);
+    
+    if (uploadedFileUrl) {
+      onChange("photoCopyPath", uploadedFileUrl);
     }
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(true);
+  const handleNicFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleNicFileSelect(file);
+    }
   };
 
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
+  const handleProfilePhotoInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleProfilePhotoSelect(file);
+    }
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  // NIC Document drag handlers
+  const handleNicDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    setDragOver(false);
+    setDragOverNic(true);
+  };
+
+  const handleNicDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverNic(false);
+  };
+
+  const handleNicDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverNic(false);
     
     const file = e.dataTransfer.files[0];
     if (file && (file.type.startsWith('image/') || file.type === 'application/pdf')) {
-      handleFileSelect(file);
+      handleNicFileSelect(file);
     }
   };
 
-  const removeImage = async () => {
-    // Explicitly cleanup the current file when user clicks remove
+  // Profile Photo drag handlers
+  const handleProfileDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverProfile(true);
+  };
+
+  const handleProfileDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverProfile(false);
+  };
+
+  const handleProfileDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverProfile(false);
+    
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      handleProfilePhotoSelect(file);
+    }
+  };
+
+  // File removal functions
+  const removeNicFile = async () => {
     if (chiefOccupant.idCopyPath && typeof chiefOccupant.idCopyPath === 'string') {
-      await cleanupSpecificFile(chiefOccupant.idCopyPath);
+      await cleanupSpecificNicFile(chiefOccupant.idCopyPath);
     }
     
     onChange("idCopyPath", null);
-    resetUploadState();
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+    resetNicUploadState();
+    if (nicFileInputRef.current) {
+      nicFileInputRef.current.value = "";
     }
   };
 
-  // Check if idCopyPath is a URL string (uploaded) or null
-  const hasUploadedFile = chiefOccupant.idCopyPath && typeof chiefOccupant.idCopyPath === 'string';
-  
-  // Determine if the uploaded file is a PDF
-  const isPdf = hasUploadedFile && (chiefOccupant.idCopyPath as string).toLowerCase().includes('.pdf');
+  const removeProfilePhoto = async () => {
+    if (chiefOccupant.photoCopyPath && typeof chiefOccupant.photoCopyPath === 'string') {
+      await cleanupSpecificProfileFile(chiefOccupant.photoCopyPath);
+    }
+    
+    onChange("photoCopyPath", null);
+    resetProfileUploadState();
+    if (profilePhotoInputRef.current) {
+      profilePhotoInputRef.current.value = "";
+    }
+  };
 
-  const renderUploadedFile = () => {
-    if (!hasUploadedFile) return null;
+  // Check uploaded file states
+  const hasUploadedNicFile = chiefOccupant.idCopyPath && typeof chiefOccupant.idCopyPath === 'string';
+  const isNicPdf = hasUploadedNicFile && (chiefOccupant.idCopyPath as string).toLowerCase().includes('.pdf');
+  const hasUploadedProfilePhoto = chiefOccupant.photoCopyPath && typeof chiefOccupant.photoCopyPath === 'string';
+
+  // Render uploaded NIC file
+  const renderUploadedNicFile = () => {
+    if (!hasUploadedNicFile) return null;
 
     const fileUrl = chiefOccupant.idCopyPath as string;
 
-    if (isPdf) {
+    if (isNicPdf) {
       return (
         <div className="space-y-4">
           <div className="flex items-center justify-center space-x-2 text-green-600">
@@ -161,7 +236,7 @@ export function ChiefOccupantForm({
               className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
               onClick={(e) => {
                 e.stopPropagation();
-                removeImage();
+                removeNicFile();
               }}
             >
               <X className="h-4 w-4" />
@@ -182,7 +257,7 @@ export function ChiefOccupantForm({
               size="sm"
               onClick={(e) => {
                 e.stopPropagation();
-                fileInputRef.current?.click();
+                nicFileInputRef.current?.click();
               }}
             >
               Replace Document
@@ -191,7 +266,6 @@ export function ChiefOccupantForm({
         </div>
       );
     } else {
-      // Image file
       return (
         <div className="space-y-4">
           <div className="flex items-center justify-center space-x-2 text-green-600">
@@ -211,7 +285,7 @@ export function ChiefOccupantForm({
               className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
               onClick={(e) => {
                 e.stopPropagation();
-                removeImage();
+                removeNicFile();
               }}
             >
               <X className="h-4 w-4" />
@@ -223,7 +297,7 @@ export function ChiefOccupantForm({
             size="sm"
             onClick={(e) => {
               e.stopPropagation();
-              fileInputRef.current?.click();
+              nicFileInputRef.current?.click();
             }}
           >
             Replace Image
@@ -231,6 +305,52 @@ export function ChiefOccupantForm({
         </div>
       );
     }
+  };
+
+  // Render uploaded profile photo
+  const renderUploadedProfilePhoto = () => {
+    if (!hasUploadedProfilePhoto) return null;
+
+    const fileUrl = chiefOccupant.photoCopyPath as string;
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-center space-x-2 text-green-600">
+          <Check className="h-5 w-5" />
+          <span className="font-medium">Profile photo uploaded successfully</span>
+        </div>
+        <div className="relative inline-block">
+          <img
+            src={fileUrl}
+            alt="Profile Photo"
+            className="h-48 w-48 object-cover rounded-lg border"
+          />
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              removeProfilePhoto();
+            }}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            profilePhotoInputRef.current?.click();
+          }}
+        >
+          Replace Photo
+        </Button>
+      </div>
+    );
   };
 
   return (
@@ -303,7 +423,7 @@ export function ChiefOccupantForm({
           <Label>Gender</Label>
           <RadioGroup
             value={chiefOccupant.gender}
-            onValueChange={(value) => onChange("gender", value)}
+            onValueChange={(value: any) => onChange("gender", value)}
           >
             {GENDER_OPTIONS.map((option) => (
               <div key={option.value} className="flex items-center space-x-2">
@@ -321,7 +441,7 @@ export function ChiefOccupantForm({
           <Label>Civil Status</Label>
           <Select
             value={chiefOccupant.civilStatus}
-            onValueChange={(value) => onChange("civilStatus", value)}
+            onValueChange={(value: any) => onChange("civilStatus", value)}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select civil status" />
@@ -349,45 +469,112 @@ export function ChiefOccupantForm({
         />
       </div>
 
-      {/* NIC Document Upload Section */}
+      {/* Profile Photo Upload Section */}
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold">NIC Document</h3>
+        <h3 className="text-lg font-semibold">Profile Photo</h3>
         <div className="space-y-2">
-          {/* Upload Area */}
           <div
             className={cn(
               "border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer",
-              dragOver && "border-blue-500 bg-blue-50",
-              hasUploadedFile && "border-green-500 bg-green-50",
-              uploadError && "border-red-500 bg-red-50",
-              !dragOver && !hasUploadedFile && !uploadError && "border-gray-300 hover:border-gray-400",
+              dragOverProfile && "border-blue-500 bg-blue-50",
+              hasUploadedProfilePhoto && "border-green-500 bg-green-50",
+              profileUploadError && "border-red-500 bg-red-50",
+              !dragOverProfile && !hasUploadedProfilePhoto && !profileUploadError && "border-gray-300 hover:border-gray-400",
               !chiefOccupant.nic && "opacity-50 cursor-not-allowed"
             )}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
+            onDragOver={handleProfileDragOver}
+            onDragLeave={handleProfileDragLeave}
+            onDrop={handleProfileDrop}
             onClick={() => {
-              if (!uploading && chiefOccupant.nic && chiefOccupant.nic.trim() !== '') {
-                fileInputRef.current?.click();
+              if (!uploadingProfile && chiefOccupant.nic && chiefOccupant.nic.trim() !== '') {
+                profilePhotoInputRef.current?.click();
               }
             }}
           >
             <input
-              ref={fileInputRef}
+              ref={profilePhotoInputRef}
               type="file"
-              accept="image/*,.pdf"
-              onChange={handleFileInputChange}
+              accept="image/*"
+              onChange={handleProfilePhotoInputChange}
               className="hidden"
-              disabled={uploading || !chiefOccupant.nic}
+              disabled={uploadingProfile || !chiefOccupant.nic}
             />
 
-            {uploading ? (
+            {uploadingProfile ? (
               <div className="space-y-2">
                 <div className="animate-spin mx-auto h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full" />
-                <p className="text-sm text-gray-600">Uploading... {progress}%</p>
+                <p className="text-sm text-gray-600">Uploading... {profileProgress}%</p>
               </div>
-            ) : hasUploadedFile ? (
-              renderUploadedFile()
+            ) : hasUploadedProfilePhoto ? (
+              renderUploadedProfilePhoto()
+            ) : (
+              <div className="space-y-2">
+                <Upload className="h-8 w-8 mx-auto text-gray-400" />
+                <div>
+                  <p className="text-sm text-gray-600">
+                    <strong>Click to upload</strong> or drag and drop
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Images (PNG, JPG, WEBP) up to 5MB
+                  </p>
+                  {!chiefOccupant.nic && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      Enter NIC number first to enable file upload
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {profileUploadError && (
+            <p className="text-sm text-red-500 mt-2">{profileUploadError}</p>
+          )}
+
+          <p className="text-xs text-gray-500">
+            Please upload a clear passport-style photo of yourself. The photo should be recent and clearly show your face.
+          </p>
+        </div>
+      </div>
+
+      {/* NIC Document Upload Section */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">NIC Document</h3>
+        <div className="space-y-2">
+          <div
+            className={cn(
+              "border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer",
+              dragOverNic && "border-blue-500 bg-blue-50",
+              hasUploadedNicFile && "border-green-500 bg-green-50",
+              nicUploadError && "border-red-500 bg-red-50",
+              !dragOverNic && !hasUploadedNicFile && !nicUploadError && "border-gray-300 hover:border-gray-400",
+              !chiefOccupant.nic && "opacity-50 cursor-not-allowed"
+            )}
+            onDragOver={handleNicDragOver}
+            onDragLeave={handleNicDragLeave}
+            onDrop={handleNicDrop}
+            onClick={() => {
+              if (!uploadingNic && chiefOccupant.nic && chiefOccupant.nic.trim() !== '') {
+                nicFileInputRef.current?.click();
+              }
+            }}
+          >
+            <input
+              ref={nicFileInputRef}
+              type="file"
+              accept="image/*,.pdf"
+              onChange={handleNicFileInputChange}
+              className="hidden"
+              disabled={uploadingNic || !chiefOccupant.nic}
+            />
+
+            {uploadingNic ? (
+              <div className="space-y-2">
+                <div className="animate-spin mx-auto h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+                <p className="text-sm text-gray-600">Uploading... {nicProgress}%</p>
+              </div>
+            ) : hasUploadedNicFile ? (
+              renderUploadedNicFile()
             ) : (
               <div className="space-y-2">
                 <Upload className="h-8 w-8 mx-auto text-gray-400" />
@@ -408,8 +595,8 @@ export function ChiefOccupantForm({
             )}
           </div>
 
-          {uploadError && (
-            <p className="text-sm text-red-500 mt-2">{uploadError}</p>
+          {nicUploadError && (
+            <p className="text-sm text-red-500 mt-2">{nicUploadError}</p>
           )}
 
           <p className="text-xs text-gray-500">
@@ -418,6 +605,7 @@ export function ChiefOccupantForm({
         </div>
       </div>
 
+      {/* Password Information */}
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Password Information</h3>
         <div className="space-y-2">

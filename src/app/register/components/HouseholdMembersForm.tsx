@@ -41,96 +41,174 @@ export function HouseholdMembersForm({
   onMemberIndexChange,
   onRegisterCleanup,
 }: HouseholdMembersFormProps) {
-  const fileInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
-  const [dragOverStates, setDragOverStates] = useState<{
-    [key: number]: boolean;
-  }>({});
+  // Refs for file inputs
+  const nicFileInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
+  const profilePhotoInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
+  
+  // Drag states
+  const [dragOverNicStates, setDragOverNicStates] = useState<{ [key: number]: boolean }>({});
+  const [dragOverProfileStates, setDragOverProfileStates] = useState<{ [key: number]: boolean }>({});
 
+  // NIC Document Upload Hook
   const {
-    uploadFile,
-    uploading,
-    progress,
-    error: uploadError,
-    resetUploadState,
-    cleanupCurrentFiles,
-    cleanupSpecificFile,
+    uploadFile: uploadNicFile,
+    uploading: uploadingNic,
+    progress: nicProgress,
+    error: nicUploadError,
+    resetUploadState: resetNicUploadState,
+    cleanupCurrentFiles: cleanupNicFiles,
+    cleanupSpecificFile: cleanupSpecificNicFile,
   } = useFileUpload({
-    bucket: "nic-documents",
+    bucket: "verification",
     maxFileSize: 5 * 1024 * 1024, // 5MB
     allowedTypes: ["image/jpeg", "image/jpg", "image/png", "image/webp", "application/pdf"],
-    cleanupOnUnmount: false, // Don't auto-cleanup on unmount
+    cleanupOnUnmount: false,
   });
 
-  // Register cleanup function with parent
+  // Profile Photo Upload Hook
+  const {
+    uploadFile: uploadProfilePhoto,
+    uploading: uploadingProfile,
+    progress: profileProgress,
+    error: profileUploadError,
+    resetUploadState: resetProfileUploadState,
+    cleanupCurrentFiles: cleanupProfileFiles,
+    cleanupSpecificFile: cleanupSpecificProfileFile,
+  } = useFileUpload({
+    bucket: "verification",
+    maxFileSize: 5 * 1024 * 1024, // 5MB
+    allowedTypes: ["image/jpeg", "image/jpg", "image/png", "image/webp"],
+    cleanupOnUnmount: false,
+  });
+
+  // Register cleanup functions with parent
   useEffect(() => {
     if (onRegisterCleanup) {
-      onRegisterCleanup(cleanupCurrentFiles);
+      onRegisterCleanup(async () => {
+        await Promise.all([cleanupNicFiles(), cleanupProfileFiles()]);
+      });
     }
-  }, [onRegisterCleanup, cleanupCurrentFiles]);
+  }, [onRegisterCleanup, cleanupNicFiles, cleanupProfileFiles]);
 
-  const handleFileSelect = async (index: number, file: File) => {
+  const handleNicFileSelect = async (index: number, file: File) => {
     const member = householdMembers[index];
     
-    // Check if NIC number is available for this member
     if (!member?.nic || member.nic.trim() === '') {
-      alert('Please enter NIC number for this member before uploading the file');
+      alert('Please enter NIC number for this member before uploading the document');
       return;
     }
 
-    const currentFileUrl =
-      typeof member?.idCopyPath === "string" ? member.idCopyPath : undefined;
-    // Pass true for shouldDeletePrevious when replacing a file
-    const uploadedFileUrl = await uploadFile(file, member.nic, currentFileUrl, !!currentFileUrl);
+    const currentFileUrl = typeof member?.idCopyPath === "string" ? member.idCopyPath : undefined;
+    const uploadedFileUrl = await uploadNicFile(file, member.nic, currentFileUrl, !!currentFileUrl);
 
     if (uploadedFileUrl) {
       onChange(index, "idCopyPath", uploadedFileUrl);
     }
   };
 
-  const handleFileInputChange =
-    (index: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        handleFileSelect(index, file);
-      }
-    };
+  const handleProfilePhotoSelect = async (index: number, file: File) => {
+    const member = householdMembers[index];
+    
+    if (!member?.nic || member.nic.trim() === '') {
+      alert('Please enter NIC number for this member before uploading the profile photo');
+      return;
+    }
 
-  const handleDragOver = (index: number) => (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOverStates((prev) => ({ ...prev, [index]: true }));
+    const currentFileUrl = typeof member?.photoCopyPath === "string" ? member.photoCopyPath : undefined;
+    const uploadedFileUrl = await uploadProfilePhoto(file, member.nic, currentFileUrl, !!currentFileUrl);
+
+    if (uploadedFileUrl) {
+      onChange(index, "photoCopyPath", uploadedFileUrl);
+    }
   };
 
-  const handleDragLeave = (index: number) => (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOverStates((prev) => ({ ...prev, [index]: false }));
+  const handleNicFileInputChange = (index: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleNicFileSelect(index, file);
+    }
   };
 
-  const handleDrop = (index: number) => (e: React.DragEvent) => {
+  const handleProfilePhotoInputChange = (index: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleProfilePhotoSelect(index, file);
+    }
+  };
+
+  // NIC Document drag handlers
+  const handleNicDragOver = (index: number) => (e: React.DragEvent) => {
     e.preventDefault();
-    setDragOverStates((prev) => ({ ...prev, [index]: false }));
+    setDragOverNicStates((prev) => ({ ...prev, [index]: true }));
+  };
+
+  const handleNicDragLeave = (index: number) => (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverNicStates((prev) => ({ ...prev, [index]: false }));
+  };
+
+  const handleNicDrop = (index: number) => (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverNicStates((prev) => ({ ...prev, [index]: false }));
 
     const file = e.dataTransfer.files[0];
     if (file && (file.type.startsWith("image/") || file.type === "application/pdf")) {
-      handleFileSelect(index, file);
+      handleNicFileSelect(index, file);
     }
   };
 
-  const removeImage = async (index: number) => {
+  // Profile Photo drag handlers
+  const handleProfileDragOver = (index: number) => (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverProfileStates((prev) => ({ ...prev, [index]: true }));
+  };
+
+  const handleProfileDragLeave = (index: number) => (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverProfileStates((prev) => ({ ...prev, [index]: false }));
+  };
+
+  const handleProfileDrop = (index: number) => (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverProfileStates((prev) => ({ ...prev, [index]: false }));
+
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith("image/")) {
+      handleProfilePhotoSelect(index, file);
+    }
+  };
+
+  // File removal functions
+  const removeNicFile = async (index: number) => {
     const member = householdMembers[index];
     
-    // Explicitly cleanup the current file when user clicks remove
     if (member?.idCopyPath && typeof member.idCopyPath === 'string') {
-      await cleanupSpecificFile(member.idCopyPath);
+      await cleanupSpecificNicFile(member.idCopyPath);
     }
     
     onChange(index, "idCopyPath", null);
-    resetUploadState();
-    if (fileInputRefs.current[index]) {
-      fileInputRefs.current[index]!.value = "";
+    resetNicUploadState();
+    if (nicFileInputRefs.current[index]) {
+      nicFileInputRefs.current[index]!.value = "";
     }
   };
 
-  const renderUploadedFile = (index: number) => {
+  const removeProfilePhoto = async (index: number) => {
+    const member = householdMembers[index];
+    
+    if (member?.photoCopyPath && typeof member.photoCopyPath === 'string') {
+      await cleanupSpecificProfileFile(member.photoCopyPath);
+    }
+    
+    onChange(index, "photoCopyPath", null);
+    resetProfileUploadState();
+    if (profilePhotoInputRefs.current[index]) {
+      profilePhotoInputRefs.current[index]!.value = "";
+    }
+  };
+
+  // Render uploaded NIC file
+  const renderUploadedNicFile = (index: number) => {
     const member = householdMembers[index];
     const hasUploadedFile = member?.idCopyPath && typeof member.idCopyPath === "string";
     
@@ -144,9 +222,7 @@ export function HouseholdMembersForm({
         <div className="space-y-3">
           <div className="flex items-center justify-center space-x-2 text-green-600">
             <Check className="h-4 w-4" />
-            <span className="text-sm font-medium">
-              NIC document uploaded
-            </span>
+            <span className="text-sm font-medium">NIC document uploaded</span>
           </div>
           <div className="relative inline-block p-3 border-2 border-green-200 rounded-lg bg-green-50">
             <div className="flex items-center space-x-2">
@@ -163,7 +239,7 @@ export function HouseholdMembersForm({
               className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0"
               onClick={(e) => {
                 e.stopPropagation();
-                removeImage(index);
+                removeNicFile(index);
               }}
             >
               <X className="h-3 w-3" />
@@ -184,7 +260,7 @@ export function HouseholdMembersForm({
               size="sm"
               onClick={(e) => {
                 e.stopPropagation();
-                fileInputRefs.current[index]?.click();
+                nicFileInputRefs.current[index]?.click();
               }}
             >
               Replace
@@ -193,14 +269,11 @@ export function HouseholdMembersForm({
         </div>
       );
     } else {
-      // Image file
       return (
         <div className="space-y-3">
           <div className="flex items-center justify-center space-x-2 text-green-600">
             <Check className="h-4 w-4" />
-            <span className="text-sm font-medium">
-              NIC image uploaded
-            </span>
+            <span className="text-sm font-medium">NIC image uploaded</span>
           </div>
           <div className="relative inline-block">
             <img
@@ -215,7 +288,7 @@ export function HouseholdMembersForm({
               className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0"
               onClick={(e) => {
                 e.stopPropagation();
-                removeImage(index);
+                removeNicFile(index);
               }}
             >
               <X className="h-3 w-3" />
@@ -227,7 +300,7 @@ export function HouseholdMembersForm({
             size="sm"
             onClick={(e) => {
               e.stopPropagation();
-              fileInputRefs.current[index]?.click();
+              nicFileInputRefs.current[index]?.click();
             }}
           >
             Replace
@@ -237,11 +310,61 @@ export function HouseholdMembersForm({
     }
   };
 
+  // Render uploaded profile photo
+  const renderUploadedProfilePhoto = (index: number) => {
+    const member = householdMembers[index];
+    const hasUploadedFile = member?.photoCopyPath && typeof member.photoCopyPath === "string";
+    
+    if (!hasUploadedFile) return null;
+
+    const fileUrl = member.photoCopyPath as string;
+
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-center space-x-2 text-green-600">
+          <Check className="h-4 w-4" />
+          <span className="text-sm font-medium">Profile photo uploaded</span>
+        </div>
+        <div className="relative inline-block">
+          <img
+            src={fileUrl}
+            alt="Profile Photo"
+            className="h-32 w-32 object-cover rounded-lg border"
+          />
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              removeProfilePhoto(index);
+            }}
+          >
+            <X className="h-3 w-3" />
+          </Button>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            profilePhotoInputRefs.current[index]?.click();
+          }}
+        >
+          Replace
+        </Button>
+      </div>
+    );
+  };
+
   const renderMemberForm = (index: number) => {
     const member = householdMembers[index];
-    const hasUploadedFile =
-      member?.idCopyPath && typeof member.idCopyPath === "string";
-    const dragOver = dragOverStates[index] || false;
+    const hasUploadedNicFile = member?.idCopyPath && typeof member.idCopyPath === "string";
+    const hasUploadedProfilePhoto = member?.photoCopyPath && typeof member.photoCopyPath === "string";
+    const nicDragOver = dragOverNicStates[index] || false;
+    const profileDragOver = dragOverProfileStates[index] || false;
     const memberHasNic = member?.nic && member.nic.trim() !== '';
 
     return (
@@ -301,7 +424,7 @@ export function HouseholdMembersForm({
             <Label>Gender</Label>
             <RadioGroup
               value={householdMembers[index]?.gender || "male"}
-              onValueChange={(value) => onChange(index, "gender", value)}
+              onValueChange={(value: any) => onChange(index, "gender", value)}
             >
               {GENDER_OPTIONS.map((option) => (
                 <div key={option.value} className="flex items-center space-x-2">
@@ -316,14 +439,11 @@ export function HouseholdMembersForm({
               ))}
             </RadioGroup>
           </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Civil Status</Label>
             <Select
               value={householdMembers[index]?.civilStatus || "single"}
-              onValueChange={(value) => onChange(index, "civilStatus", value)}
+              onValueChange={(value: any) => onChange(index, "civilStatus", value)}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select civil status" />
@@ -343,9 +463,7 @@ export function HouseholdMembersForm({
             </Label>
             <Input
               id={`relationship-${index}`}
-              value={
-                householdMembers[index]?.relationshipWithChiefOccupant || ""
-              }
+              value={householdMembers[index]?.relationshipWithChiefOccupant || ""}
               onChange={(e) =>
                 onChange(index, "relationshipWithChiefOccupant", e.target.value)
               }
@@ -355,52 +473,126 @@ export function HouseholdMembersForm({
           </div>
         </div>
 
-        {/* NIC Document Upload Section for Member */}
+        {/* Profile Photo Upload Section */}
         <div className="space-y-4">
-          <h4 className="text-md font-semibold">NIC Document</h4>
+          <h4 className="text-md font-semibold">Profile Photo</h4>
           <div className="space-y-2">
-            {/* Upload Area */}
             <div
               className={cn(
                 "border-2 border-dashed rounded-lg p-4 text-center transition-colors cursor-pointer",
-                dragOver && "border-blue-500 bg-blue-50",
-                hasUploadedFile && "border-green-500 bg-green-50",
-                uploadError && "border-red-500 bg-red-50",
-                !dragOver &&
-                  !hasUploadedFile &&
-                  !uploadError &&
+                profileDragOver && "border-blue-500 bg-blue-50",
+                hasUploadedProfilePhoto && "border-green-500 bg-green-50",
+                profileUploadError && "border-red-500 bg-red-50",
+                !profileDragOver &&
+                  !hasUploadedProfilePhoto &&
+                  !profileUploadError &&
                   "border-gray-300 hover:border-gray-400",
                 !memberHasNic && "opacity-50 cursor-not-allowed"
               )}
-              onDragOver={handleDragOver(index)}
-              onDragLeave={handleDragLeave(index)}
-              onDrop={handleDrop(index)}
+              onDragOver={handleProfileDragOver(index)}
+              onDragLeave={handleProfileDragLeave(index)}
+              onDrop={handleProfileDrop(index)}
               onClick={() => {
-                if (!uploading && memberHasNic) {
-                  fileInputRefs.current[index]?.click();
+                if (!uploadingProfile && memberHasNic) {
+                  profilePhotoInputRefs.current[index]?.click();
                 }
               }}
             >
               <input
                 ref={(el) => {
-                  fileInputRefs.current[index] = el;
+                  profilePhotoInputRefs.current[index] = el;
                 }}
                 type="file"
-                accept="image/*,.pdf"
-                onChange={handleFileInputChange(index)}
+                accept="image/*"
+                onChange={handleProfilePhotoInputChange(index)}
                 className="hidden"
-                disabled={uploading || !memberHasNic}
+                disabled={uploadingProfile || !memberHasNic}
               />
 
-              {uploading ? (
+              {uploadingProfile ? (
                 <div className="space-y-2">
                   <div className="animate-spin mx-auto h-6 w-6 border-4 border-blue-500 border-t-transparent rounded-full" />
                   <p className="text-sm text-gray-600">
-                    Uploading... {progress}%
+                    Uploading... {profileProgress}%
                   </p>
                 </div>
-              ) : hasUploadedFile ? (
-                renderUploadedFile(index)
+              ) : hasUploadedProfilePhoto ? (
+                renderUploadedProfilePhoto(index)
+              ) : (
+                <div className="space-y-2">
+                  <Upload className="h-6 w-6 mx-auto text-gray-400" />
+                  <div>
+                    <p className="text-sm text-gray-600">
+                      <strong>Click to upload</strong> or drag and drop
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Images (PNG, JPG, WEBP) up to 5MB
+                    </p>
+                    {!memberHasNic && (
+                      <p className="text-xs text-amber-600 mt-1">
+                        Enter NIC number first to enable file upload
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {profileUploadError && (
+              <p className="text-sm text-red-500 mt-2">{profileUploadError}</p>
+            )}
+
+            <p className="text-xs text-gray-500">
+              Please upload a clear passport-style photo of yourself. The photo should be recent and clearly show your face.
+            </p>
+          </div>
+        </div>
+
+        {/* NIC Document Upload Section */}
+        <div className="space-y-4">
+          <h4 className="text-md font-semibold">NIC Document</h4>
+          <div className="space-y-2">
+            <div
+              className={cn(
+                "border-2 border-dashed rounded-lg p-4 text-center transition-colors cursor-pointer",
+                nicDragOver && "border-blue-500 bg-blue-50",
+                hasUploadedNicFile && "border-green-500 bg-green-50",
+                nicUploadError && "border-red-500 bg-red-50",
+                !nicDragOver &&
+                  !hasUploadedNicFile &&
+                  !nicUploadError &&
+                  "border-gray-300 hover:border-gray-400",
+                !memberHasNic && "opacity-50 cursor-not-allowed"
+              )}
+              onDragOver={handleNicDragOver(index)}
+              onDragLeave={handleNicDragLeave(index)}
+              onDrop={handleNicDrop(index)}
+              onClick={() => {
+                if (!uploadingNic && memberHasNic) {
+                  nicFileInputRefs.current[index]?.click();
+                }
+              }}
+            >
+              <input
+                ref={(el) => {
+                  nicFileInputRefs.current[index] = el;
+                }}
+                type="file"
+                accept="image/*,.pdf"
+                onChange={handleNicFileInputChange(index)}
+                className="hidden"
+                disabled={uploadingNic || !memberHasNic}
+              />
+
+              {uploadingNic ? (
+                <div className="space-y-2">
+                  <div className="animate-spin mx-auto h-6 w-6 border-4 border-blue-500 border-t-transparent rounded-full" />
+                  <p className="text-sm text-gray-600">
+                    Uploading... {nicProgress}%
+                  </p>
+                </div>
+              ) : hasUploadedNicFile ? (
+                renderUploadedNicFile(index)
               ) : (
                 <div className="space-y-2">
                   <Upload className="h-6 w-6 mx-auto text-gray-400" />
@@ -421,8 +613,8 @@ export function HouseholdMembersForm({
               )}
             </div>
 
-            {uploadError && (
-              <p className="text-sm text-red-500 mt-2">{uploadError}</p>
+            {nicUploadError && (
+              <p className="text-sm text-red-500 mt-2">{nicUploadError}</p>
             )}
 
             <p className="text-xs text-gray-500">
@@ -439,7 +631,7 @@ export function HouseholdMembersForm({
                 ? "approved"
                 : "not-approved"
             }
-            onValueChange={(value) =>
+            onValueChange={(value: string) =>
               onChange(index, "approvedByChief", value === "approved")
             }
           >
@@ -472,7 +664,7 @@ export function HouseholdMembersForm({
         <Tabs
           defaultValue="0"
           value={currentMemberIndex.toString()}
-          onValueChange={(value) => onMemberIndexChange(Number.parseInt(value))}
+          onValueChange={(value: string) => onMemberIndexChange(Number.parseInt(value))}
         >
           <TabsList
             className="grid"
@@ -503,7 +695,7 @@ export function HouseholdMembersForm({
       )}
 
       <div className="text-sm text-muted-foreground">
-        Please ensure all information is accurate. NIC documents (images or PDFs) are required for all members.
+        Please ensure all information is accurate. NIC documents (images or PDFs) and profile photos are required for all members.
       </div>
     </div>
   );
