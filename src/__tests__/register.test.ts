@@ -1,5 +1,5 @@
-import { submitHouseholdRegistration } from "@/app/register/services/householdRegistrationServices";
-import api from "@/lib/axios";
+import { submitHouseholdRegistration } from "../app/register/services/householdRegistrationServices";
+import api from "../lib/axios";
 
 jest.mock("@/lib/axios", () => ({
   __esModule: true,

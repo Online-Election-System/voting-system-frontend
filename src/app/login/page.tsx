@@ -28,12 +28,17 @@ export default function LoginForm() {
     setLoading(true);
 
     try {
+      console.log("Login attempt with NIC:", nic);
       const response = await api.post("/voter-registration/api/v1/login", {
         nic,
         password,
       });
 
-      const { token, userType: backendRole, userId, fullName, message } = response.data;
+      const {
+        userType: backendRole,
+        message,
+      } = response.data;
+
 
       // Map backend snake_case roles to frontend camelCase roles
       // UPDATED: Added mapping for verified roles
@@ -48,6 +53,7 @@ export default function LoginForm() {
       };
 
       const userType = roleMap[backendRole] ?? backendRole;
+
 
       console.log("Login Response Debug:");
       console.log("Full response:", response.data);
@@ -73,8 +79,10 @@ export default function LoginForm() {
       console.log("token:", !!localStorage.getItem("token"));
       console.log("userNic", localStorage.getItem("userNic"));
 
-      // Set default authorization header
-      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
+      // No need to store anything - cookies are set by the server
+      // Session info will be available via getSessionInfo()
+
 
       // UPDATED: Modified dashboard route mapping to handle verified users
       const roleToPath: Record<string, string> = {
@@ -85,6 +93,8 @@ export default function LoginForm() {
         householdMember: "/household-member/dashboard",
         verifiedChiefOccupant: "/enrollment/dashboard",  // Verified chief occupants go to enrollment
         verifiedHouseholdMember: "/enrollment/dashboard"  // Verified household members go to enrollment
+        polling_station: "/polling-station/vote",
+
       };
 
       if (userType === "householdMember" && message.includes("First-time")) {
@@ -101,7 +111,7 @@ export default function LoginForm() {
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <Card className="w-full max-w-md mx-auto my-[5vw]">
       <CardHeader>
         <CardTitle className="text-xl font-black mx-auto">Login</CardTitle>
         <CardDescription className="mx-auto">

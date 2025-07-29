@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import type { VoterProfile, ValidationStatus, VoteCastRequest } from "@/src/app/vote/types/voter"
+import type { VoterProfile, ValidationStatus, VoteCastRequest } from "@/src/app/polling-station/vote/types/voter"
 
 // API Configuration - All services on port 8080
 const API_BASE_URL = 'http://localhost:8080'
