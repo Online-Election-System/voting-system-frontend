@@ -23,6 +23,8 @@ type UserRole =
   | "electionCommission"
   | "chiefOccupant"
   | "householdMember"
+  | "verifiedChiefOccupant"
+  | "verifiedHouseholdMember"
   | null;
 
 type NavigationItem = {
@@ -60,21 +62,21 @@ const navigationData: NavigationItem[] = [
     label: "Home",
     href: "/enrollment/dashboard",
     icon: Home,
-    roles: ["chiefOccupant"],
+    roles: ["verifiedChiefOccupant","verifiedHouseholdMember"],
     requiresAuth: true,
   },
   {
     label: "Elections",
     href: "/enrollment/elections",
     icon: Vote,
-    roles: ["electionCommission","chiefOccupant"],
+    roles: ["electionCommission","verifiedChiefOccupant","verifiedHouseholdMember"],
     requiresAuth: true,
   },
   {
     label: "Profile",
     href: "/enrollment/profile",
     icon: Home,
-    roles: ["chiefOccupant"],
+    roles: ["verifiedChiefOccupant","verifiedHouseholdMember"],
     requiresAuth: true,
   },
   
@@ -101,14 +103,16 @@ const navigationData: NavigationItem[] = [
     roles: ["governmentOfficial"],
     requiresAuth: true,
   },
-  // Chief Occupant items
-  // {
-  //   label: "Household Dashboard",
-  //   href: "/chief-occupant/dashboard",
-  //   icon: Home,
-  //   roles: ["chiefOccupant"],
-  //   requiresAuth: true,
-  // },
+
+  //Chief Occupant items
+  {
+    label: "Household Dashboard",
+    href: "/chief-occupant/dashboard",
+    icon: Home,
+    roles: ["chiefOccupant"],
+    requiresAuth: true,
+  },
+  
   // Household Member items
   {
     label: "My Dashboard",

@@ -60,17 +60,41 @@ export default function ElectionsPage() {
     return new Date(dateObj.year, dateObj.month - 1, dateObj.day)
   }
 
-  // Fetch elections from backend
+  // UPDATED: Get voter information from logged-in user
+  const getVoterInfo = () => {
+    // Get userNic from localStorage (set during login)
+    const userNic = localStorage.getItem("userNic")
+    const userId = localStorage.getItem("userId")
+    
+    console.log("Getting voter info - userNic:", userNic, "userId:", userId) // Debug log
+    
+    return { userNic, userId }
+  }
+
+  // UPDATED: Fetch elections with proper voter identification
   const fetchElections = async () => {
     try {
-      // Get voterId from session 
-      const voterId = localStorage.getItem("voterId") || sessionStorage.getItem("voterId") || "1"
-      const res = await fetch(`http://localhost:8080/api/v1/elections?voterId=${voterId}`)
+      const { userNic, userId } = getVoterInfo()
+      
+      if (!userNic) {
+        toast({
+          title: "Authentication Error",
+          description: "User NIC not found. Please login again.",
+        })
+        return
+      }
+
+      // UPDATED: Use userNic instead of hardcoded voterId
+      const res = await fetch(`http://localhost:8080/api/v1/elections?voterNic=${userNic}`)
+      
+      console.log("Fetching elections for voter NIC:", userNic) // Debug log
 
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`)
       }
       const result = await res.json()
+
+      console.log("Elections API response:", result) // Debug log
 
       if (Array.isArray(result)) {
         setElections(result)
@@ -78,6 +102,8 @@ export default function ElectionsPage() {
         // Update enrolled elections set based on the enrolled field from backend
         const enrolledIds = result.filter((e) => e.enrolled).map((e) => e.id)
         setEnrolledElections(new Set(enrolledIds))
+        
+        console.log("Enrolled elections for this voter:", enrolledIds) // Debug log
       } else {
         toast({
           title: "Error",

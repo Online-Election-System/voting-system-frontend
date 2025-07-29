@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
-import { CandidateCard } from "@/components/candidate-card"
+import { CandidateCard } from "@/src/app/enrollment/candidate-card"
 import { Calendar, Clock, Users, Vote, Info } from "lucide-react"
 
 // Backend candidate structure

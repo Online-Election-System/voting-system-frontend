@@ -36,19 +36,23 @@ export default function LoginForm() {
       const { token, userType: backendRole, userId, fullName, message } = response.data;
 
       // Map backend snake_case roles to frontend camelCase roles
+      // UPDATED: Added mapping for verified roles
       const roleMap: Record<string, string> = {
         admin: "admin",
         government_official: "governmentOfficial",
         election_commission: "electionCommission",
         chief_occupant: "chiefOccupant",
         household_member: "householdMember",
+        verified_chief_occupant: "verifiedChiefOccupant",
+        verified_household_member: "verifiedHouseholdMember"
       };
 
       const userType = roleMap[backendRole] ?? backendRole;
 
       console.log("Login Response Debug:");
       console.log("Full response:", response.data);
-      console.log("backendRole received:", userType);
+      console.log("backendRole received:", backendRole);
+      console.log("mapped userType:", userType);
       console.log("userType type:", typeof backendRole);
       console.log("token received:", !!token);
 
@@ -67,18 +71,20 @@ export default function LoginForm() {
       console.log("After storage - what's in localStorage:");
       console.log("userType:", localStorage.getItem("userType"));
       console.log("token:", !!localStorage.getItem("token"));
-      console.log("userNic",localStorage.getItem("userNic"));
+      console.log("userNic", localStorage.getItem("userNic"));
 
       // Set default authorization header
       api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
-      // choose dashboard route per role
+      // UPDATED: Modified dashboard route mapping to handle verified users
       const roleToPath: Record<string, string> = {
         admin: "/admin/dashboard",
         governmentOfficial: "/government-official/dashboard",
         electionCommission: "/election-commission/dashboard",
         chiefOccupant: "/chief-Occupant/dashboard",
         householdMember: "/household-member/dashboard",
+        verifiedChiefOccupant: "/enrollment/dashboard",  // Verified chief occupants go to enrollment
+        verifiedHouseholdMember: "/enrollment/dashboard"  // Verified household members go to enrollment
       };
 
       if (userType === "householdMember" && message.includes("First-time")) {

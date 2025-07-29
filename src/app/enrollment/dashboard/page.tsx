@@ -55,16 +55,32 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null)
   const searchParams = useSearchParams()
 
-  // Fetch elections function
+  // UPDATED: Get voter information from logged-in user
+  const getVoterInfo = () => {
+    // Get userNic from localStorage (set during login)
+    const userNic = localStorage.getItem("userNic")
+    const userId = localStorage.getItem("userId")
+    
+    console.log("Getting voter info - userNic:", userNic, "userId:", userId) // Debug log
+    
+    return { userNic, userId }
+  }
+
+  // UPDATED: Fetch elections with proper voter identification
   const fetchElections = async () => {
     try {
-      setLoading(true)
-      setError(null)
+      const { userNic, userId } = getVoterInfo()
+      
+      if (!userNic) {
+        toast({
+          title: "Authentication Error",
+          description: "User NIC not found. Please login again.",
+        })
+        return
+      }
 
-      // Get voterId from session storage or localStorage (same logic as elections page)
-      const voterId = localStorage.getItem("voterId") || sessionStorage.getItem("voterId") || "1"
-
-      const res = await fetch(`http://localhost:8080/api/v1/elections?voterId=${voterId}`)
+      // UPDATED: Use userNic instead of hardcoded voterId
+      const res = await fetch(`http://localhost:8080/api/v1/elections?voterNic=${userNic}`)
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`)
       }
@@ -249,7 +265,7 @@ export default function Dashboard() {
                 your enrollment. Don't miss out!
               </p>
               <Button asChild className="bg-black hover:bg-gray-800 text-white text-lg px-8 py-6">
-                <Link href="/elections">
+                <Link href="/enrollment/elections">
                   Enroll Now
                   <ArrowRight className="ml-3 h-5 w-5" />
                 </Link>
