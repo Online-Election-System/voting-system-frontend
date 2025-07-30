@@ -52,6 +52,7 @@ export default function HouseholdManagementPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080"
 
   useEffect(() => {
     // Prevent server-side execution
@@ -78,7 +79,7 @@ export default function HouseholdManagementPage() {
         setError(null);
 
         const res = await axios.get(
-          `http://localhost:8080/household-management/api/v1/household/${chiefOccupantId}/members`,
+          `${API_BASE_URL}/household-management/api/v1/household/${chiefOccupantId}/members`,
           {
             headers: {
               "Content-Type": "application/json"
