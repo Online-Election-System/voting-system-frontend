@@ -36,7 +36,7 @@ export interface AuthResponse {
 }
 
 // API base URL
-const API_BASE_URL = "http://localhost:8080";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
 
 // Register a new voter
 export const registerVoter = async (voterData: Voter): Promise<Voter> => {

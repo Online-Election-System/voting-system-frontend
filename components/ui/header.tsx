@@ -62,7 +62,7 @@ const navigationData: NavigationItem[] = [
     label: "Elections",
     href: "/enrollment/elections",
     icon: Vote,
-    roles: ["election_commission","verified_chief_occupant","verified_household_member"],
+    roles: ["verified_chief_occupant","verified_household_member"],
     requiresAuth: true,
   },
   {
@@ -72,7 +72,13 @@ const navigationData: NavigationItem[] = [
     roles: ["verified_chief_occupant","verified_household_member"],
     requiresAuth: true,
   },
-  
+  {
+    label: "Elections",
+    href: "/election-commission/elections",
+    icon: Users,
+    roles: ["election_commission"],
+    requiresAuth: true,
+  },  
   {
     label: "Candidates",
     href: "/election-commission/candidates",

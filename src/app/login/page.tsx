@@ -59,7 +59,7 @@ export default function LoginForm() {
         polling_station: "/polling-station",
       };
 
-      if (userType === "householdMember" && message.includes("First-time")) {
+      if (userType === "household_member" && message.includes("First-time")) {
         router.push("/change-password");
       } else {
         router.push(roleToPath[userType] ?? "/dashboard");

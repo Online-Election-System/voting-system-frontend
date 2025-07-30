@@ -3,7 +3,7 @@ import axios from "axios";
 import { toast } from "@/src/lib/hooks/use-toast";
 
 const api = axios.create({
-  baseURL: "http://localhost:8080",
+  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080",
   withCredentials: true, // Enable cookies
 });
 

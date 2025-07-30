@@ -2,18 +2,15 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Clock, ExternalLink, Users } from "lucide-react"
-import { useState, useEffect } from "react"
 import { TimeOfDay } from "../election-commission/elections/election.types";
-
-// API Base URL
-const API_BASE_URL = 'http://localhost:8080';
+import { useElections } from "../election-commission/elections/hooks/use-elections";
 
 // Storage keys for maintaining election selection across pages
 const STORAGE_KEYS = {
   SELECTED_ELECTION_ID: 'votingSystem_selectedElectionId',
   ELECTION_END_TIME: 'votingSystem_electionEndTime',
   ELECTION_NAME: 'votingSystem_electionName'
-}
+} as const;
 
 // Utility function to save election to session storage
 const saveElectionToSession = (election: any) => {
@@ -38,62 +35,6 @@ const saveElectionToSession = (election: any) => {
       name: election.electionName,
       endTime: election.endDate
     })
-  }
-}
-
-// Get all elections
-const getElections = async () => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/election/api/v1/elections`, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      // Add CORS mode if needed
-      mode: 'cors',
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch elections: ${response.status}`);
-    }
-
-    const data = await response.json();
-    
-    console.log('Raw election data:', data);
-    
-    // Calculate stats client-side using the status field
-    const activeElections = data.filter((election: any) => election.status === "Active");
-    const upcomingElections = data.filter((election: any) => election.status === "Upcoming");
-    
-    console.log('Active elections:', activeElections);
-    console.log('Upcoming elections:', upcomingElections);
-    
-    // Alternative: If you want to calculate based on dates, use this instead:
-    /*
-    const now = new Date();
-    const activeElections = data.filter((election: any) => {
-      // Convert the date objects to Date instances
-      const startDate = new Date(election.startDate.year, election.startDate.month - 1, election.startDate.day);
-      const endDate = new Date(election.endDate.year, election.endDate.month - 1, election.endDate.day);
-      return now >= startDate && now <= endDate;
-    });
-
-    const upcomingElections = data.filter((election: any) => {
-      const startDate = new Date(election.startDate.year, election.startDate.month - 1, election.startDate.day);
-      return now < startDate;
-    });
-    */
-
-    return {
-      elections: data,
-      totalCount: data.length,
-      activeElections,
-      upcomingElections,
-      activeCount: activeElections.length,
-      upcomingCount: upcomingElections.length,
-    };
-  } catch (error) {
-    console.error('Error fetching elections:', error);
-    throw error;
   }
 }
 
@@ -142,62 +83,46 @@ const formatDate = (dateObj?: any): string => {
   });
 };
 
+const LoadingState = () => (
+  <div className="container py-8">
+    <h1 className="text-3xl font-bold text-center mb-8">Polling Station</h1>
+    <div className="flex justify-center items-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+      <p className="ml-2 text-lg">Loading election data...</p>
+    </div>
+  </div>
+);
+
+const ErrorState = ({ error, onRetry }: { error: string; onRetry: () => void }) => (
+  <div className="container py-8">
+    <h1 className="text-3xl font-bold text-center mb-8">Polling Station</h1>
+    <Card className="text-center p-8 border-red-200">
+      <p className="text-lg text-red-600 mb-4">Error: {error}</p>
+      <button 
+        onClick={onRetry} 
+        className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+      >
+        Retry
+      </button>
+    </Card>
+  </div>
+);
+
 export default function PollingStationPage() {
-  const [electionsData, setElectionsData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchElections = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const data = await getElections();
-        setElectionsData(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch elections');
-        console.error('Error loading elections:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchElections();
-
-    // Optional: Set up polling for real-time updates
-    const interval = setInterval(fetchElections, 60000); // Refresh every minute
-
-    return () => clearInterval(interval);
-  }, []);
+  const { data: electionsData, isLoading, error, refetch } = useElections();
 
   // Loading state
   if (isLoading) {
-    return (
-      <div className="container py-8">
-        <h1 className="text-3xl font-bold text-center mb-8">Polling Station</h1>
-        <div className="flex justify-center items-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
-          <p className="ml-2 text-lg">Loading election data...</p>
-        </div>
-      </div>
-    );
+    return <LoadingState />;
   }
 
   // Error state
   if (error) {
     return (
-      <div className="container py-8">
-        <h1 className="text-3xl font-bold text-center mb-8">Polling Station</h1>
-        <Card className="text-center p-8 border-red-200">
-          <p className="text-lg text-red-600 mb-4">Error: {error}</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-          >
-            Retry
-          </button>
-        </Card>
-      </div>
+      <ErrorState 
+        error={error instanceof Error ? error.message : 'Failed to fetch elections'} 
+        onRetry={() => refetch()}
+      />
     );
   }
 

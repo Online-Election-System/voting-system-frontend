@@ -58,6 +58,7 @@ export function UpdateHouseholdMemberForm({
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080"
 
   // File upload hook
   const {
@@ -244,7 +245,7 @@ export function UpdateHouseholdMemberForm({
       console.log('Chief occupant ID (requester):', chiefOccupant?.memberId)
       console.log('Household member ID (target):', isChiefOccupant ? 'CHIEF_OCCUPANT_UPDATE (updating chief occupant)' : selectedMember)
 
-      const response = await fetch('http://localhost:8080/household-management/api/v1/update-member', {
+      const response = await fetch(`${API_BASE_URL}/household-management/api/v1/update-member`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

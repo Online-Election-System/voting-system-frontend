@@ -1,6 +1,6 @@
 // Updated API Configuration - Aligned with Ballerina Backend
 export const API_CONFIG = {
-  BASE_URL: 'http://localhost:8080',
+  BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080",
   TIMEOUT: 30000, // 30 seconds
   RETRY_ATTEMPTS: 3,
   RETRY_DELAY: 1000, // 1 second
@@ -175,6 +175,7 @@ export const USER_ROLES = {
   ADMIN: 'ADMIN',
   GOVERNMENT_OFFICIAL: 'GOVERNMENT_OFFICIAL',
   ELECTION_COMMISSION: 'ELECTION_COMMISSION',
+  POLLING_STATION: 'POLLING_STATION',
   VOTER: 'VOTER',
 } as const;
 

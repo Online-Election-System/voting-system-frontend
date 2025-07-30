@@ -277,7 +277,7 @@ export function DeleteHouseholdMemberDialog({
         requiredDocumentPath: documentUrl
       }
 
-      const response = await fetch('http://localhost:8080/household-management/api/v1/delete-member', {
+      const response = await fetch(`${API_BASE_URL}/household-management/api/v1/delete-member`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
