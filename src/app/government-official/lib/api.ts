@@ -1,7 +1,7 @@
 import { StatusCounts, RegistrationApplication, RegistrationDetails } from './types';
 
 // The base URL of your Ballerina backend
-const API_BASE_URL = 'http://localhost:8080/api/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
 
 // A generic fetch function to handle errors and JSON parsing
 async function fetchAPI<T>(url: string, options: RequestInit = {}): Promise<T> {

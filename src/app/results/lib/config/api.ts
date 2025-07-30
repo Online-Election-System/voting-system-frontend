@@ -2,8 +2,11 @@
 // API configuration for election results system
 
 export const API_CONFIG = {
-  BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080',
-  RESULTS_BASE_PATH: '/results/api/v1',
+
+ 
+
+  BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080",
+ RESULTS_BASE_PATH: '/results/api/v1',
   TIMEOUT: 30000, // 30 seconds
   RETRY_ATTEMPTS: 3,
   RETRY_DELAY: 1000, // 1 second
@@ -58,8 +61,48 @@ export const DEFAULT_HEADERS = {
   'Accept': 'application/json',
 } as const;
 
-// API response status types
-export const API_STATUS = {
+
+// CORS Configuration (matching your Ballerina service)
+export const CORS_CONFIG = {
+  ALLOWED_ORIGINS: [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://localhost:3001'
+  ],
+  ALLOWED_HEADERS: ['Content-Type', 'Authorization'],
+  ALLOWED_METHODS: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  ALLOW_CREDENTIALS: true,
+} as const;
+
+// Election Status Types
+export const ELECTION_STATUS = {
+  NOT_STARTED: 'NOT_STARTED',
+  IN_PROGRESS: 'IN_PROGRESS',
+  COMPLETED: 'COMPLETED',
+  CANCELLED: 'CANCELLED',
+} as const;
+
+// User Roles (from your auth system)
+export const USER_ROLES = {
+  ADMIN: 'ADMIN',
+  GOVERNMENT_OFFICIAL: 'GOVERNMENT_OFFICIAL',
+  ELECTION_COMMISSION: 'ELECTION_COMMISSION',
+  POLLING_STATION: 'POLLING_STATION',
+  VOTER: 'VOTER',
+} as const;
+
+// Permissions
+export const PERMISSIONS = {
+  CREATE_ELECTION: 'CREATE_ELECTION',
+  DELETE_ELECTION: 'DELETE_ELECTION',
+  MANAGE_CANDIDATES: 'MANAGE_CANDIDATES',
+  MANAGE_USERS: 'MANAGE_USERS',
+  MANAGE_ELECTIONS: 'MANAGE_ELECTIONS',
+} as const;
+
+// API Response Status
+export const API_RESPONSE_STATUS = {
+
   SUCCESS: 'success',
   ERROR: 'error',
   LOADING: 'loading',
