@@ -1,976 +1,767 @@
-import { useState, useEffect, useCallback } from 'react';
-import { 
-  API_CONFIG, 
-  ENDPOINTS,  
-  DEFAULT_HEADERS,
-  ApiResponseStatus,
-  API_RESPONSE_STATUS,
-  DEFAULT_ELECTION_ID
-} from '../lib/config/api';
+// hooks/useResult.ts
+// React hooks for election results data management
 
-// Import types from the result service
-export interface CandidateTotal {
+import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  candidates as candidateService,
+  districts as districtService,
+  elections as electionService,
+  statistics as statisticsService,
+  resultService,
+  serviceUtils,
+} from '../service/resultService';
+import { DEFAULT_ELECTION_ID } from '../lib/config/api';
+import { ElectionSummary, ElectionWinner, CandidateExportData, CandidateRank, CandidateDistrictAnalysis, DistrictWinnerAnalysis, DistributionStatistics, MarginAnalysis } from '../types';
+
+// Re-export types for convenience
+export type {
+  CandidateExportData,
+  CandidateTotal,
+  CandidateVoteSummary,
+  CandidateDistrictAnalysis,
+  DistrictVoteTotals,
+  DistrictWinnerAnalysis,
+  ElectionSummary,
+  DistributionStatistics,
+  MarginAnalysis,
+  CandidateRank,
+  ElectionWinner,
+  ValidationResult,
+} from '../types';
+
+// Export backend-compatible types
+export type {
+  BackendCandidateTotal,
+  BackendDistrictVoteTotals,
+};
+
+// Backend-compatible types (matching actual API responses)
+export interface BackendCandidateTotal {
   candidateId: string;
-  Totals: number; // Note: Uppercase T to match Ballerina backend exactly
+  totals: number; // lowercase to match backend
 }
 
-export interface CandidateVoteSummary {
-  candidateId: string;
-  candidateName?: string | null; // Updated to handle null values from backend  
-  totalVotes: number;
-  percentage: number;
-  rank: number;
-}
-
-export interface CandidateExportData {
-  candidateId: string;
-  candidateImage?: string | null;
-  position: number;
-  candidateName: string;
-  partyName: string;
-  partyColor: string;
-  totalVotes: number;
-  percentage: number;
-  districtsWon: number;
-  partySymbol?: string | null;
-  isActive: boolean;
-}
-
-export interface CandidateDistrictAnalysis {
-  candidateId: string;
-  candidateName?: string | null;
-  districtVotes: Record<string, number>;
-  districtPercentages: Record<string, number>;
-  totalVotes: number;
-}
-
-export interface DistrictVoteTotals {
+export interface BackendDistrictVoteTotals {
   electionId: string;
-  [key: string]: number | string; // For district names and values
-  GrandTotal: number;
+  ampara: number;
+  anuradhapura: number;
+  badulla: number;
+  batticaloa: number;
+  colombo: number;
+  galle: number;
+  gampaha: number;
+  hambantota: number;
+  jaffna: number;
+  kalutara: number;
+  kandy: number;
+  kegalle: number;
+  kilinochchi: number;
+  kurunegala: number;
+  mannar: number;
+  matale: number;
+  matara: number;
+  monaragala: number;
+  mullaitivu: number;
+  nuwaraeliya: number;
+  polonnaruwa: number;
+  puttalam: number;
+  ratnapura: number;
+  trincomalee: number;
+  vavuniya: number;
+  grandTotal: number; // camelCase to match backend
 }
 
-export interface DistrictWinner {
-  candidateId: string;
-  candidateName: string;
-  votes: number;
-}
-
-export interface DistrictWinnerAnalysis {
-  electionId: string;
-  districtWinners: Record<string, DistrictWinner>;
-  marginPercentages: Record<string, number>;
-}
-
-export interface ElectionSummary {
-  electionId: string;
-  totalCandidates: number;
-  totalVotes: number;
-  winner: string;
-  winnerPercentage: number;
-  totalDistrictsConsidered: number;
-}
-
-export interface ValidationResult {
-  isValid: boolean;
-  errors: string[];
-  statistics: {
-    candidatesWithMismatchedTotals: number;
-    candidatesWithNegativeVotes: number;
-    candidatesWithMissingData: number;
-  };
-}
-
-export interface DistributionStatistics {
-  electionId: string;
-  totalCandidates: number;
-  totalVotes: number;
-  maxPercentage: number;
-  minPercentage: number;
-  averagePercentage: number;
-  competitivenessIndex: number;
-}
-
-export interface MarginAnalysis {
-  electionId: string;
-  winner: {
-    candidateId: string;
-    votes: number;
-  };
-  runnerUp: {
-    candidateId: string;
-    votes: number;
-  };
-  margin: {
-    votes: number;
-    percentage: number;
-  };
-}
-
-export interface CandidateRank {
-  candidateId: string;
-  rank: number;
-  totalVotes: number;
-  totalCandidates: number;
-}
-
-export interface ElectionWinner {
-  electionId: string;
-  winnerCandidateId: string;
-  totalVotes: number;
-  message: string;
-}
-
-// Election and candidate types for other services
-export interface Election {
-  id: string;
-  electionName: string;
-  electionDate: string;
-  status: string;
-}
-
-export interface Candidate {
-  candidateId: string;
-  candidateName: string;
-  partyName: string;
-  partyColor: string;
-  popularVotes?: number;
-  electoralVotes?: number;
-  electionId: string;
-  position?: number;
-  isActive: boolean;
-  candidateImage?: string | null;
-  partySymbol?: string | null;
-}
-
-export interface Vote {
-  id: string;
-  voterId: string;
-  electionId: string;
-  candidateId: string;
-  districtCode: string;
-  timestamp: string;
-}
-
-export interface Voter {
-  id: string;
-  name: string;
-  email: string;
-  district: string;
-  province: string;
-}
-
-// Generic API hook state
-interface ApiState<T> {
+// Hook state interface
+interface HookState<T> {
   data: T | null;
   loading: boolean;
   error: string | null;
-  status: ApiResponseStatus;
+  status: 'idle' | 'loading' | 'success' | 'error';
 }
 
-// Enhanced fetch function with better timeout and error handling
-const fetchWithRetry = async (
-  url: string,
-  options: RequestInit = {},
-  retries: number = API_CONFIG.RETRY_ATTEMPTS
-): Promise<Response> => {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT as number);
-    
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        ...DEFAULT_HEADERS,
-        ...options.headers,
-      },
-      signal: controller.signal,
-    });
-    
-    clearTimeout(timeoutId);
-    
-    if (!response.ok && retries > 0 && response.status >= 500) {
-      await new Promise(resolve => setTimeout(resolve, API_CONFIG.RETRY_DELAY));
-      return fetchWithRetry(url, options, retries - 1);
-    }
-    
-    return response;
-  } catch (error) {
-    if (retries > 0 && error instanceof Error && error.name !== 'AbortError') {
-      await new Promise(resolve => setTimeout(resolve, API_CONFIG.RETRY_DELAY));
-      return fetchWithRetry(url, options, retries - 1);
-    }
-    throw error;
-  }
-};
-
-// Generic API hook with better error handling
-const useApi = <T>(
-  endpoint: string,
-  options: RequestInit = {},
-  dependencies: any[] = []
-): ApiState<T> & { refetch: () => void } => {
-  const [state, setState] = useState<ApiState<T>>({
+// Generic hook for API calls
+function useApiCall<T>(
+  apiCall: () => Promise<any>,
+  dependencies: any[] = [],
+  autoFetch: boolean = true
+): HookState<T> & { refetch: () => Promise<void> } {
+  const [state, setState] = useState<HookState<T>>({
     data: null,
-    loading: true,
+    loading: false,
     error: null,
-    status: API_RESPONSE_STATUS.LOADING,
+    status: 'idle',
   });
+
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchData = useCallback(async () => {
-    setState(prev => ({ ...prev, loading: true, status: API_RESPONSE_STATUS.LOADING }));
-    
+    // Cancel previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    abortControllerRef.current = new AbortController();
+
+    setState(prev => ({
+      ...prev,
+      loading: true,
+      error: null,
+      status: 'loading',
+    }));
+
     try {
-      const response = await fetchWithRetry(`${API_CONFIG.BASE_URL}${endpoint}`, options);
+      const response = await apiCall();
       
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Unknown error');
-        throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+      // Check if request was aborted
+      if (abortControllerRef.current.signal.aborted) {
+        return;
       }
-      
-      const contentType = response.headers.get('content-type');
-      let data;
-      
-      if (contentType?.includes('application/json')) {
-        data = await response.json();
+
+      if (serviceUtils.hasError(response)) {
+        setState({
+          data: null,
+          loading: false,
+          error: serviceUtils.getErrorMessage(response),
+          status: 'error',
+        });
       } else {
-        data = await response.text();
+        setState({
+          data: response.data,
+          loading: false,
+          error: null,
+          status: 'success',
+        });
       }
-      
-      setState({
-        data,
-        loading: false,
-        error: null,
-        status: API_RESPONSE_STATUS.SUCCESS,
-      });
     } catch (error) {
+      if (abortControllerRef.current.signal.aborted) {
+        return;
+      }
+
       setState({
         data: null,
         loading: false,
-        error: error instanceof Error ? error.message : 'An unknown error occurred',
-        status: API_RESPONSE_STATUS.ERROR,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        status: 'error',
       });
     }
-  }, [endpoint, ...dependencies]);
+  }, dependencies);
+
+  const refetch = useCallback(async () => {
+    await fetchData();
+  }, [fetchData]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  const refetch = useCallback(() => {
-    fetchData();
-  }, [fetchData]);
-
-  return { ...state, refetch };
-};
-
-// ============================================================================
-// RESULTS SERVICE HOOKS - UPDATED WITH DEFAULT ELECTION ID
-// ============================================================================
-
-// Candidate totals and rankings
-export const useCandidateTotals = (electionId: string = DEFAULT_ELECTION_ID) => {
-  return useApi<CandidateTotal[]>(
-    ENDPOINTS.RESULTS.CANDIDATE_TOTALS(electionId),
-    {},
-    [electionId]
-  );
-};
-
-export const useCandidateSummary = (electionId: string = DEFAULT_ELECTION_ID) => {
-  return useApi<CandidateVoteSummary[]>(
-    ENDPOINTS.RESULTS.CANDIDATE_SUMMARY(electionId),
-    {},
-    [electionId]
-  );
-};
-
-export const useCandidateExportData = (electionId: string = DEFAULT_ELECTION_ID) => {
-  return useApi<CandidateExportData[]>(
-    ENDPOINTS.RESULTS.CANDIDATE_EXPORT(electionId),
-    {},
-    [electionId]
-  );
-};
-
-// District analysis
-export const useDistrictAnalysis = (electionId: string = DEFAULT_ELECTION_ID) => {
-  return useApi<CandidateDistrictAnalysis[]>(
-    ENDPOINTS.RESULTS.DISTRICT_ANALYSIS(electionId),
-    {},
-    [electionId]
-  );
-};
-
-export const useDistrictTotals = (electionId: string = DEFAULT_ELECTION_ID) => {
-  return useApi<DistrictVoteTotals>(
-    ENDPOINTS.RESULTS.DISTRICT_TOTALS(electionId),
-    {},
-    [electionId]
-  );
-};
-
-export const useDistrictWinners = (electionId: string = DEFAULT_ELECTION_ID) => {
-  return useApi<DistrictWinnerAnalysis>(
-    ENDPOINTS.RESULTS.DISTRICT_WINNERS(electionId),
-    {},
-    [electionId]
-  );
-};
-
-// Election summary
-export const useElectionSummary = (electionId: string = DEFAULT_ELECTION_ID) => {
-  return useApi<ElectionSummary>(
-    ENDPOINTS.RESULTS.ELECTION_SUMMARY(electionId),
-    {},
-    [electionId]
-  );
-};
-
-// Specific queries
-export const useElectionWinner = (electionId: string = DEFAULT_ELECTION_ID) => {
-  return useApi<ElectionWinner>(
-    ENDPOINTS.RESULTS.WINNER(electionId),
-    {},
-    [electionId]
-  );
-};
-
-export const useTopCandidates = (count: number, electionId: string = DEFAULT_ELECTION_ID) => {
-  return useApi<CandidateTotal[]>(
-    ENDPOINTS.RESULTS.TOP_CANDIDATES(electionId, count),
-    {},
-    [electionId, count]
-  );
-};
-
-export const useCandidateRank = (candidateId: string, electionId: string = DEFAULT_ELECTION_ID) => {
-  return useApi<CandidateRank>(
-    ENDPOINTS.RESULTS.CANDIDATE_RANK(electionId, candidateId),
-    {},
-    [electionId, candidateId]
-  );
-};
-
-// Advanced analytics
-export const useDistributionStatistics = (electionId: string = DEFAULT_ELECTION_ID) => {
-  return useApi<DistributionStatistics>(
-    ENDPOINTS.RESULTS.DISTRIBUTION_STATS(electionId),
-    {},
-    [electionId]
-  );
-};
-
-export const useMarginAnalysis = (electionId: string = DEFAULT_ELECTION_ID) => {
-  return useApi<MarginAnalysis>(
-    ENDPOINTS.RESULTS.MARGIN_ANALYSIS(electionId),
-    {},
-    [electionId]
-  );
-};
-
-// ============================================================================
-// ELECTION SERVICE HOOKS
-// ============================================================================
-
-export const useElections = () => {
-  return useApi<Election[]>(ENDPOINTS.ELECTIONS.ALL);
-};
-
-export const useElection = (electionId: string) => {
-  return useApi<Election>(
-    ENDPOINTS.ELECTIONS.BY_ID(electionId),
-    {},
-    [electionId]
-  );
-};
-
-export const useVoterElections = (voterId: string) => {
-  return useApi<Election[]>(
-    ENDPOINTS.ELECTIONS.VOTER_ELECTIONS(voterId),
-    {},
-    [voterId]
-  );
-};
-
-export const useVoterEnrollment = (voterId: string, electionId: string) => {
-  return useApi<any>(
-    ENDPOINTS.ELECTIONS.VOTER_ENROLLED(voterId, electionId),
-    {},
-    [voterId, electionId]
-  );
-};
-
-// ============================================================================
-// CANDIDATE SERVICE HOOKS
-// ============================================================================
-
-export const useCandidates = (activeOnly?: boolean) => {
-  const endpoint = activeOnly 
-    ? `${ENDPOINTS.CANDIDATES.ALL}?activeOnly=true`
-    : ENDPOINTS.CANDIDATES.ALL;
-  
-  return useApi<Candidate[]>(endpoint, {}, [activeOnly]);
-};
-
-export const useCandidate = (candidateId: string) => {
-  return useApi<Candidate>(
-    ENDPOINTS.CANDIDATES.BY_ID(candidateId),
-    {},
-    [candidateId]
-  );
-};
-
-export const useCandidatesByElection = (electionId: string) => {
-  return useApi<Candidate[]>(
-    ENDPOINTS.CANDIDATES.BY_ELECTION(electionId),
-    {},
-    [electionId]
-  );
-};
-
-export const useActiveCandidatesByElection = (electionId: string) => {
-  return useApi<Candidate[]>(
-    ENDPOINTS.CANDIDATES.ACTIVE_BY_ELECTION(electionId),
-    {},
-    [electionId]
-  );
-};
-
-export const useCandidatesForVoter = (voterId: string) => {
-  return useApi<Candidate[]>(
-    ENDPOINTS.CANDIDATES.FOR_VOTER(voterId),
-    {},
-    [voterId]
-  );
-};
-
-export const useCandidatesForVoterElection = (voterId: string, electionId: string) => {
-  return useApi<Candidate[]>(
-    ENDPOINTS.CANDIDATES.FOR_VOTER_ELECTION(voterId, electionId),
-    {},
-    [voterId, electionId]
-  );
-};
-
-export const useCandidatesByParty = (partyName: string) => {
-  return useApi<Candidate[]>(
-    ENDPOINTS.CANDIDATES.BY_PARTY(partyName),
-    {},
-    [partyName]
-  );
-};
-
-export const useCandidateActive = (candidateId: string) => {
-  return useApi<boolean>(
-    ENDPOINTS.CANDIDATES.IS_ACTIVE(candidateId),
-    {},
-    [candidateId]
-  );
-};
-
-// ============================================================================
-// VOTING SERVICE HOOKS
-// ============================================================================
-
-export const useVotesByElection = (electionId: string) => {
-  return useApi<Vote[]>(
-    ENDPOINTS.VOTES.BY_ELECTION(electionId),
-    {},
-    [electionId]
-  );
-};
-
-export const useVotesByVoter = (voterId: string) => {
-  return useApi<Vote[]>(
-    ENDPOINTS.VOTES.BY_VOTER(voterId),
-    {},
-    [voterId]
-  );
-};
-
-export const useVotesByElectionAndDistrict = (electionId: string, district: string) => {
-  return useApi<Vote[]>(
-    ENDPOINTS.VOTES.BY_ELECTION_AND_DISTRICT(electionId, district),
-    {},
-    [electionId, district]
-  );
-};
-
-export const useVotingEligibility = (voterId: string, electionId: string) => {
-  return useApi<any>(
-    ENDPOINTS.VOTES.ELIGIBILITY(voterId, electionId),
-    {},
-    [voterId, electionId]
-  );
-};
-
-export const useVotesByHousehold = (chiefOccupantId: string, electionId: string) => {
-  return useApi<Vote[]>(
-    ENDPOINTS.VOTES.BY_HOUSEHOLD(chiefOccupantId, electionId),
-    {},
-    [chiefOccupantId, electionId]
-  );
-};
-
-// ============================================================================
-// VOTER REGISTRATION HOOKS
-// ============================================================================
-
-export const useVoterProfile = (voterId: string) => {
-  return useApi<any>(
-    ENDPOINTS.VOTER_REGISTRATION.PROFILE(voterId),
-    {},
-    [voterId]
-  );
-};
-
-export const useVoterRegistrationElections = (voterId: string) => {
-  return useApi<Election[]>(
-    ENDPOINTS.VOTER_REGISTRATION.VOTER_ELECTIONS(voterId),
-    {},
-    [voterId]
-  );
-};
-
-// ============================================================================
-// MUTATION HOOKS (for POST/PUT operations)
-// ============================================================================
-
-export const useUpdateCandidateTotal = () => {
-  const [state, setState] = useState<ApiState<any>>({
-    data: null,
-    loading: false,
-    error: null,
-    status: API_RESPONSE_STATUS.SUCCESS,
-  });
-
-  const updateTotal = useCallback(async (electionId: string, candidateId: string) => {
-    setState(prev => ({ ...prev, loading: true, status: API_RESPONSE_STATUS.LOADING }));
-    
-    try {
-      const response = await fetchWithRetry(
-        `${API_CONFIG.BASE_URL}${ENDPOINTS.RESULTS.UPDATE_CANDIDATE_TOTAL(electionId, candidateId)}`,
-        { method: 'PUT' }
-      );
-      
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Unknown error');
-        throw new Error(`Failed to update candidate total: ${response.status} ${response.statusText} - ${errorText}`);
-      }
-      
-      const data = await response.json();
-      setState({
-        data,
-        loading: false,
-        error: null,
-        status: API_RESPONSE_STATUS.SUCCESS,
-      });
-      
-      return data;
-    } catch (error) {
-      setState({
-        data: null,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Failed to update candidate total',
-        status: API_RESPONSE_STATUS.ERROR,
-      });
-      throw error;
+    if (autoFetch) {
+      fetchData();
     }
-  }, []);
 
-  return { ...state, updateTotal };
-};
-
-export const useBatchUpdateTotals = () => {
-  const [state, setState] = useState<ApiState<any>>({
-    data: null,
-    loading: false,
-    error: null,
-    status: API_RESPONSE_STATUS.SUCCESS,
-  });
-
-  const batchUpdate = useCallback(async (electionId: string = DEFAULT_ELECTION_ID) => {
-    setState(prev => ({ ...prev, loading: true, status: API_RESPONSE_STATUS.LOADING }));
-    
-    try {
-      const response = await fetchWithRetry(
-        `${API_CONFIG.BASE_URL}${ENDPOINTS.RESULTS.BATCH_UPDATE_TOTALS(electionId)}`,
-        { method: 'POST' }
-      );
-      
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Unknown error');
-        throw new Error(`Failed to batch update totals: ${response.status} ${response.statusText} - ${errorText}`);
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
-      
-      const data = await response.json();
-      setState({
-        data,
-        loading: false,
-        error: null,
-        status: API_RESPONSE_STATUS.SUCCESS,
-      });
-      
-      return data;
-    } catch (error) {
-      setState({
-        data: null,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Failed to batch update totals',
-        status: API_RESPONSE_STATUS.ERROR,
-      });
-      throw error;
-    }
-  }, []);
+    };
+  }, [fetchData, autoFetch]);
 
-  return { ...state, batchUpdate };
-};
-
-export const useRefreshCalculations = () => {
-  const [state, setState] = useState<ApiState<any>>({
-    data: null,
-    loading: false,
-    error: null,
-    status: API_RESPONSE_STATUS.SUCCESS,
-  });
-
-  const refreshCalculations = useCallback(async (electionId: string = DEFAULT_ELECTION_ID) => {
-    setState(prev => ({ ...prev, loading: true, status: API_RESPONSE_STATUS.LOADING }));
-    
-    try {
-      const response = await fetchWithRetry(
-        `${API_CONFIG.BASE_URL}${ENDPOINTS.RESULTS.REFRESH_CALCULATIONS(electionId)}`,
-        { method: 'POST' }
-      );
-      
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Unknown error');
-        throw new Error(`Failed to refresh calculations: ${response.status} ${response.statusText} - ${errorText}`);
-      }
-      
-      const data = await response.json();
-      setState({
-        data,
-        loading: false,
-        error: null,
-        status: API_RESPONSE_STATUS.SUCCESS,
-      });
-      
-      return data;
-    } catch (error) {
-      setState({
-        data: null,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Failed to refresh calculations',
-        status: API_RESPONSE_STATUS.ERROR,
-      });
-      throw error;
-    }
-  }, []);
-
-  return { ...state, refreshCalculations };
-};
-
-export const useCastVote = () => {
-  const [state, setState] = useState<ApiState<any>>({
-    data: null,
-    loading: false,
-    error: null,
-    status: API_RESPONSE_STATUS.SUCCESS,
-  });
-
-  const castVote = useCallback(async (voteData: {
-    voterId: string;
-    electionId: string;
-    candidateId: string;
-    districtCode: string;
-  }) => {
-    setState(prev => ({ ...prev, loading: true, status: API_RESPONSE_STATUS.LOADING }));
-    
-    try {
-      const response = await fetchWithRetry(`${API_CONFIG.BASE_URL}${ENDPOINTS.VOTES.CAST}`, {
-        method: 'POST',
-        body: JSON.stringify(voteData),
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Unknown error');
-        throw new Error(`Failed to cast vote: ${response.status} ${response.statusText} - ${errorText}`);
-      }
-      
-      const data = await response.json();
-      setState({
-        data,
-        loading: false,
-        error: null,
-        status: API_RESPONSE_STATUS.SUCCESS,
-      });
-      
-      return data;
-    } catch (error) {
-      setState({
-        data: null,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Failed to cast vote',
-        status: API_RESPONSE_STATUS.ERROR,
-      });
-      throw error;
-    }
-  }, []);
-
-  return { ...state, castVote };
-};
-
-export const useVoterLogin = () => {
-  const [state, setState] = useState<ApiState<any>>({
-    data: null,
-    loading: false,
-    error: null,
-    status: API_RESPONSE_STATUS.SUCCESS,
-  });
-
-  const login = useCallback(async (credentials: { email: string; password: string }) => {
-    setState(prev => ({ ...prev, loading: true, status: API_RESPONSE_STATUS.LOADING }));
-    
-    try {
-      const response = await fetchWithRetry(`${API_CONFIG.BASE_URL}${ENDPOINTS.VOTER_REGISTRATION.LOGIN}`, {
-        method: 'POST',
-        body: JSON.stringify(credentials),
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Unknown error');
-        throw new Error(`Login failed: ${response.status} ${response.statusText} - ${errorText}`);
-      }
-      
-      const data = await response.json();
-      setState({
-        data,
-        loading: false,
-        error: null,
-        status: API_RESPONSE_STATUS.SUCCESS,
-      });
-      
-      return data;
-    } catch (error) {
-      setState({
-        data: null,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Login failed',
-        status: API_RESPONSE_STATUS.ERROR,
-      });
-      throw error;
-    }
-  }, []);
-
-  return { ...state, login };
-};
-
-export const useVoterRegistration = () => {
-  const [state, setState] = useState<ApiState<any>>({
-    data: null,
-    loading: false,
-    error: null,
-    status: API_RESPONSE_STATUS.SUCCESS,
-  });
-
-  const register = useCallback(async (registrationData: {
-    name: string;
-    email: string;
-    password: string;
-    district: string;
-    province: string;
-  }) => {      
-    setState(prev => ({ ...prev, loading: true, status: API_RESPONSE_STATUS.LOADING }));
-    
-    try {
-      const response = await fetchWithRetry(`${API_CONFIG.BASE_URL}${ENDPOINTS.VOTER_REGISTRATION.REGISTER}`, {
-        method: 'POST',
-        body: JSON.stringify(registrationData),
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Unknown error');
-        throw new Error(`Registration failed: ${response.status} ${response.statusText} - ${errorText}`);
-      }
-      
-      const data = await response.json();
-      setState({
-        data,
-        loading: false,
-        error: null,
-        status: API_RESPONSE_STATUS.SUCCESS,
-      });
-      
-      return data;
-    } catch (error) {
-      setState({
-        data: null,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Registration failed',
-        status: API_RESPONSE_STATUS.ERROR,
-      });
-      throw error;
-    }
-  }, []);
-
-  return { ...state, register };
-};
-
-export const useCreateElection = () => {
-  const [state, setState] = useState<ApiState<any>>({
-    data: null,
-    loading: false,
-    error: null,
-    status: API_RESPONSE_STATUS.SUCCESS,
-  });
-
-  const createElection = useCallback(async (electionData: any) => {
-    setState(prev => ({ ...prev, loading: true, status: API_RESPONSE_STATUS.LOADING }));
-    
-    try {
-      const response = await fetchWithRetry(`${API_CONFIG.BASE_URL}${ENDPOINTS.ELECTIONS.CREATE}`, {
-        method: 'POST',
-        body: JSON.stringify(electionData),
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Unknown error');
-        throw new Error(`Failed to create election: ${response.status} ${response.statusText} - ${errorText}`);
-      }
-      
-      const data = await response.json();
-      setState({
-        data,
-        loading: false,
-        error: null,
-        status: API_RESPONSE_STATUS.SUCCESS,
-      });
-      
-      return data;
-    } catch (error) {
-      setState({
-        data: null,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Failed to create election',
-        status: API_RESPONSE_STATUS.ERROR,
-      });
-      throw error;
-    }
-  }, []);
-
-  return { ...state, createElection };
-};
-
-export const useCreateCandidate = () => {
-  const [state, setState] = useState<ApiState<any>>({
-    data: null,
-    loading: false,
-    error: null,
-    status: API_RESPONSE_STATUS.SUCCESS,
-  });
-
-  const createCandidate = useCallback(async (candidateData: any) => {
-    setState(prev => ({ ...prev, loading: true, status: API_RESPONSE_STATUS.LOADING }));
-    
-    try {
-      const response = await fetchWithRetry(`${API_CONFIG.BASE_URL}${ENDPOINTS.CANDIDATES.CREATE}`, {
-        method: 'POST',
-        body: JSON.stringify(candidateData),
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Unknown error');
-        throw new Error(`Failed to create candidate: ${response.status} ${response.statusText} - ${errorText}`);
-      }
-      
-      const data = await response.json();
-      setState({
-        data,
-        loading: false,
-        error: null,
-        status: API_RESPONSE_STATUS.SUCCESS,
-      });
-      
-      return data;
-    } catch (error) {
-      setState({
-        data: null,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Failed to create candidate',
-        status: API_RESPONSE_STATUS.ERROR,
-      });
-      throw error;
-    }
-  }, []);
-
-  return { ...state, createCandidate };
-};
-
-// ============================================================================
-// CONVENIENCE HOOKS FOR COMMON OPERATIONS
-// ============================================================================
-
-/**
- * Hook to get comprehensive election results
- */
-export const useElectionResults = (electionId: string = DEFAULT_ELECTION_ID) => {
-  const summary = useElectionSummary(electionId);
-  const winner = useElectionWinner(electionId);
-  const totals = useCandidateTotals(electionId);
-  
   return {
-    summary,
-    winner,
-    totals,
-    loading: summary.loading || winner.loading || totals.loading ,
-    error: summary.error || winner.error || totals.error ,
-    refetch: () => {
-      summary.refetch();
-      winner.refetch();
-      totals.refetch();
-    }
+    ...state,
+    refetch,
   };
-};
+}
 
-/**
- * Hook to get all district data
- */
-export const useDistrictData = (electionId: string = DEFAULT_ELECTION_ID) => {
-  const totals = useDistrictTotals(electionId);
-  const winners = useDistrictWinners(electionId);
+// ELECTION SUMMARY HOOKS
+
+export function useElectionSummary(electionId: string = DEFAULT_ELECTION_ID) {
+  return useApiCall<ElectionSummary>(
+    () => electionService.getElectionSummary(electionId),
+    [electionId]
+  );
+}
+
+export function useElectionWinner(electionId: string = DEFAULT_ELECTION_ID) {
+  return useApiCall<ElectionWinner>(
+    () => electionService.getElectionWinner(electionId),
+    [electionId]
+  );
+}
+
+// CANDIDATE HOOKS
+
+export function useCandidateExportData(electionId: string = DEFAULT_ELECTION_ID) {
+  return useApiCall<CandidateExportData[]>(
+    () => candidateService.getCandidateExportData(electionId),
+    [electionId]
+  );
+}
+
+export function useCandidateTotals(electionId: string = DEFAULT_ELECTION_ID) {
+  return useApiCall<BackendCandidateTotal[]>(
+    () => candidateService.getCandidateTotals(electionId),
+    [electionId]
+  );
+}
+
+export function useTopCandidates(count: number = 5, electionId: string = DEFAULT_ELECTION_ID) {
+  return useApiCall<BackendCandidateTotal[]>(
+    () => candidateService.getTopCandidates(count, electionId),
+    [count, electionId]
+  );
+}
+
+export function useCandidateRank(candidateId: string, electionId: string = DEFAULT_ELECTION_ID) {
+  return useApiCall<CandidateRank>(
+    () => candidateService.getCandidateRank(candidateId, electionId),
+    [candidateId, electionId],
+    !!candidateId // Only auto-fetch if candidateId is provided
+  );
+}
+
+export function useCandidateCSV(electionId: string = DEFAULT_ELECTION_ID) {
+  return useApiCall<string>(
+    () => candidateService.getCandidateExportCSV(electionId),
+    [electionId],
+    false // Don't auto-fetch CSV
+  );
+}
+
+// DISTRICT HOOKS
+
+export function useDistrictAnalysis(electionId: string = DEFAULT_ELECTION_ID) {
+  return useApiCall<CandidateDistrictAnalysis[]>(
+    () => districtService.getDistrictAnalysis(electionId),
+    [electionId]
+  );
+}
+
+export function useDistrictTotals(electionId: string = DEFAULT_ELECTION_ID) {
+  return useApiCall<BackendDistrictVoteTotals>(
+    () => districtService.getDistrictTotals(electionId),
+    [electionId]
+  );
+}
+
+export function useDistrictWinners(electionId: string = DEFAULT_ELECTION_ID) {
+  return useApiCall<DistrictWinnerAnalysis>(
+    () => districtService.getDistrictWinners(electionId),
+    [electionId]
+  );
+}
+
+// STATISTICS HOOKS
+
+export function useDistributionStatistics(electionId: string = DEFAULT_ELECTION_ID) {
+  return useApiCall<DistributionStatistics>(
+    () => statisticsService.getDistributionStatistics(electionId),
+    [electionId]
+  );
+}
+
+export function useMarginAnalysis(electionId: string = DEFAULT_ELECTION_ID) {
+  return useApiCall<MarginAnalysis>(
+    () => statisticsService.getMarginAnalysis(electionId),
+    [electionId]
+  );
+}
+
+// MUTATION HOOKS (for actions that modify data)
+
+interface MutationState {
+  loading: boolean;
+  error: string | null;
+  success: boolean;
+}
+
+function useMutation<T, P = void>(
+  mutationFn: (params: P) => Promise<any>
+): MutationState & {
+  mutate: (params: P) => Promise<T | null>;
+  reset: () => void;
+} {
+  const [state, setState] = useState<MutationState>({
+    loading: false,
+    error: null,
+    success: false,
+  });
+
+  const mutate = useCallback(async (params: P): Promise<T | null> => {
+    setState({
+      loading: true,
+      error: null,
+      success: false,
+    });
+
+    try {
+      const response = await mutationFn(params);
+      
+      if (serviceUtils.hasError(response)) {
+        setState({
+          loading: false,
+          error: serviceUtils.getErrorMessage(response),
+          success: false,
+        });
+        return null;
+      }
+
+      setState({
+        loading: false,
+        error: null,
+        success: true,
+      });
+
+      return response.data;
+    } catch (error) {
+      setState({
+        loading: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        success: false,
+      });
+      return null;
+    }
+  }, [mutationFn]);
+
+  const reset = useCallback(() => {
+    setState({
+      loading: false,
+      error: null,
+      success: false,
+    });
+  }, []);
+
+  return {
+    ...state,
+    mutate,
+    reset,
+  };
+}
+
+export function useBatchUpdateTotals(electionId: string = DEFAULT_ELECTION_ID) {
+  const mutation = useMutation<{ message: string }, void>(
+    () => candidateService.batchUpdateTotals(electionId)
+  );
+
+  const batchUpdate = useCallback(async () => {
+    return await mutation.mutate();
+  }, [mutation.mutate]);
+
+  return {
+    ...mutation,
+    batchUpdate,
+  };
+}
+
+export function useRefreshCalculations(electionId: string = DEFAULT_ELECTION_ID) {
+  const mutation = useMutation<{ message: string }, void>(
+    () => resultService.refreshCalculations(electionId)
+  );
+
+  const refreshCalculations = useCallback(async () => {
+    return await mutation.mutate();
+  }, [mutation.mutate]);
+
+  return {
+    ...mutation,
+    refreshCalculations,
+  };
+}
+
+// COMBINED HOOKS FOR DASHBOARD
+
+export function useElectionResults(electionId: string = DEFAULT_ELECTION_ID) {
+  const electionSummary = useElectionSummary(electionId);
+  const candidates = useCandidateExportData(electionId);
+  const districtWinners = useDistrictWinners(electionId);
+  const districtTotals = useDistrictTotals(electionId);
+
+  const loading = electionSummary.loading || candidates.loading || 
+                 districtWinners.loading || districtTotals.loading;
+
+  const error = electionSummary.error || candidates.error || 
+               districtWinners.error || districtTotals.error;
+
+  const refetchAll = useCallback(async () => {
+    await Promise.all([
+      electionSummary.refetch(),
+      candidates.refetch(),
+      districtWinners.refetch(),
+      districtTotals.refetch(),
+    ]);
+  }, [electionSummary.refetch, candidates.refetch, districtWinners.refetch, districtTotals.refetch]);
+
+  return {
+    electionSummary: electionSummary.data,
+    candidates: candidates.data,
+    districtWinners: districtWinners.data,
+    districtTotals: districtTotals.data as BackendDistrictVoteTotals | null,
+    loading,
+    error,
+    refetchAll,
+  };
+}
+
+export function useDistrictData(electionId: string = DEFAULT_ELECTION_ID) {
   const analysis = useDistrictAnalysis(electionId);
+  const winners = useDistrictWinners(electionId);
+  const totals = useDistrictTotals(electionId);
+
+  const loading = analysis.loading || winners.loading || totals.loading;
+  const error = analysis.error || winners.error || totals.error;
+
+  const refetchAll = useCallback(async () => {
+    await Promise.all([
+      analysis.refetch(),
+      winners.refetch(),
+      totals.refetch(),
+    ]);
+  }, [analysis.refetch, winners.refetch, totals.refetch]);
 
   return {
-    totals,
-    winners,
-    analysis,
-    loading: totals.loading || winners.loading || analysis.loading,
-    error: totals.error || winners.error || analysis.error,
-    refetch: () => {
-      totals.refetch();
-      winners.refetch();
-      analysis.refetch();
-    }
+    analysis: analysis.data,
+    winners: winners.data,
+    totals: totals.data as BackendDistrictVoteTotals | null,
+    loading,
+    error,
+    refetchAll,
   };
-};
+}
 
-/**
- * Hook to get all analytics data
- */
-export const useAnalyticsData = (electionId: string = DEFAULT_ELECTION_ID) => {
-  const distribution = useDistributionStatistics(electionId);
-  const margins = useMarginAnalysis(electionId);
+export function useAnalyticsData(electionId: string = DEFAULT_ELECTION_ID) {
+  const distributionStats = useDistributionStatistics(electionId);
+  const marginAnalysis = useMarginAnalysis(electionId);
+
+  const loading = distributionStats.loading || marginAnalysis.loading;
+  const error = distributionStats.error || marginAnalysis.error;
+
+  const refetchAll = useCallback(async () => {
+    await Promise.all([
+      distributionStats.refetch(),
+      marginAnalysis.refetch(),
+    ]);
+  }, [distributionStats.refetch, marginAnalysis.refetch]);
 
   return {
-    distribution,
-    margins,
-    loading: distribution.loading || margins.loading,
-    error: distribution.error || margins.error,
-    refetch: () => {
-      distribution.refetch();
-      margins.refetch();
-    }
+    distributionStats: distributionStats.data,
+    marginAnalysis: marginAnalysis.data,
+    loading,
+    error,
+    refetchAll,
   };
-};
+}
+
+// HEALTH CHECK HOOK
+
+export function useApiHealth() {
+  const [isHealthy, setIsHealthy] = useState<boolean | null>(null);
+  const [lastCheck, setLastCheck] = useState<Date | null>(null);
+
+  const checkHealth = useCallback(async () => {
+    try {
+      const healthy = await resultService.healthCheck();
+      setIsHealthy(healthy);
+      setLastCheck(new Date());
+    } catch {
+      setIsHealthy(false);
+      setLastCheck(new Date());
+    }
+  }, []);
+
+  useEffect(() => {
+    checkHealth();
+    const interval = setInterval(checkHealth, 30000); // Check every 30 seconds
+    return () => clearInterval(interval);
+  }, [checkHealth]);
+
+  return {
+    isHealthy,
+    lastCheck,
+    checkHealth,
+  };
+}
+
+// AUTO-REFRESH HOOK
+
+export function useAutoRefresh(
+  refetchFn: () => Promise<void>,
+  interval: number = 30000, // 30 seconds default
+  enabled: boolean = false
+) {
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const startAutoRefresh = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+    intervalRef.current = setInterval(refetchFn, interval);
+  }, [refetchFn, interval]);
+
+  const stopAutoRefresh = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (enabled) {
+      startAutoRefresh();
+    } else {
+      stopAutoRefresh();
+    }
+
+    return stopAutoRefresh;
+  }, [enabled, startAutoRefresh, stopAutoRefresh]);
+
+  return {
+    startAutoRefresh,
+    stopAutoRefresh,
+    isRunning: intervalRef.current !== null,
+  };
+}
+
+// POLLING HOOK FOR REAL-TIME UPDATES
+
+export function usePolling<T>(
+  hookFn: () => HookState<T> & { refetch: () => Promise<void> },
+  interval: number = 10000, // 10 seconds default
+  enabled: boolean = false
+): HookState<T> & { 
+  refetch: () => Promise<void>;
+  startPolling: () => void;
+  stopPolling: () => void;
+  isPolling: boolean;
+} {
+  const hook = hookFn();
+  const [isPolling, setIsPolling] = useState(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const startPolling = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+    setIsPolling(true);
+    intervalRef.current = setInterval(() => {
+      hook.refetch();
+    }, interval);
+  }, [hook.refetch, interval]);
+
+  const stopPolling = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    setIsPolling(false);
+  }, []);
+
+  useEffect(() => {
+    if (enabled) {
+      startPolling();
+    } else {
+      stopPolling();
+    }
+
+    return stopPolling;
+  }, [enabled, startPolling, stopPolling]);
+
+  return {
+    ...hook,
+    startPolling,
+    stopPolling,
+    isPolling,
+  };
+}
+
+// CACHED DATA HOOK
+
+export function useCachedElectionData(electionId: string = DEFAULT_ELECTION_ID) {
+  const [cache, setCache] = useState<Map<string, { data: any; timestamp: number }>>(new Map());
+  const cacheTimeout = 5 * 60 * 1000; // 5 minutes
+
+  const getCachedData = useCallback(<T>(key: string): T | null => {
+    const cached = cache.get(key);
+    if (cached && Date.now() - cached.timestamp < cacheTimeout) {
+      return cached.data;
+    }
+    return null;
+  }, [cache, cacheTimeout]);
+
+  const setCachedData = useCallback(<T>(key: string, data: T) => {
+    setCache(prev => new Map(prev.set(key, { data, timestamp: Date.now() })));
+  }, []);
+
+  const clearCache = useCallback(() => {
+    setCache(new Map());
+  }, []);
+
+  return {
+    getCachedData,
+    setCachedData,
+    clearCache,
+    cacheSize: cache.size,
+  };
+}
+
+// LOCAL STORAGE PERSISTENCE HOOK
+
+export function usePersistedElectionData(electionId: string = DEFAULT_ELECTION_ID) {
+  const storageKey = `election_data_${electionId}`;
+
+  const saveToStorage = useCallback((data: any) => {
+    try {
+      const serialized = JSON.stringify({
+        data,
+        timestamp: Date.now(),
+        electionId,
+      });
+      localStorage.setItem(storageKey, serialized);
+    } catch (error) {
+      console.error('Failed to save to localStorage:', error);
+    }
+  }, [storageKey, electionId]);
+
+  const loadFromStorage = useCallback(<T>(): T | null => {
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Check if data is not too old (1 hour)
+        if (Date.now() - parsed.timestamp < 60 * 60 * 1000) {
+          return parsed.data;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load from localStorage:', error);
+    }
+    return null;
+  }, [storageKey]);
+
+  const clearStorage = useCallback(() => {
+    try {
+      localStorage.removeItem(storageKey);
+    } catch (error) {
+      console.error('Failed to clear localStorage:', error);
+    }
+  }, [storageKey]);
+
+  return {
+    saveToStorage,
+    loadFromStorage,
+    clearStorage,
+  };
+}
+
+// ERROR BOUNDARY HOOK
+
+export function useErrorHandler() {
+  const [errors, setErrors] = useState<Array<{ id: string; message: string; timestamp: Date }>>([]);
+
+  const addError = useCallback((message: string) => {
+    const error = {
+      id: Math.random().toString(36).substr(2, 9),
+      message,
+      timestamp: new Date(),
+    };
+    setErrors(prev => [...prev, error]);
+  }, []);
+
+  const removeError = useCallback((id: string) => {
+    setErrors(prev => prev.filter(error => error.id !== id));
+  }, []);
+
+  const clearErrors = useCallback(() => {
+    setErrors([]);
+  }, []);
+
+  return {
+    errors,
+    addError,
+    removeError,
+    clearErrors,
+    hasErrors: errors.length > 0,
+  };
+}
+
+// EXPORT DEFAULT HOOK FOR MAIN DASHBOARD
+
+export default function useElectionDashboard(electionId: string = DEFAULT_ELECTION_ID) {
+  const electionResults = useElectionResults(electionId);
+  const analyticsData = useAnalyticsData(electionId);
+  const districtData = useDistrictData(electionId);
+  const batchUpdateMutation = useBatchUpdateTotals(electionId);
+  const refreshMutation = useRefreshCalculations(electionId);
+  const apiHealth = useApiHealth();
+  const errorHandler = useErrorHandler();
+
+  // Combined loading state
+  const loading = electionResults.loading || analyticsData.loading || districtData.loading;
+
+  // Combined error state
+  const error = electionResults.error || analyticsData.error || districtData.error;
+
+  // Combined refetch function
+  const refetchAll = useCallback(async () => {
+    try {
+      await Promise.all([
+        electionResults.refetchAll(),
+        analyticsData.refetchAll(),
+        districtData.refetchAll(),
+      ]);
+    } catch (err) {
+      errorHandler.addError('Failed to refresh all data');
+    }
+  }, [electionResults.refetchAll, analyticsData.refetchAll, districtData.refetchAll, errorHandler.addError]);
+
+  // Refresh calculations and data
+  const refreshCalculations = useCallback(async () => {
+    try {
+      await refreshMutation.refreshCalculations();
+      await refetchAll();
+    } catch (err) {
+      errorHandler.addError('Failed to refresh calculations');
+    }
+  }, [refreshMutation.refreshCalculations, refetchAll, errorHandler.addError]);
+
+  // Batch update totals
+  const batchUpdateTotals = useCallback(async () => {
+    try {
+      await batchUpdateMutation.batchUpdate();
+      await refetchAll();
+    } catch (err) {
+      errorHandler.addError('Failed to update totals');
+    }
+  }, [batchUpdateMutation.batchUpdate, refetchAll, errorHandler.addError]);
+
+  return {
+    // Data
+    electionSummary: electionResults.electionSummary,
+    candidates: electionResults.candidates,
+    districtWinners: electionResults.districtWinners,
+    districtTotals: electionResults.districtTotals,
+    distributionStats: analyticsData.distributionStats,
+    marginAnalysis: analyticsData.marginAnalysis,
+    districtAnalysis: districtData.analysis,
+
+    // States
+    loading,
+    error,
+    isApiHealthy: apiHealth.isHealthy,
+    
+    // Actions
+    refetchAll,
+    refreshCalculations,
+    batchUpdateTotals,
+    
+    // Mutation states
+    isRefreshing: refreshMutation.loading,
+    isUpdating: batchUpdateMutation.loading,
+    refreshError: refreshMutation.error,
+    updateError: batchUpdateMutation.error,
+    
+    // Error handling
+    errors: errorHandler.errors,
+    addError: errorHandler.addError,
+    removeError: errorHandler.removeError,
+    clearErrors: errorHandler.clearErrors,
+    
+    // Health check
+    checkApiHealth: apiHealth.checkHealth,
+    lastHealthCheck: apiHealth.lastCheck,
+  };
+}

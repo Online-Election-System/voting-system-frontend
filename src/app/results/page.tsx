@@ -14,7 +14,7 @@ import { ElectionSummaryCard } from "./(components)/ElectionSummaryCard"
 import { VoteDistributionChart } from "./(components)/VoteDistributionChart"
 import { DistrictMapView } from "./(components)/DistrictMapView"
 
-// Import the updated hooks with correct path and default election ID
+// FIXED: Import the updated hooks with correct path and backend types
 import {
   useElectionSummary,
   useCandidateExportData,
@@ -29,11 +29,16 @@ import {
   type CandidateExportData,
   type DistrictWinnerAnalysis,
   type ValidationResult,
-  type DistrictVoteTotals,
-} from "./hooks/useReslult" 
+  type BackendDistrictVoteTotals, // FIXED: Use backend type
+} from "./hooks/useReslult"
 
 // Import the default election ID from config
-import { DEFAULT_ELECTION_ID } from "./lib/config/api"
+import { DEFAULT_ELECTION_ID } from "./lib/config/api"// FIXED: Corrected import path
+
+// Add utility functions for safe data access
+const safeNumber = (value: number | undefined | null): number => value || 0;
+const safeLocaleString = (value: number | undefined | null): string => (value || 0).toLocaleString();
+const safePercentage = (value: number | undefined | null): string => (value || 0).toFixed(2);
 
 export default function ElectionDashboard() {
   // Updated to use the correct election ID for your backend
@@ -70,7 +75,7 @@ export default function ElectionDashboard() {
     loading: totalsLoading, 
     error: totalsError, 
     refetch: refetchTotals 
-  } = useDistrictTotals()
+  } = useDistrictTotals() // This now returns BackendDistrictVoteTotals
 
   // Mutation hooks
   const { refreshCalculations, loading: refreshing, error: refreshError } = useRefreshCalculations()
@@ -291,11 +296,11 @@ export default function ElectionDashboard() {
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-medium">{candidate.candidateName}</span>
-                        <span className="text-sm font-bold">{candidate.percentage.toFixed(2)}%</span>
+                        <span className="text-sm font-bold">{safePercentage(candidate.percentage)}%</span>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Progress value={candidate.percentage} className="flex-1" />
-                        <span className="text-xs text-gray-600">{candidate.totalVotes.toLocaleString()} votes</span>
+                        <Progress value={candidate.percentage || 0} className="flex-1" />
+                        <span className="text-xs text-gray-600">{safeLocaleString(candidate.totalVotes)} votes</span>
                       </div>
                       <div className="flex items-center space-x-2 mt-1">
                         <Badge
@@ -304,7 +309,7 @@ export default function ElectionDashboard() {
                         >
                           {candidate.partyName}
                         </Badge>
-                        <Badge variant="secondary">{candidate.districtsWon} districts won</Badge>
+                        <Badge variant="secondary">{safeNumber(candidate.districtsWon)} districts won</Badge>
                         {!candidate.isActive && (
                           <Badge variant="destructive">Inactive</Badge>
                         )}
@@ -382,7 +387,7 @@ export default function ElectionDashboard() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Votes Cast</span>
-                    <span className="font-bold">{electionSummary?.totalVotes.toLocaleString() || '0'}</span>
+                    <span className="font-bold">{safeLocaleString(electionSummary?.totalVotes)}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Turnout Percentage</span>
@@ -435,12 +440,12 @@ export default function ElectionDashboard() {
                           />
                           <span className="font-medium">{candidate.candidateName}</span>
                         </div>
-                        <span className="text-sm font-bold">{candidate.percentage.toFixed(2)}%</span>
+                        <span className="text-sm font-bold">{safePercentage(candidate.percentage)}%</span>
                       </div>
                       {index === 0 && candidates.length > 1 && (
                         <div className="text-sm text-green-600 font-medium pl-5">
-                          Victory margin: {(candidates[0].percentage - candidates[1].percentage).toFixed(2)}% 
-                          ({(candidates[0].totalVotes - candidates[1].totalVotes).toLocaleString()} votes)
+                          Victory margin: {((candidates[0]?.percentage || 0) - (candidates[1]?.percentage || 0)).toFixed(2)}% 
+                          ({safeLocaleString((candidates[0]?.totalVotes || 0) - (candidates[1]?.totalVotes || 0))} votes)
                         </div>
                       )}
                     </div>
@@ -470,7 +475,8 @@ export default function ElectionDashboard() {
                     </div>
                     <div className="text-center p-4 rounded-lg bg-green-50 border border-green-200">
                       <div className="text-2xl font-bold text-green-600">
-                        {districtTotals?.GrandTotal.toLocaleString() || '0'}
+                        {/* FIXED: Use backend type with camelCase grandTotal */}
+                        {safeLocaleString(districtTotals?.grandTotal)}
                       </div>
                       <div className="text-sm text-green-800">Total District Votes</div>
                     </div>
@@ -488,7 +494,7 @@ export default function ElectionDashboard() {
                           />
                           <span className="text-sm font-medium">{candidate.candidateName}</span>
                         </div>
-                        <div className="text-sm font-bold">{candidate.districtsWon} districts</div>
+                        <div className="text-sm font-bold">{safeNumber(candidate.districtsWon)} districts</div>
                       </div>
                     )) || <div className="text-sm text-gray-500">No data available</div>}
                   </div>
@@ -507,11 +513,11 @@ export default function ElectionDashboard() {
                     <>
                       <div className="flex items-center justify-between">
                         <span>Leading Candidate</span>
-                        <span className="font-bold text-green-600">{candidates[0]?.candidateName}</span>
+                        <span className="font-bold text-green-600">{candidates[0]?.candidateName || 'Unknown'}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span>Winning Percentage</span>
-                        <span className="font-bold">{candidates[0]?.percentage.toFixed(2)}%</span>
+                        <span className="font-bold">{safePercentage(candidates[0]?.percentage)}%</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span>Total Candidates</span>
@@ -532,27 +538,27 @@ export default function ElectionDashboard() {
                             <div>
                               <span className="text-gray-600">Margin over 2nd place: </span>
                               <span className="font-medium">
-                                {(candidates[0].percentage - candidates[1].percentage).toFixed(2)}%
+                                {((candidates[0]?.percentage || 0) - (candidates[1]?.percentage || 0)).toFixed(2)}%
                               </span>
                             </div>
                             <div>
                               <span className="text-gray-600">Vote difference: </span>
                               <span className="font-medium">
-                                {(candidates[0].totalVotes - candidates[1].totalVotes).toLocaleString()}
+                                {safeLocaleString((candidates[0]?.totalVotes || 0) - (candidates[1]?.totalVotes || 0))}
                               </span>
                             </div>
                             <div>
                               <span className="text-gray-600">Competition level: </span>
                               <span className={`font-medium ${
-                                (candidates[0].percentage - candidates[1].percentage) < 5 
+                                ((candidates[0]?.percentage || 0) - (candidates[1]?.percentage || 0)) < 5 
                                   ? 'text-red-600' 
-                                  : (candidates[0].percentage - candidates[1].percentage) < 10 
+                                  : ((candidates[0]?.percentage || 0) - (candidates[1]?.percentage || 0)) < 10 
                                     ? 'text-yellow-600' 
                                     : 'text-green-600'
                               }`}>
-                                {(candidates[0].percentage - candidates[1].percentage) < 5 
+                                {((candidates[0]?.percentage || 0) - (candidates[1]?.percentage || 0)) < 5 
                                   ? 'Highly Competitive' 
-                                  : (candidates[0].percentage - candidates[1].percentage) < 10 
+                                  : ((candidates[0]?.percentage || 0) - (candidates[1]?.percentage || 0)) < 10 
                                     ? 'Moderately Competitive' 
                                     : 'Clear Lead'
                                 }

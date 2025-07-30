@@ -13,36 +13,17 @@ interface DistrictAnalysisCardProps {
 }
 
 export function DistrictAnalysisCard({ districtAnalysis, candidates }: DistrictAnalysisCardProps) {
-  // Mock data for demonstration
-  const mockDistrictWinners = SRI_LANKAN_DISTRICTS.reduce(
-    (acc, district, index) => {
-      const winnerIndex = index % 3 // Rotate between top 3 candidates
-      const candidate = candidates[winnerIndex]
-      if (candidate) {
-        acc[district] = {
-          candidateId: candidate.candidateId,
-          candidateName: candidate.candidateName,
-          votes: Math.floor(Math.random() * 500000) + 100000,
-        }
-      }
-      return acc
-    },
-    {} as Record<string, { candidateId: string; candidateName: string; votes: number }>,
-  )
+  if (!districtAnalysis) return <div>No data available</div>;
 
-  const districtWinnerCounts = candidates.reduce(
-    (acc, candidate) => {
-      acc[candidate.candidateId] = 0
-      return acc
-    },
-    {} as Record<string, number>,
-  )
+  const { districtWinners } = districtAnalysis;
 
-  Object.values(mockDistrictWinners).forEach((winner) => {
-    if (districtWinnerCounts[winner.candidateId] !== undefined) {
-      districtWinnerCounts[winner.candidateId]++
-    }
-  })
+  // Calculate how many districts each candidate won
+  const districtWinnerCounts = candidates.reduce((acc, candidate) => {
+    acc[candidate.candidateId] = Object.values(districtWinners).filter(
+      (winner) => winner.candidateId === candidate.candidateId
+    ).length;
+    return acc;
+  }, {} as Record<string, number>);
 
   return (
     <Card>
@@ -87,10 +68,9 @@ export function DistrictAnalysisCard({ districtAnalysis, candidates }: DistrictA
             <span>District Results</span>
           </h3>
           <div className="max-h-64 overflow-y-auto space-y-2">
-            {SRI_LANKAN_DISTRICTS.slice(0, 10).map((district) => {
-              const winner = mockDistrictWinners[district]
-              const candidate = candidates.find((c) => c.candidateId === winner?.candidateId)
-
+            {Object.keys(districtWinners).slice(0, 10).map((district) => {
+              const winner = districtWinners[district];
+              const candidate = candidates.find((c) => c.candidateId === winner?.candidateId);
               return (
                 <div key={district} className="flex items-center justify-between p-2 rounded border">
                   <div>
@@ -117,11 +97,11 @@ export function DistrictAnalysisCard({ districtAnalysis, candidates }: DistrictA
                     )}
                   </div>
                 </div>
-              )
+              );
             })}
           </div>
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
