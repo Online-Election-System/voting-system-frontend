@@ -23,32 +23,32 @@ async function fetchAPI<T>(url: string, options: RequestInit = {}): Promise<T> {
       return null as T;
   }
   
-  return response.json() as T;
-}
+//   return response.json() as T;
+// }
 
-// Fetches the list of all applications, with optional filtering
-export const getApplications = (nameOrNic: string, status: string): Promise<RegistrationApplication[]> => {
-  const params = new URLSearchParams();
-  if (nameOrNic) params.append('nameOrNic', nameOrNic);
-  if (status && status !== 'all') params.append('statusFilter', status);
+// // Fetches the list of all applications, with optional filtering
+// export const getApplications = (nameOrNic: string, status: string): Promise<RegistrationApplication[]> => {
+//   const params = new URLSearchParams();
+//   if (nameOrNic) params.append('nameOrNic', nameOrNic);
+//   if (status && status !== 'all') params.append('statusFilter', status);
   
-  return fetchAPI(`${API_BASE_URL}/registrations/applications?${params.toString()}`);
-};
+//   return fetchAPI(`${API_BASE_URL}/registrations/applications?${params.toString()}`);
+// };
 
-// Fetches the dashboard card counts
-export const getApplicationCounts = (): Promise<StatusCounts> => {
-  return fetchAPI(`${API_BASE_URL}/registrations/counts`);
-};
+// // Fetches the dashboard card counts
+// export const getApplicationCounts = (): Promise<StatusCounts> => {
+//   return fetchAPI(`${API_BASE_URL}/registrations/counts`);
+// };
 
-// Fetches the full details for a single applicant by their NIC
-export const getApplicationDetails = (nic: string): Promise<RegistrationDetails> => {
-  return fetchAPI(`${API_BASE_URL}/registrations/applications/${nic}`);
-};
+// // Fetches the full details for a single applicant by their NIC
+// export const getApplicationDetails = (nic: string): Promise<RegistrationDetails> => {
+//   return fetchAPI(`${API_BASE_URL}/registrations/applications/${nic}`);
+// };
 
-// Sends an approval or rejection request to the backend
-export const reviewApplication = (nic: string, status: 'approved' | 'rejected', comments?: string): Promise<void> => {
-  return fetchAPI(`${API_BASE_URL}/registrations/applications/${nic}/review`, {
-    method: 'POST',
-    body: JSON.stringify({ status, comments }),
-  });
-};
+// // Sends an approval or rejection request to the backend
+// export const reviewApplication = (nic: string, status: 'approved' | 'rejected', comments?: string): Promise<void> => {
+//   return fetchAPI(`${API_BASE_URL}/registrations/applications/${nic}/review`, {
+//     method: 'POST',
+//     body: JSON.stringify({ status, comments }),
+//   });
+// };

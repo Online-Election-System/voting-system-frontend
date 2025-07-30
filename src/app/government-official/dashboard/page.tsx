@@ -1,35 +1,14 @@
-// "use client";
-
-// import RoleGuard from "@/components/auth/RoleGuard";
-// import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-
-// export default function GovernmentDashboard() {
-//   return (
-//     <RoleGuard requiredRole="governmentOfficial">
-//       <div className="flex h-screen items-center justify-center">
-//         <Card className="w-full max-w-md text-center">
-//           <CardHeader>
-//             <CardTitle>Government-Official Dashboard</CardTitle>
-//           </CardHeader>
-//           <CardContent>
-//             <p className="text-sm text-muted-foreground">
-//               ✅ RBAC allowed the <b>governmentOfficial</b> role.
-//             </p>
-//           </CardContent>
-//         </Card>
-//       </div>
-//     </RoleGuard>
-//   );
-// }
-
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Users, UserCheck, UserMinus, AlertTriangle, Eye } from "lucide-react"
+import { Users, UserCheck, UserMinus, AlertTriangle, Eye, UserPlus, UserCog } from "lucide-react"
 import Link from "next/link"
 
 export default function Dashboard() {
+  // Mock data for pending counts
+  const pendingAddMemberRequests = 5
+  const pendingUpdateMemberRequests = 2
+
   const stats = [
     {
       title: "Pending Registrations",
@@ -127,40 +106,51 @@ export default function Dashboard() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button
-              asChild
-              variant="outline"
-              className="h-auto p-4 flex flex-col items-center gap-2 bg-white border-gray-300 text-gray-800 hover:bg-gray-100 hover:text-black transition-colors"
+            <Link
+              href="/government-official/registrations"
+              className="h-auto p-4 flex flex-col items-center gap-2 bg-white border border-gray-300 text-gray-800 hover:bg-gray-100 hover:text-black transition-colors rounded-lg"
             >
-              <Link href="/registrations">
-                <UserCheck className="w-6 h-6" />
-                <span>Review Registrations</span>
-                <Badge className="bg-gray-800 text-white">12 Pending</Badge>
-              </Link>
-            </Button>
-            <Button
-              asChild
-              variant="outline"
-              className="h-auto p-4 flex flex-col items-center gap-2 bg-white border-gray-300 text-gray-800 hover:bg-gray-100 hover:text-black transition-colors"
+              <UserCheck className="w-6 h-6" />
+              <span>Review Registrations</span>
+              <Badge className="bg-gray-800 text-white">12 Pending</Badge>
+            </Link>
+            <Link
+              href="/removal-requests"
+              className="h-auto p-4 flex flex-col items-center gap-2 bg-white border border-gray-300 text-gray-800 hover:bg-gray-100 hover:text-black transition-colors rounded-lg"
             >
-              <Link href="/removal-requests">
-                <UserMinus className="w-6 h-6" />
-                <span>Handle Removals</span>
-                <Badge variant="outline" className="border-gray-800 text-gray-800">
-                  3 Pending
-                </Badge>
-              </Link>
-            </Button>
-            <Button
-              asChild
-              variant="outline"
-              className="h-auto p-4 flex flex-col items-center gap-2 bg-white border-gray-300 text-gray-800 hover:bg-gray-100 hover:text-black transition-colors"
+              <UserMinus className="w-6 h-6" />
+              <span>Handle Removals</span>
+              <Badge variant="outline" className="border-gray-800 text-gray-800">
+                3 Pending
+              </Badge>
+            </Link>
+            <Link
+              href="/households"
+              className="h-auto p-4 flex flex-col items-center gap-2 bg-white border border-gray-300 text-gray-800 hover:bg-gray-100 hover:text-black transition-colors rounded-lg"
             >
-              <Link href="/households">
-                <Users className="w-6 h-6" />
-                <span>Manage Households</span>
-              </Link>
-            </Button>
+              <Users className="w-6 h-6" />
+              <span>Manage Households</span>
+            </Link>
+            <Link
+              href="/add-members"
+              className="h-auto p-4 flex flex-col items-center gap-2 bg-white border border-gray-300 text-gray-800 hover:bg-gray-100 hover:text-black transition-colors rounded-lg relative"
+            >
+              <UserPlus className="w-6 h-6" />
+              <span>Add New Member</span>
+              <Badge variant="outline" className="border-gray-800 text-gray-800">
+                3 Pending
+              </Badge>
+            </Link>
+            <Link
+              href="/update-members"
+              className="h-auto p-4 flex flex-col items-center gap-2 bg-white border border-gray-300 text-gray-800 hover:bg-gray-100 hover:text-black transition-colors rounded-lg relative"
+            >
+              <UserCog className="w-6 h-6" />
+              <span>Update Member</span>
+              <Badge variant="outline" className="border-gray-800 text-gray-800">
+                3 Pending
+              </Badge>
+            </Link>
           </div>
         </CardContent>
       </Card>
@@ -206,4 +196,3 @@ export default function Dashboard() {
     </div>
   )
 }
-
