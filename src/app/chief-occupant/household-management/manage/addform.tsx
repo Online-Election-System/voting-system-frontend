@@ -2,7 +2,7 @@
 
 import { CalendarIcon, Upload, X, Check, FileText } from "lucide-react"
 import { format } from "date-fns"
-import { cn } from "@/lib/utils"
+import { cn } from "@/src/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -18,9 +18,11 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog"
 import { useFileUpload } from "@/src/app/register/hooks/use-file-upload-hook"
-import { useRef, useState } from "react"
+import { useRef, useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import axios from "axios"
 import { v4 as uuidv4 } from 'uuid'
+import { getUserId, isAuthenticated } from "@/src/lib/cookies"
 
 export function AddHouseholdMemberForm() {
   const [fullName, setFullName] = useState("")
@@ -30,7 +32,9 @@ export function AddHouseholdMemberForm() {
   const [civilStatus, setCivilStatus] = useState("")
   const [relationship, setRelationship] = useState("")
   const [chiefOccupantApproval, setChiefOccupantApproval] = useState<"approve" | "disapprove">("approve")
-  const chiefOccupantId = localStorage.getItem("userId")
+  const [chiefOccupantId, setChiefOccupantId] = useState<string | null>(null)
+  const [authError, setAuthError] = useState<string | null>(null)
+  const router = useRouter()
 
   // File upload refs and states
   const nicFileInputRef = useRef<HTMLInputElement>(null)
@@ -54,6 +58,28 @@ export function AddHouseholdMemberForm() {
 
   const [nicDocumentUrl, setNicDocumentUrl] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Authentication check and setup
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    // Check authentication
+    if (!isAuthenticated()) {
+      setAuthError("Not authenticated. Please log in.")
+      router.push("/login")
+      return
+    }
+
+    const userId = getUserId()
+    if (!userId) {
+      setAuthError("User ID not found in session.")
+      router.push("/login")
+      return
+    }
+
+    setChiefOccupantId(userId)
+    setAuthError(null)
+  }, [router])
 
   // Handle NIC document upload
   const handleNicFileSelect = async (file: File) => {
@@ -113,6 +139,14 @@ export function AddHouseholdMemberForm() {
     e.preventDefault()
     setIsSubmitting(true)
 
+    // Check authentication before submission
+    if (!chiefOccupantId) {
+      setAuthError("Authentication required. Please log in.")
+      setIsSubmitting(false)
+      router.push("/login")
+      return
+    }
+
     // Validate required fields
     if (!fullName || !nicNumber || !dateOfBirth || !civilStatus || !relationship) {
       alert("Please fill all required fields")
@@ -150,6 +184,7 @@ export function AddHouseholdMemberForm() {
           headers: {
             "Content-Type": "application/json",
           },
+          withCredentials: true // Ensure cookies are sent with request
         }
       )
 
@@ -168,6 +203,14 @@ export function AddHouseholdMemberForm() {
 
     } catch (err: any) {
       console.error("Full error:", err)
+      
+      // Handle authentication errors
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        setAuthError("Authentication failed. Please log in again.")
+        router.push("/login")
+        return
+      }
+      
       if (err.response) {
         console.error("Response data:", err.response.data)
         console.error("Response status:", err.response.status)
@@ -177,6 +220,25 @@ export function AddHouseholdMemberForm() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  // Show auth error if present
+  if (authError) {
+    return (
+      <DialogContent className="sm:max-w-[600px]">
+        <DialogHeader>
+          <DialogTitle>Authentication Error</DialogTitle>
+          <DialogDescription>
+            {authError}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex justify-center py-4">
+          <Button onClick={() => router.push("/login")}>
+            Go to Login
+          </Button>
+        </div>
+      </DialogContent>
+    )
   }
 
   return (
@@ -398,7 +460,7 @@ export function AddHouseholdMemberForm() {
         <Button 
           type="submit" 
           className="w-full mt-4" 
-          disabled={uploadingNic || isSubmitting}
+          disabled={uploadingNic || isSubmitting || !chiefOccupantId}
         >
           {isSubmitting ? "Submitting..." : "Submit for Approval"}
         </Button>

@@ -56,7 +56,7 @@ export default function LoginForm() {
         election_commission: "/election-commission/dashboard",
         chief_occupant: "/chief-occupant/dashboard",
         household_member: "/household-member/dashboard",
-        polling_station: "/polling-station/vote",
+        polling_station: "/polling-station",
       };
 
       if (userType === "householdMember" && message.includes("First-time")) {
