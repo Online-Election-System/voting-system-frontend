@@ -1,22 +1,7 @@
 "use client"
 
 import Image from "next/image"
-import Link from "next/link"
 import { useEffect, useState } from "react"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
-  Calendar,
-  CheckSquare,
-  User,
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import RoleGuard from "@/components/auth/RoleGuard"
 
 export default function ChiefOccupantDashboard() {
   const [userRole, setUserRole] = useState<string | null>(null)
@@ -29,7 +14,6 @@ export default function ChiefOccupantDashboard() {
   }, [])
 
   return (
-    <RoleGuard requiredRole="chief_occupant">
       <div className="flex min-h-screen flex-col">
         <main className="flex flex-1 flex-col items-center justify-center p-4 md:p-6">
           <div className="max-w-3xl text-center">
@@ -51,6 +35,5 @@ export default function ChiefOccupantDashboard() {
           </div>
         </main>
       </div>
-    </RoleGuard>
   )
 }
