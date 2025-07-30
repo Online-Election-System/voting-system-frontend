@@ -1,11 +1,11 @@
 // service/resultService.ts
-// Service layer for election results API calls
+// Service layer for election results API calls - No default election ID
 
 import {
   API_CONFIG,
   API_ENDPOINTS,
   buildApiUrl,
-  getElectionId,
+  validateElectionId,
   ERROR_MESSAGES,
   HTTP_STATUS,
   debugLog,
@@ -25,43 +25,9 @@ import type {
   MarginAnalysis,
   CandidateRank,
   ElectionWinner,
+  BackendCandidateTotal,
+  BackendDistrictVoteTotals,
 } from '../types';
-
-// Backend-compatible types
-interface BackendCandidateTotal {
-  candidateId: string;
-  totals: number; // lowercase to match backend
-}
-
-interface BackendDistrictVoteTotals {
-  electionId: string;
-  ampara: number;
-  anuradhapura: number;
-  badulla: number;
-  batticaloa: number;
-  colombo: number;
-  galle: number;
-  gampaha: number;
-  hambantota: number;
-  jaffna: number;
-  kalutara: number;
-  kandy: number;
-  kegalle: number;
-  kilinochchi: number;
-  kurunegala: number;
-  mannar: number;
-  matale: number;
-  matara: number;
-  monaragala: number;
-  mullaitivu: number;
-  nuwaraeliya: number;
-  polonnaruwa: number;
-  puttalam: number;
-  ratnapura: number;
-  trincomalee: number;
-  vavuniya: number;
-  grandTotal: number; // camelCase to match backend
-}
 
 // Generic API response wrapper
 interface ApiResponse<T> {
@@ -110,8 +76,11 @@ async function fetchWithRetry<T>(
       const response = await fetch(url, fetchOptions);
       clearTimeout(timeoutId);
 
+      debugLog(`Response status: ${response.status} for ${url}`);
+
       if (!response.ok) {
         const errorText = await response.text().catch(() => 'Unknown error');
+        errorLog(`HTTP Error ${response.status} for ${url}:`, errorText);
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
@@ -124,7 +93,10 @@ async function fetchWithRetry<T>(
       };
     } catch (error) {
       lastError = error as Error;
-      errorLog(`Request failed for ${url} (attempt ${attempt})`, error);
+      errorLog(`Request failed for ${url} (attempt ${attempt}):`, {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
 
       // Don't retry on the last attempt
       if (attempt === retryConfig.attempts) {
@@ -159,120 +131,133 @@ async function fetchWithRetry<T>(
   };
 }
 
-// CANDIDATE SERVICES
+// CANDIDATE SERVICES - Now require election ID validation
 
 export const candidateService = {
   // Get candidate totals (sorted by votes)
-  async getCandidateTotals(electionId?: string): Promise<ApiResponse<BackendCandidateTotal[]>> {
-    const id = getElectionId(electionId);
-    const url = buildApiUrl(API_ENDPOINTS.CANDIDATE_TOTALS(id));
+  async getCandidateTotals(electionId: string): Promise<ApiResponse<BackendCandidateTotal[]>> {
+    debugLog('Getting candidate totals for election:', electionId);
+    const validElectionId = validateElectionId(electionId);
+    const url = buildApiUrl(API_ENDPOINTS.CANDIDATE_TOTALS(validElectionId));
+    debugLog('Built URL for candidate totals:', url);
     return fetchWithRetry<BackendCandidateTotal[]>(url);
   },
 
   // Get comprehensive candidate export data
-  async getCandidateExportData(electionId?: string): Promise<ApiResponse<CandidateExportData[]>> {
-    const id = getElectionId(electionId);
-    const url = buildApiUrl(API_ENDPOINTS.CANDIDATE_EXPORT(id));
+  async getCandidateExportData(electionId: string): Promise<ApiResponse<CandidateExportData[]>> {
+    debugLog('Getting candidate export data for election:', electionId);
+    const validElectionId = validateElectionId(electionId);
+    const url = buildApiUrl(API_ENDPOINTS.CANDIDATE_EXPORT(validElectionId));
+    debugLog('Built URL for candidate export:', url);
     return fetchWithRetry<CandidateExportData[]>(url);
   },
 
   // Get candidate data as CSV
-  async getCandidateExportCSV(electionId?: string): Promise<ApiResponse<string>> {
-    const id = getElectionId(electionId);
-    const url = buildApiUrl(API_ENDPOINTS.CANDIDATE_EXPORT_CSV(id));
+  async getCandidateExportCSV(electionId: string): Promise<ApiResponse<string>> {
+    debugLog('Getting candidate CSV for election:', electionId);
+    const validElectionId = validateElectionId(electionId);
+    const url = buildApiUrl(API_ENDPOINTS.CANDIDATE_EXPORT_CSV(validElectionId));
+    debugLog('Built URL for candidate CSV:', url);
     return fetchWithRetry<string>(url);
   },
 
   // Get top N candidates
-  async getTopCandidates(count: number = 5, electionId?: string): Promise<ApiResponse<BackendCandidateTotal[]>> {
-    const id = getElectionId(electionId);
-    const url = buildApiUrl(API_ENDPOINTS.CANDIDATE_TOP(id, count));
+  async getTopCandidates(count: number, electionId: string): Promise<ApiResponse<BackendCandidateTotal[]>> {
+    debugLog('Getting top candidates for election:', { electionId, count });
+    const validElectionId = validateElectionId(electionId);
+    const url = buildApiUrl(API_ENDPOINTS.CANDIDATE_TOP(validElectionId, count));
+    debugLog('Built URL for top candidates:', url);
     return fetchWithRetry<BackendCandidateTotal[]>(url);
   },
 
   // Get candidate rank
-  async getCandidateRank(candidateId: string, electionId?: string): Promise<ApiResponse<CandidateRank>> {
-    const id = getElectionId(electionId);
-    const url = buildApiUrl(API_ENDPOINTS.CANDIDATE_RANK(id, candidateId));
+  async getCandidateRank(candidateId: string, electionId: string): Promise<ApiResponse<CandidateRank>> {
+    debugLog('Getting candidate rank:', { candidateId, electionId });
+    const validElectionId = validateElectionId(electionId);
+    if (!candidateId) throw new Error('Candidate ID is required');
+    const url = buildApiUrl(API_ENDPOINTS.CANDIDATE_RANK(validElectionId, candidateId));
+    debugLog('Built URL for candidate rank:', url);
     return fetchWithRetry<CandidateRank>(url);
   },
 
   // Batch update candidate totals
-  async batchUpdateTotals(electionId?: string): Promise<ApiResponse<{ message: string }>> {
-    const id = getElectionId(electionId);
-    const url = buildApiUrl(API_ENDPOINTS.BATCH_UPDATE_TOTALS(id));
+  async batchUpdateTotals(electionId: string): Promise<ApiResponse<{ message: string }>> {
+    debugLog('Batch updating totals for election:', electionId);
+    const validElectionId = validateElectionId(electionId);
+    const url = buildApiUrl(API_ENDPOINTS.BATCH_UPDATE_TOTALS(validElectionId));
+    debugLog('Built URL for batch update:', url);
     return fetchWithRetry<{ message: string }>(url, {
       method: 'POST',
     });
   },
 };
 
-// DISTRICT SERVICES
+// DISTRICT SERVICES - Now require election ID validation
 
 export const districtService = {
   // Get district-wise analysis
-  async getDistrictAnalysis(electionId?: string): Promise<ApiResponse<CandidateDistrictAnalysis[]>> {
-    const id = getElectionId(electionId);
-    const url = buildApiUrl(API_ENDPOINTS.DISTRICT_ANALYSIS(id));
+  async getDistrictAnalysis(electionId: string): Promise<ApiResponse<CandidateDistrictAnalysis[]>> {
+    const validElectionId = validateElectionId(electionId);
+    const url = buildApiUrl(API_ENDPOINTS.DISTRICT_ANALYSIS(validElectionId));
     return fetchWithRetry<CandidateDistrictAnalysis[]>(url);
   },
 
   // Get district vote totals
-  async getDistrictTotals(electionId?: string): Promise<ApiResponse<BackendDistrictVoteTotals>> {
-    const id = getElectionId(electionId);
-    const url = buildApiUrl(API_ENDPOINTS.DISTRICT_TOTALS(id));
+  async getDistrictTotals(electionId: string): Promise<ApiResponse<BackendDistrictVoteTotals>> {
+    const validElectionId = validateElectionId(electionId);
+    const url = buildApiUrl(API_ENDPOINTS.DISTRICT_TOTALS(validElectionId));
     return fetchWithRetry<BackendDistrictVoteTotals>(url);
   },
 
   // Get district winners analysis
-  async getDistrictWinners(electionId?: string): Promise<ApiResponse<DistrictWinnerAnalysis>> {
-    const id = getElectionId(electionId);
-    const url = buildApiUrl(API_ENDPOINTS.DISTRICT_WINNERS(id));
+  async getDistrictWinners(electionId: string): Promise<ApiResponse<DistrictWinnerAnalysis>> {
+    const validElectionId = validateElectionId(electionId);
+    const url = buildApiUrl(API_ENDPOINTS.DISTRICT_WINNERS(validElectionId));
     return fetchWithRetry<DistrictWinnerAnalysis>(url);
   },
 };
 
-// ELECTION SERVICES
+// ELECTION SERVICES - Now require election ID validation
 
 export const electionService = {
   // Get election summary
-  async getElectionSummary(electionId?: string): Promise<ApiResponse<ElectionSummary>> {
-    const id = getElectionId(electionId);
-    const url = buildApiUrl(API_ENDPOINTS.ELECTION_SUMMARY(id));
+  async getElectionSummary(electionId: string): Promise<ApiResponse<ElectionSummary>> {
+    const validElectionId = validateElectionId(electionId);
+    const url = buildApiUrl(API_ENDPOINTS.ELECTION_SUMMARY(validElectionId));
     return fetchWithRetry<ElectionSummary>(url);
   },
 
   // Get election winner
-  async getElectionWinner(electionId?: string): Promise<ApiResponse<ElectionWinner>> {
-    const id = getElectionId(electionId);
-    const url = buildApiUrl(API_ENDPOINTS.ELECTION_WINNER(id));
+  async getElectionWinner(electionId: string): Promise<ApiResponse<ElectionWinner>> {
+    const validElectionId = validateElectionId(electionId);
+    const url = buildApiUrl(API_ENDPOINTS.ELECTION_WINNER(validElectionId));
     return fetchWithRetry<ElectionWinner>(url);
   },
 };
 
-// STATISTICS SERVICES
+// STATISTICS SERVICES - Now require election ID validation
 
 export const statisticsService = {
   // Get vote distribution statistics
-  async getDistributionStatistics(electionId?: string): Promise<ApiResponse<DistributionStatistics>> {
-    const id = getElectionId(electionId);
-    const url = buildApiUrl(API_ENDPOINTS.STATISTICS_DISTRIBUTION(id));
+  async getDistributionStatistics(electionId: string): Promise<ApiResponse<DistributionStatistics>> {
+    const validElectionId = validateElectionId(electionId);
+    const url = buildApiUrl(API_ENDPOINTS.STATISTICS_DISTRIBUTION(validElectionId));
     return fetchWithRetry<DistributionStatistics>(url);
   },
 
   // Get margin analysis
-  async getMarginAnalysis(electionId?: string): Promise<ApiResponse<MarginAnalysis>> {
-    const id = getElectionId(electionId);
-    const url = buildApiUrl(API_ENDPOINTS.STATISTICS_MARGINS(id));
+  async getMarginAnalysis(electionId: string): Promise<ApiResponse<MarginAnalysis>> {
+    const validElectionId = validateElectionId(electionId);
+    const url = buildApiUrl(API_ENDPOINTS.STATISTICS_MARGINS(validElectionId));
     return fetchWithRetry<MarginAnalysis>(url);
   },
 };
 
-// COMBINED SERVICES
+// COMBINED SERVICES - Now require election ID validation
 
 export const resultService = {
   // Get all election results data
-  async getAllElectionResults(electionId?: string): Promise<{
+  async getAllElectionResults(electionId: string): Promise<{
     electionSummary: ApiResponse<ElectionSummary>;
     candidates: ApiResponse<CandidateExportData[]>;
     districtWinners: ApiResponse<DistrictWinnerAnalysis>;
@@ -280,9 +265,9 @@ export const resultService = {
     distributionStats: ApiResponse<DistributionStatistics>;
     marginAnalysis: ApiResponse<MarginAnalysis>;
   }> {
-    const id = getElectionId(electionId);
+    const validElectionId = validateElectionId(electionId);
     
-    debugLog(`Loading all election results for ${id}`);
+    debugLog(`Loading all election results for ${validElectionId}`);
     
     // Fetch all data in parallel
     const [
@@ -293,12 +278,12 @@ export const resultService = {
       distributionStats,
       marginAnalysis,
     ] = await Promise.all([
-      electionService.getElectionSummary(id),
-      candidateService.getCandidateExportData(id),
-      districtService.getDistrictWinners(id),
-      districtService.getDistrictTotals(id),
-      statisticsService.getDistributionStatistics(id),
-      statisticsService.getMarginAnalysis(id),
+      electionService.getElectionSummary(validElectionId),
+      candidateService.getCandidateExportData(validElectionId),
+      districtService.getDistrictWinners(validElectionId),
+      districtService.getDistrictTotals(validElectionId),
+      statisticsService.getDistributionStatistics(validElectionId),
+      statisticsService.getMarginAnalysis(validElectionId),
     ]);
 
     return {
@@ -312,12 +297,12 @@ export const resultService = {
   },
 
   // Refresh all calculations
-  async refreshCalculations(electionId?: string): Promise<ApiResponse<{ message: string }>> {
-    const id = getElectionId(electionId);
-    debugLog(`Refreshing calculations for election ${id}`);
+  async refreshCalculations(electionId: string): Promise<ApiResponse<{ message: string }>> {
+    const validElectionId = validateElectionId(electionId);
+    debugLog(`Refreshing calculations for election ${validElectionId}`);
     
     // First batch update candidate totals
-    const updateResult = await candidateService.batchUpdateTotals(id);
+    const updateResult = await candidateService.batchUpdateTotals(validElectionId);
     
     if (updateResult.error) {
       return {

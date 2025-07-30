@@ -2,18 +2,15 @@
 // API configuration for election results system
 
 export const API_CONFIG = {
-
- 
-
   BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080",
- RESULTS_BASE_PATH: '/results/api/v1',
+  RESULTS_BASE_PATH: '/results/api/v1',
   TIMEOUT: 30000, // 30 seconds
   RETRY_ATTEMPTS: 3,
   RETRY_DELAY: 1000, // 1 second
 } as const;
 
-// Default election ID that matches your backend
-export const DEFAULT_ELECTION_ID = 'PRE_2024';
+// REMOVED: No more hardcoded default election ID
+// Users must now explicitly select an election
 
 // API endpoints configuration
 export const API_ENDPOINTS = {
@@ -61,7 +58,6 @@ export const DEFAULT_HEADERS = {
   'Accept': 'application/json',
 } as const;
 
-
 // CORS Configuration (matching your Ballerina service)
 export const CORS_CONFIG = {
   ALLOWED_ORIGINS: [
@@ -102,7 +98,6 @@ export const PERMISSIONS = {
 
 // API Response Status
 export const API_RESPONSE_STATUS = {
-
   SUCCESS: 'success',
   ERROR: 'error',
   LOADING: 'loading',
@@ -118,6 +113,7 @@ export const ERROR_MESSAGES = {
   NO_DATA: 'No data available for the requested election.',
   BATCH_UPDATE_FAILED: 'Failed to update candidate totals.',
   CALCULATION_REFRESH_FAILED: 'Failed to refresh calculations.',
+  NO_ELECTION_SELECTED: 'Please select an election to view results.',
 } as const;
 
 // Success messages
@@ -137,17 +133,38 @@ export const buildApiUrl = (endpoint: string): string => {
   return `${baseUrl}/${basePath}/${cleanEndpoint}`;
 };
 
-// Validate election ID format
+// Validate election ID format - More flexible validation
 export const isValidElectionId = (electionId: string): boolean => {
-  return typeof electionId === 'string' && electionId.length > 0 && /^[A-Z0-9_]+$/.test(electionId);
+  // More flexible validation - allows letters, numbers, hyphens, underscores
+  // Must be at least 1 character and not just whitespace
+  return typeof electionId === 'string' && 
+         electionId.trim().length > 0 && 
+         /^[a-zA-Z0-9_-]+$/.test(electionId.trim());
 };
 
-// Get election ID with fallback
-export const getElectionId = (electionId?: string): string => {
-  if (electionId && isValidElectionId(electionId)) {
-    return electionId;
+// Validate election ID and throw error if invalid - with better error messages
+export const validateElectionId = (electionId?: string): string => {
+  debugLog('Validating election ID:', electionId);
+  
+  if (!electionId) {
+    errorLog('No election ID provided');
+    throw new Error(ERROR_MESSAGES.NO_ELECTION_SELECTED);
   }
-  return DEFAULT_ELECTION_ID;
+  
+  const trimmedId = electionId.trim();
+  
+  if (!isValidElectionId(trimmedId)) {
+    errorLog('Invalid election ID format:', {
+      provided: electionId,
+      trimmed: trimmedId,
+      length: trimmedId.length,
+      regex_test: /^[a-zA-Z0-9_-]+$/.test(trimmedId)
+    });
+    throw new Error(`${ERROR_MESSAGES.INVALID_ELECTION_ID} Received: "${electionId}"`);
+  }
+  
+  debugLog('Election ID validated successfully:', trimmedId);
+  return trimmedId;
 };
 
 // Environment checks

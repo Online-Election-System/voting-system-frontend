@@ -1,5 +1,5 @@
 // hooks/useResult.ts
-// React hooks for election results data management
+// React hooks for election results data management - No default election IDs
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
@@ -10,8 +10,8 @@ import {
   resultService,
   serviceUtils,
 } from '../service/resultService';
-import { DEFAULT_ELECTION_ID } from '../lib/config/api';
-import { ElectionSummary, ElectionWinner, CandidateExportData, CandidateRank, CandidateDistrictAnalysis, DistrictWinnerAnalysis, DistributionStatistics, MarginAnalysis } from '../types';
+import { validateElectionId, ERROR_MESSAGES } from '../lib/config/api';
+import { ElectionSummary, ElectionWinner, CandidateExportData, CandidateRank, CandidateDistrictAnalysis, DistrictWinnerAnalysis, DistributionStatistics, MarginAnalysis, BackendCandidateTotal, BackendDistrictVoteTotals } from '../types';
 
 // Re-export types for convenience
 export type {
@@ -29,47 +29,11 @@ export type {
   ValidationResult,
 } from '../types';
 
-// Export backend-compatible types
+// Import and re-export backend-compatible types from main types file
 export type {
   BackendCandidateTotal,
   BackendDistrictVoteTotals,
-};
-
-// Backend-compatible types (matching actual API responses)
-export interface BackendCandidateTotal {
-  candidateId: string;
-  totals: number; // lowercase to match backend
-}
-
-export interface BackendDistrictVoteTotals {
-  electionId: string;
-  ampara: number;
-  anuradhapura: number;
-  badulla: number;
-  batticaloa: number;
-  colombo: number;
-  galle: number;
-  gampaha: number;
-  hambantota: number;
-  jaffna: number;
-  kalutara: number;
-  kandy: number;
-  kegalle: number;
-  kilinochchi: number;
-  kurunegala: number;
-  mannar: number;
-  matale: number;
-  matara: number;
-  monaragala: number;
-  mullaitivu: number;
-  nuwaraeliya: number;
-  polonnaruwa: number;
-  puttalam: number;
-  ratnapura: number;
-  trincomalee: number;
-  vavuniya: number;
-  grandTotal: number; // camelCase to match backend
-}
+} from '../types';
 
 // Hook state interface
 interface HookState<T> {
@@ -79,11 +43,11 @@ interface HookState<T> {
   status: 'idle' | 'loading' | 'success' | 'error';
 }
 
-// Generic hook for API calls
+// Generic hook for API calls - now requires election ID
 function useApiCall<T>(
   apiCall: () => Promise<any>,
   dependencies: any[] = [],
-  autoFetch: boolean = true
+  enabled: boolean = true // Allow manual enabling/disabling
 ): HookState<T> & { refetch: () => Promise<void> } {
   const [state, setState] = useState<HookState<T>>({
     data: null,
@@ -95,6 +59,17 @@ function useApiCall<T>(
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchData = useCallback(async () => {
+    // Don't fetch if disabled
+    if (!enabled) {
+      setState(prev => ({
+        ...prev,
+        loading: false,
+        error: null,
+        status: 'idle',
+      }));
+      return;
+    }
+
     // Cancel previous request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -144,23 +119,21 @@ function useApiCall<T>(
         status: 'error',
       });
     }
-  }, dependencies);
+  }, [...dependencies, enabled]);
 
   const refetch = useCallback(async () => {
     await fetchData();
   }, [fetchData]);
 
   useEffect(() => {
-    if (autoFetch) {
-      fetchData();
-    }
+    fetchData();
 
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
     };
-  }, [fetchData, autoFetch]);
+  }, [fetchData]);
 
   return {
     ...state,
@@ -168,101 +141,172 @@ function useApiCall<T>(
   };
 }
 
-// ELECTION SUMMARY HOOKS
+// ELECTION SUMMARY HOOKS - Now require election ID
 
-export function useElectionSummary(electionId: string = DEFAULT_ELECTION_ID) {
+export function useElectionSummary(electionId?: string) {
+  const isEnabled = !!electionId;
+  
   return useApiCall<ElectionSummary>(
-    () => electionService.getElectionSummary(electionId),
-    [electionId]
-  );
-}
-
-export function useElectionWinner(electionId: string = DEFAULT_ELECTION_ID) {
-  return useApiCall<ElectionWinner>(
-    () => electionService.getElectionWinner(electionId),
-    [electionId]
-  );
-}
-
-// CANDIDATE HOOKS
-
-export function useCandidateExportData(electionId: string = DEFAULT_ELECTION_ID) {
-  return useApiCall<CandidateExportData[]>(
-    () => candidateService.getCandidateExportData(electionId),
-    [electionId]
-  );
-}
-
-export function useCandidateTotals(electionId: string = DEFAULT_ELECTION_ID) {
-  return useApiCall<BackendCandidateTotal[]>(
-    () => candidateService.getCandidateTotals(electionId),
-    [electionId]
-  );
-}
-
-export function useTopCandidates(count: number = 5, electionId: string = DEFAULT_ELECTION_ID) {
-  return useApiCall<BackendCandidateTotal[]>(
-    () => candidateService.getTopCandidates(count, electionId),
-    [count, electionId]
-  );
-}
-
-export function useCandidateRank(candidateId: string, electionId: string = DEFAULT_ELECTION_ID) {
-  return useApiCall<CandidateRank>(
-    () => candidateService.getCandidateRank(candidateId, electionId),
-    [candidateId, electionId],
-    !!candidateId // Only auto-fetch if candidateId is provided
-  );
-}
-
-export function useCandidateCSV(electionId: string = DEFAULT_ELECTION_ID) {
-  return useApiCall<string>(
-    () => candidateService.getCandidateExportCSV(electionId),
+    () => {
+      const validElectionId = validateElectionId(electionId);
+      return electionService.getElectionSummary(validElectionId);
+    },
     [electionId],
-    false // Don't auto-fetch CSV
+    isEnabled
   );
 }
 
-// DISTRICT HOOKS
+export function useElectionWinner(electionId?: string) {
+  const isEnabled = !!electionId;
+  
+  return useApiCall<ElectionWinner>(
+    () => {
+      const validElectionId = validateElectionId(electionId);
+      return electionService.getElectionWinner(validElectionId);
+    },
+    [electionId],
+    isEnabled
+  );
+}
 
-export function useDistrictAnalysis(electionId: string = DEFAULT_ELECTION_ID) {
+// CANDIDATE HOOKS - Now require election ID
+
+export function useCandidateExportData(electionId?: string) {
+  const isEnabled = !!electionId;
+  
+  return useApiCall<CandidateExportData[]>(
+    () => {
+      const validElectionId = validateElectionId(electionId);
+      return candidateService.getCandidateExportData(validElectionId);
+    },
+    [electionId],
+    isEnabled
+  );
+}
+
+export function useCandidateTotals(electionId?: string) {
+  const isEnabled = !!electionId;
+  
+  return useApiCall<BackendCandidateTotal[]>(
+    () => {
+      const validElectionId = validateElectionId(electionId);
+      return candidateService.getCandidateTotals(validElectionId);
+    },
+    [electionId],
+    isEnabled
+  );
+}
+
+export function useTopCandidates(electionId?: string, count: number = 5) {
+  const isEnabled = !!electionId;
+  
+  return useApiCall<BackendCandidateTotal[]>(
+    () => {
+      const validElectionId = validateElectionId(electionId);
+      return candidateService.getTopCandidates(count, validElectionId);
+    },
+    [electionId, count],
+    isEnabled
+  );
+}
+
+export function useCandidateRank(electionId?: string, candidateId?: string) {
+  const isEnabled = !!electionId && !!candidateId;
+  
+  return useApiCall<CandidateRank>(
+    () => {
+      const validElectionId = validateElectionId(electionId);
+      if (!candidateId) throw new Error('Candidate ID is required');
+      return candidateService.getCandidateRank(candidateId, validElectionId);
+    },
+    [electionId, candidateId],
+    isEnabled
+  );
+}
+
+export function useCandidateCSV(electionId?: string, autoFetch: boolean = false) {
+  const isEnabled = !!electionId && autoFetch;
+  
+  return useApiCall<string>(
+    () => {
+      const validElectionId = validateElectionId(electionId);
+      return candidateService.getCandidateExportCSV(validElectionId);
+    },
+    [electionId],
+    isEnabled
+  );
+}
+
+// DISTRICT HOOKS - Now require election ID
+
+export function useDistrictAnalysis(electionId?: string) {
+  const isEnabled = !!electionId;
+  
   return useApiCall<CandidateDistrictAnalysis[]>(
-    () => districtService.getDistrictAnalysis(electionId),
-    [electionId]
+    () => {
+      const validElectionId = validateElectionId(electionId);
+      return districtService.getDistrictAnalysis(validElectionId);
+    },
+    [electionId],
+    isEnabled
   );
 }
 
-export function useDistrictTotals(electionId: string = DEFAULT_ELECTION_ID) {
+export function useDistrictTotals(electionId?: string) {
+  const isEnabled = !!electionId;
+  
   return useApiCall<BackendDistrictVoteTotals>(
-    () => districtService.getDistrictTotals(electionId),
-    [electionId]
+    () => {
+      const validElectionId = validateElectionId(electionId);
+      return districtService.getDistrictTotals(validElectionId);
+    },
+    [electionId],
+    isEnabled
   );
 }
 
-export function useDistrictWinners(electionId: string = DEFAULT_ELECTION_ID) {
+export function useDistrictWinners(electionId?: string) {
+  const isEnabled = !!electionId;
+  
   return useApiCall<DistrictWinnerAnalysis>(
-    () => districtService.getDistrictWinners(electionId),
-    [electionId]
+    () => {
+      const validElectionId = validateElectionId(electionId);
+      return districtService.getDistrictWinners(validElectionId);
+    },
+    [electionId],
+    isEnabled
   );
 }
 
-// STATISTICS HOOKS
+// STATISTICS HOOKS - Now require election ID
 
-export function useDistributionStatistics(electionId: string = DEFAULT_ELECTION_ID) {
+export function useDistributionStatistics(electionId?: string) {
+  const isEnabled = !!electionId;
+  
   return useApiCall<DistributionStatistics>(
-    () => statisticsService.getDistributionStatistics(electionId),
-    [electionId]
+    () => {
+      const validElectionId = validateElectionId(electionId);
+      return statisticsService.getDistributionStatistics(validElectionId);
+    },
+    [electionId],
+    isEnabled
   );
 }
 
-export function useMarginAnalysis(electionId: string = DEFAULT_ELECTION_ID) {
+export function useMarginAnalysis(electionId?: string) {
+  const isEnabled = !!electionId;
+  
   return useApiCall<MarginAnalysis>(
-    () => statisticsService.getMarginAnalysis(electionId),
-    [electionId]
+    () => {
+      const validElectionId = validateElectionId(electionId);
+      return statisticsService.getMarginAnalysis(validElectionId);
+    },
+    [electionId],
+    isEnabled
   );
 }
 
-// MUTATION HOOKS (for actions that modify data)
+// MUTATION HOOKS (for actions that modify data) - Now require election ID
 
 interface MutationState {
   loading: boolean;
@@ -333,14 +377,20 @@ function useMutation<T, P = void>(
   };
 }
 
-export function useBatchUpdateTotals(electionId: string = DEFAULT_ELECTION_ID) {
+export function useBatchUpdateTotals(electionId?: string) {
   const mutation = useMutation<{ message: string }, void>(
-    () => candidateService.batchUpdateTotals(electionId)
+    () => {
+      const validElectionId = validateElectionId(electionId);
+      return candidateService.batchUpdateTotals(validElectionId);
+    }
   );
 
   const batchUpdate = useCallback(async () => {
+    if (!electionId) {
+      throw new Error(ERROR_MESSAGES.NO_ELECTION_SELECTED);
+    }
     return await mutation.mutate();
-  }, [mutation.mutate]);
+  }, [mutation.mutate, electionId]);
 
   return {
     ...mutation,
@@ -348,14 +398,20 @@ export function useBatchUpdateTotals(electionId: string = DEFAULT_ELECTION_ID) {
   };
 }
 
-export function useRefreshCalculations(electionId: string = DEFAULT_ELECTION_ID) {
+export function useRefreshCalculations(electionId?: string) {
   const mutation = useMutation<{ message: string }, void>(
-    () => resultService.refreshCalculations(electionId)
+    () => {
+      const validElectionId = validateElectionId(electionId);
+      return resultService.refreshCalculations(validElectionId);
+    }
   );
 
   const refreshCalculations = useCallback(async () => {
+    if (!electionId) {
+      throw new Error(ERROR_MESSAGES.NO_ELECTION_SELECTED);
+    }
     return await mutation.mutate();
-  }, [mutation.mutate]);
+  }, [mutation.mutate, electionId]);
 
   return {
     ...mutation,
@@ -363,9 +419,9 @@ export function useRefreshCalculations(electionId: string = DEFAULT_ELECTION_ID)
   };
 }
 
-// COMBINED HOOKS FOR DASHBOARD
+// COMBINED HOOKS FOR DASHBOARD - Now require election ID
 
-export function useElectionResults(electionId: string = DEFAULT_ELECTION_ID) {
+export function useElectionResults(electionId?: string) {
   const electionSummary = useElectionSummary(electionId);
   const candidates = useCandidateExportData(electionId);
   const districtWinners = useDistrictWinners(electionId);
@@ -378,13 +434,15 @@ export function useElectionResults(electionId: string = DEFAULT_ELECTION_ID) {
                districtWinners.error || districtTotals.error;
 
   const refetchAll = useCallback(async () => {
+    if (!electionId) return;
+    
     await Promise.all([
       electionSummary.refetch(),
       candidates.refetch(),
       districtWinners.refetch(),
       districtTotals.refetch(),
     ]);
-  }, [electionSummary.refetch, candidates.refetch, districtWinners.refetch, districtTotals.refetch]);
+  }, [electionSummary.refetch, candidates.refetch, districtWinners.refetch, districtTotals.refetch, electionId]);
 
   return {
     electionSummary: electionSummary.data,
@@ -394,10 +452,11 @@ export function useElectionResults(electionId: string = DEFAULT_ELECTION_ID) {
     loading,
     error,
     refetchAll,
+    hasData: !!electionId && (!!electionSummary.data || !!candidates.data),
   };
 }
 
-export function useDistrictData(electionId: string = DEFAULT_ELECTION_ID) {
+export function useDistrictData(electionId?: string) {
   const analysis = useDistrictAnalysis(electionId);
   const winners = useDistrictWinners(electionId);
   const totals = useDistrictTotals(electionId);
@@ -406,12 +465,14 @@ export function useDistrictData(electionId: string = DEFAULT_ELECTION_ID) {
   const error = analysis.error || winners.error || totals.error;
 
   const refetchAll = useCallback(async () => {
+    if (!electionId) return;
+    
     await Promise.all([
       analysis.refetch(),
       winners.refetch(),
       totals.refetch(),
     ]);
-  }, [analysis.refetch, winners.refetch, totals.refetch]);
+  }, [analysis.refetch, winners.refetch, totals.refetch, electionId]);
 
   return {
     analysis: analysis.data,
@@ -420,10 +481,11 @@ export function useDistrictData(electionId: string = DEFAULT_ELECTION_ID) {
     loading,
     error,
     refetchAll,
+    hasData: !!electionId && (!!analysis.data || !!winners.data),
   };
 }
 
-export function useAnalyticsData(electionId: string = DEFAULT_ELECTION_ID) {
+export function useAnalyticsData(electionId?: string) {
   const distributionStats = useDistributionStatistics(electionId);
   const marginAnalysis = useMarginAnalysis(electionId);
 
@@ -431,11 +493,13 @@ export function useAnalyticsData(electionId: string = DEFAULT_ELECTION_ID) {
   const error = distributionStats.error || marginAnalysis.error;
 
   const refetchAll = useCallback(async () => {
+    if (!electionId) return;
+    
     await Promise.all([
       distributionStats.refetch(),
       marginAnalysis.refetch(),
     ]);
-  }, [distributionStats.refetch, marginAnalysis.refetch]);
+  }, [distributionStats.refetch, marginAnalysis.refetch, electionId]);
 
   return {
     distributionStats: distributionStats.data,
@@ -443,10 +507,11 @@ export function useAnalyticsData(electionId: string = DEFAULT_ELECTION_ID) {
     loading,
     error,
     refetchAll,
+    hasData: !!electionId && (!!distributionStats.data || !!marginAnalysis.data),
   };
 }
 
-// HEALTH CHECK HOOK
+// HEALTH CHECK HOOK (doesn't require election ID)
 
 export function useApiHealth() {
   const [isHealthy, setIsHealthy] = useState<boolean | null>(null);
@@ -516,137 +581,6 @@ export function useAutoRefresh(
   };
 }
 
-// POLLING HOOK FOR REAL-TIME UPDATES
-
-export function usePolling<T>(
-  hookFn: () => HookState<T> & { refetch: () => Promise<void> },
-  interval: number = 10000, // 10 seconds default
-  enabled: boolean = false
-): HookState<T> & { 
-  refetch: () => Promise<void>;
-  startPolling: () => void;
-  stopPolling: () => void;
-  isPolling: boolean;
-} {
-  const hook = hookFn();
-  const [isPolling, setIsPolling] = useState(false);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  const startPolling = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-    setIsPolling(true);
-    intervalRef.current = setInterval(() => {
-      hook.refetch();
-    }, interval);
-  }, [hook.refetch, interval]);
-
-  const stopPolling = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    setIsPolling(false);
-  }, []);
-
-  useEffect(() => {
-    if (enabled) {
-      startPolling();
-    } else {
-      stopPolling();
-    }
-
-    return stopPolling;
-  }, [enabled, startPolling, stopPolling]);
-
-  return {
-    ...hook,
-    startPolling,
-    stopPolling,
-    isPolling,
-  };
-}
-
-// CACHED DATA HOOK
-
-export function useCachedElectionData(electionId: string = DEFAULT_ELECTION_ID) {
-  const [cache, setCache] = useState<Map<string, { data: any; timestamp: number }>>(new Map());
-  const cacheTimeout = 5 * 60 * 1000; // 5 minutes
-
-  const getCachedData = useCallback(<T>(key: string): T | null => {
-    const cached = cache.get(key);
-    if (cached && Date.now() - cached.timestamp < cacheTimeout) {
-      return cached.data;
-    }
-    return null;
-  }, [cache, cacheTimeout]);
-
-  const setCachedData = useCallback(<T>(key: string, data: T) => {
-    setCache(prev => new Map(prev.set(key, { data, timestamp: Date.now() })));
-  }, []);
-
-  const clearCache = useCallback(() => {
-    setCache(new Map());
-  }, []);
-
-  return {
-    getCachedData,
-    setCachedData,
-    clearCache,
-    cacheSize: cache.size,
-  };
-}
-
-// LOCAL STORAGE PERSISTENCE HOOK
-
-export function usePersistedElectionData(electionId: string = DEFAULT_ELECTION_ID) {
-  const storageKey = `election_data_${electionId}`;
-
-  const saveToStorage = useCallback((data: any) => {
-    try {
-      const serialized = JSON.stringify({
-        data,
-        timestamp: Date.now(),
-        electionId,
-      });
-      localStorage.setItem(storageKey, serialized);
-    } catch (error) {
-      console.error('Failed to save to localStorage:', error);
-    }
-  }, [storageKey, electionId]);
-
-  const loadFromStorage = useCallback(<T>(): T | null => {
-    try {
-      const stored = localStorage.getItem(storageKey);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        // Check if data is not too old (1 hour)
-        if (Date.now() - parsed.timestamp < 60 * 60 * 1000) {
-          return parsed.data;
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load from localStorage:', error);
-    }
-    return null;
-  }, [storageKey]);
-
-  const clearStorage = useCallback(() => {
-    try {
-      localStorage.removeItem(storageKey);
-    } catch (error) {
-      console.error('Failed to clear localStorage:', error);
-    }
-  }, [storageKey]);
-
-  return {
-    saveToStorage,
-    loadFromStorage,
-    clearStorage,
-  };
-}
-
 // ERROR BOUNDARY HOOK
 
 export function useErrorHandler() {
@@ -678,9 +612,9 @@ export function useErrorHandler() {
   };
 }
 
-// EXPORT DEFAULT HOOK FOR MAIN DASHBOARD
+// EXPORT DEFAULT HOOK FOR MAIN DASHBOARD - Now requires election ID
 
-export default function useElectionDashboard(electionId: string = DEFAULT_ELECTION_ID) {
+export default function useElectionDashboard(electionId?: string) {
   const electionResults = useElectionResults(electionId);
   const analyticsData = useAnalyticsData(electionId);
   const districtData = useDistrictData(electionId);
@@ -697,6 +631,11 @@ export default function useElectionDashboard(electionId: string = DEFAULT_ELECTI
 
   // Combined refetch function
   const refetchAll = useCallback(async () => {
+    if (!electionId) {
+      errorHandler.addError(ERROR_MESSAGES.NO_ELECTION_SELECTED);
+      return;
+    }
+    
     try {
       await Promise.all([
         electionResults.refetchAll(),
@@ -706,27 +645,37 @@ export default function useElectionDashboard(electionId: string = DEFAULT_ELECTI
     } catch (err) {
       errorHandler.addError('Failed to refresh all data');
     }
-  }, [electionResults.refetchAll, analyticsData.refetchAll, districtData.refetchAll, errorHandler.addError]);
+  }, [electionResults.refetchAll, analyticsData.refetchAll, districtData.refetchAll, errorHandler.addError, electionId]);
 
   // Refresh calculations and data
   const refreshCalculations = useCallback(async () => {
+    if (!electionId) {
+      errorHandler.addError(ERROR_MESSAGES.NO_ELECTION_SELECTED);
+      return;
+    }
+    
     try {
       await refreshMutation.refreshCalculations();
       await refetchAll();
     } catch (err) {
       errorHandler.addError('Failed to refresh calculations');
     }
-  }, [refreshMutation.refreshCalculations, refetchAll, errorHandler.addError]);
+  }, [refreshMutation.refreshCalculations, refetchAll, errorHandler.addError, electionId]);
 
   // Batch update totals
   const batchUpdateTotals = useCallback(async () => {
+    if (!electionId) {
+      errorHandler.addError(ERROR_MESSAGES.NO_ELECTION_SELECTED);
+      return;
+    }
+    
     try {
       await batchUpdateMutation.batchUpdate();
       await refetchAll();
     } catch (err) {
       errorHandler.addError('Failed to update totals');
     }
-  }, [batchUpdateMutation.batchUpdate, refetchAll, errorHandler.addError]);
+  }, [batchUpdateMutation.batchUpdate, refetchAll, errorHandler.addError, electionId]);
 
   return {
     // Data
@@ -742,6 +691,8 @@ export default function useElectionDashboard(electionId: string = DEFAULT_ELECTI
     loading,
     error,
     isApiHealthy: apiHealth.isHealthy,
+    hasElectionSelected: !!electionId,
+    hasData: electionResults.hasData || analyticsData.hasData || districtData.hasData,
     
     // Actions
     refetchAll,
