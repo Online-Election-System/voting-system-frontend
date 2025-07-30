@@ -20,12 +20,12 @@ import { getUserType, isAuthenticated } from "@/src/lib/cookies";
 
 type UserRole =
   | "admin"
-  | "governmentOfficial"
-  | "electionCommission"
-  | "chiefOccupant"
-  | "householdMember"
-  | "verifiedChiefOccupant"
-  | "verifiedHouseholdMember"
+  | "government_official"
+  | "election_commission"
+  | "chief_occupant"
+  | "household_member"
+  | "verified_chief_occupant"
+  | "verified_household_member"
   | "polling_station"
   | null;
 
@@ -39,7 +39,6 @@ type NavigationItem = {
 };
 
 const navigationData: NavigationItem[] = [
-  // ... keep your existing navigationData ...
   {
     label: "About",
     href: "/about",
@@ -56,21 +55,21 @@ const navigationData: NavigationItem[] = [
     label: "Home",
     href: "/enrollment/dashboard",
     icon: Home,
-    roles: ["verifiedChiefOccupant","verifiedHouseholdMember"],
+    roles: ["verified_chief_occupant","verified_household_member"],
     requiresAuth: true,
   },
   {
     label: "Elections",
     href: "/enrollment/elections",
     icon: Vote,
-    roles: ["electionCommission","verifiedChiefOccupant","verifiedHouseholdMember"],
+    roles: ["election_commission","verified_chief_occupant","verified_household_member"],
     requiresAuth: true,
   },
   {
     label: "Profile",
     href: "/enrollment/profile",
     icon: Home,
-    roles: ["verifiedChiefOccupant","verifiedHouseholdMember"],
+    roles: ["verified_chief_occupant","verified_household_member"],
     requiresAuth: true,
   },
   
