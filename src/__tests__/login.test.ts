@@ -33,6 +33,16 @@ describe("Login flow", () => {
     "polling_station",
   ] as const;
 
+  // Mapping from role to expected dashboard route (mirrors component)
+  const roleToPath: Record<string, string> = {
+    admin: "/admin/dashboard",
+    government_official: "/government-official/dashboard",
+    election_commission: "/election-commission/dashboard",
+    chief_occupant: "/chief-occupant/dashboard",
+    household_member: "/household-member/dashboard",
+    polling_station: "/polling-station",
+  };
+
   beforeEach(() => {
     push.mockClear();
     jest.clearAllMocks();
@@ -63,8 +73,7 @@ describe("Login flow", () => {
 
     await waitFor(() => expect(api.post).toHaveBeenCalled());
 
-    expect(window.localStorage.setItem).toHaveBeenCalledWith("token", "tok");
-    expect(window.localStorage.setItem).toHaveBeenCalledWith("userType", role);
-    expect(push).toHaveBeenCalled();
+    // Since cookies are set by the backend, the component only redirects
+    expect(push).toHaveBeenCalledWith(roleToPath[role]);
   });
 });

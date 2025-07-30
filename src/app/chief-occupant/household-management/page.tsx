@@ -1,13 +1,14 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Users, CheckCircle, XCircle, Clock, Plus, Edit, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
-
+import { getUserId, isAuthenticated } from "@/src/lib/cookies"
 import { AddHouseholdMemberForm } from "./manage/addform"
 import { UpdateHouseholdMemberForm } from "./manage/updateform"
 import { DeleteHouseholdMemberDialog } from "./manage/removeform"
@@ -50,16 +51,24 @@ export default function HouseholdManagementPage() {
   const [isDeleteMemberDialogOpen, setIsDeleteMemberDialogOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
 
-    useEffect(() => {
+  useEffect(() => {
     // Prevent server-side execution
     if (typeof window === "undefined") return;
 
-    const chiefOccupantId = localStorage.getItem("userId");
-    const token = localStorage.getItem("token");
+    // Check authentication first
+    if (!isAuthenticated()) {
+      setError("Not authenticated. Please log in.");
+      router.push("/login");
+      return;
+    }
+
+    const chiefOccupantId = getUserId();
 
     if (!chiefOccupantId) {
-      setError("User ID not found in localStorage.");
+      setError("User ID not found in session.");
+      router.push("/login");
       return;
     }
 
@@ -74,7 +83,7 @@ export default function HouseholdManagementPage() {
             headers: {
               "Content-Type": "application/json"
             },
-            withCredentials: true
+            withCredentials: true // This ensures cookies are sent with the request
           }
         );
 
@@ -107,6 +116,14 @@ export default function HouseholdManagementPage() {
 
         } catch (error: any) {
         console.error("Failed to fetch household data", error);
+        
+        // Handle authentication errors
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          setError("Authentication failed. Please log in again.");
+          router.push("/login");
+          return;
+        }
+        
         setError(
           error.response?.data?.message ||
           error.message ||
@@ -118,7 +135,7 @@ export default function HouseholdManagementPage() {
     }
 
     fetchHouseholdData();
-  }, [])
+  }, [router])
 
   const handleResubmit = (nic: string) => {
     alert(`Resubmission requested for NIC: ${nic}`)
