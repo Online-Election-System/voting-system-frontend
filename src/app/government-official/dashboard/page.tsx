@@ -107,7 +107,7 @@ export default function Dashboard() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Link
-              href="/registrations"
+              href="/government-official/registrations"
               className="h-auto p-4 flex flex-col items-center gap-2 bg-white border border-gray-300 text-gray-800 hover:bg-gray-100 hover:text-black transition-colors rounded-lg"
             >
               <UserCheck className="w-6 h-6" />
@@ -137,11 +137,9 @@ export default function Dashboard() {
             >
               <UserPlus className="w-6 h-6" />
               <span>Add New Member</span>
-              {pendingAddMemberRequests > 0 && (
-                <Badge className="absolute -top-2 -right-2 bg-red-500 text-white">
-                  {pendingAddMemberRequests} Pending
-                </Badge>
-              )}
+              <Badge variant="outline" className="border-gray-800 text-gray-800">
+                3 Pending
+              </Badge>
             </Link>
             <Link
               href="/update-members"
@@ -149,11 +147,9 @@ export default function Dashboard() {
             >
               <UserCog className="w-6 h-6" />
               <span>Update Member</span>
-              {pendingUpdateMemberRequests > 0 && (
-                <Badge className="absolute -top-2 -right-2 bg-red-500 text-white">
-                  {pendingUpdateMemberRequests} Pending
-                </Badge>
-              )}
+              <Badge variant="outline" className="border-gray-800 text-gray-800">
+                3 Pending
+              </Badge>
             </Link>
           </div>
         </CardContent>
