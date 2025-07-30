@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import { Search, Medal, TrendingUp, MapPin } from "lucide-react"
-import type { CandidateExportData } from "@/app/results/types"
+import type { CandidateExportData } from "../types"
 
 interface CandidateResultsCardProps {
   candidates: CandidateExportData[]

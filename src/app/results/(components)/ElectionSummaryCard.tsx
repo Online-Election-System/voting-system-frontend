@@ -3,7 +3,7 @@
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Trophy, Users, MapPin, TrendingUp } from "lucide-react"
-import type { ElectionSummary } from "@/app/results/types"
+import type { ElectionSummary } from "../types"
 
 interface ElectionSummaryCardProps {
   summary: ElectionSummary
