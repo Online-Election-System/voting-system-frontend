@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
-import type { Vote, VoteCastRequest, VoteRequest } from "@/src/app/vote/types/voter";
+import type { Vote, VoteCastRequest, VoteRequest } from "../types/voter";
 
 // API Configuration
-const API_BASE_URL = 'http://localhost:8080/vote/api/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
 
 // API utility functions
 async function apiRequest<T>(url: string, options: RequestInit = {}): Promise<T> {

@@ -4,8 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { ElectionForm } from "../../components/election-form";
 import { 
   useElection, 
-  useUpdateElection, 
-  useElections 
+  useUpdateElection 
 } from "../../hooks/use-elections";
 import { toast } from "@/components/ui/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +18,6 @@ export default function EditElectionPage() {
   const router = useRouter();
   
   // React Query hooks
-  const { data: electionsData } = useElections();
   const { 
     data: election, 
     isLoading, 
@@ -33,7 +31,7 @@ export default function EditElectionPage() {
 
   const handleSubmit = async (data: any) => {
     try {
-      console.log("📝 Submitting election update:", data);
+      console.log("Submitting election update:", data);
       
       // Use React Query mutation
       await updateElectionMutation.mutateAsync({
@@ -49,7 +47,7 @@ export default function EditElectionPage() {
       
       router.push("/election-commission/elections");
     } catch (error) {
-      console.error("❌ Error updating election:", error);
+      console.error("Error updating election:", error);
       
       toast({
         title: "Error",
@@ -212,12 +210,6 @@ export default function EditElectionPage() {
 
         {/* Form Card */}
         <Card>
-          <CardHeader>
-            <CardTitle>Election Details</CardTitle>
-            <CardDescription>
-              Update the election information below. Changes will be saved immediately.
-            </CardDescription>
-          </CardHeader>
           <CardContent>
             <ElectionForm
               editingElection={election}

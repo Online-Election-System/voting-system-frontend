@@ -1,0 +1,346 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`ElectionCommissionDashboard UI snapshot matches snapshot 1`] = `
+<div>
+  <div
+    class="space-y-6 mx-4 sm:mx-6 lg:mx-12 my-6"
+  >
+    <div
+      class="flex justify-between items-center"
+    >
+      <h1
+        class="text-3xl font-bold"
+      >
+        Admin Dashboard
+      </h1>
+      <div
+        class="flex gap-2"
+      >
+        <button
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+        >
+          <svg
+            class="lucide lucide-refresh-cw h-4 w-4 mr-2"
+            fill="none"
+            height="24"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"
+            />
+            <path
+              d="M21 3v5h-5"
+            />
+            <path
+              d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"
+            />
+            <path
+              d="M8 16H3v5"
+            />
+          </svg>
+          Refresh
+        </button>
+      </div>
+    </div>
+    <div
+      class="grid gap-6 sm:grid-cols-2 md:grid-cols-4"
+    >
+      <div
+        class="rounded-xl border bg-card text-card-foreground shadow"
+      >
+        <div
+          class="p-6 flex flex-row items-center justify-between pb-2 space-y-0"
+        >
+          <div
+            class="tracking-tight text-sm font-medium"
+          >
+            Total Candidates
+          </div>
+          <svg
+            class="lucide lucide-users h-4 w-4 text-muted-foreground"
+            fill="none"
+            height="24"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"
+            />
+            <circle
+              cx="9"
+              cy="7"
+              r="4"
+            />
+            <path
+              d="M22 21v-2a4 4 0 0 0-3-3.87"
+            />
+            <path
+              d="M16 3.13a4 4 0 0 1 0 7.75"
+            />
+          </svg>
+        </div>
+        <div
+          class="p-6 pt-0"
+        >
+          <div
+            class="text-2xl font-bold"
+          >
+            0
+          </div>
+          <p
+            class="text-xs text-muted-foreground"
+          >
+            0
+             active • 
+            0
+             parties
+          </p>
+        </div>
+      </div>
+      <div
+        class="rounded-xl border bg-card text-card-foreground shadow"
+      >
+        <div
+          class="p-6 flex flex-row items-center justify-between pb-2 space-y-0"
+        >
+          <div
+            class="tracking-tight text-sm font-medium"
+          >
+            Active Candidates
+          </div>
+          <svg
+            class="lucide lucide-user-check h-4 w-4 text-muted-foreground"
+            fill="none"
+            height="24"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"
+            />
+            <circle
+              cx="9"
+              cy="7"
+              r="4"
+            />
+            <polyline
+              points="16 11 18 13 22 9"
+            />
+          </svg>
+        </div>
+        <div
+          class="p-6 pt-0"
+        >
+          <div
+            class="text-2xl font-bold"
+          >
+            0
+          </div>
+          <p
+            class="text-xs text-muted-foreground"
+          >
+            No parties yet
+          </p>
+        </div>
+      </div>
+      <div
+        class="rounded-xl border bg-card text-card-foreground shadow"
+      >
+        <div
+          class="p-6 flex flex-row items-center justify-between pb-2 space-y-0"
+        >
+          <div
+            class="tracking-tight text-sm font-medium"
+          >
+            Total Elections
+          </div>
+          <svg
+            class="lucide lucide-vote h-4 w-4 text-muted-foreground"
+            fill="none"
+            height="24"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="m9 12 2 2 4-4"
+            />
+            <path
+              d="M5 7c0-1.1.9-2 2-2h10a2 2 0 0 1 2 2v12H5V7Z"
+            />
+            <path
+              d="M22 19H2"
+            />
+          </svg>
+        </div>
+        <div
+          class="p-6 pt-0"
+        >
+          <div
+            class="text-2xl font-bold"
+          >
+            0
+          </div>
+          <p
+            class="text-xs text-muted-foreground"
+          >
+            No active elections
+          </p>
+        </div>
+      </div>
+      <div
+        class="rounded-xl border bg-card text-card-foreground shadow"
+      >
+        <div
+          class="p-6 flex flex-row items-center justify-between pb-2 space-y-0"
+        >
+          <div
+            class="tracking-tight text-sm font-medium"
+          >
+            Upcoming Elections
+          </div>
+          <svg
+            class="lucide lucide-chart-column h-4 w-4 text-muted-foreground"
+            fill="none"
+            height="24"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M3 3v16a2 2 0 0 0 2 2h16"
+            />
+            <path
+              d="M18 17V9"
+            />
+            <path
+              d="M13 17V5"
+            />
+            <path
+              d="M8 17v-3"
+            />
+          </svg>
+        </div>
+        <div
+          class="p-6 pt-0"
+        >
+          <div
+            class="text-2xl font-bold"
+          >
+            0
+          </div>
+          <p
+            class="text-xs text-muted-foreground"
+          >
+            No upcoming elections
+          </p>
+        </div>
+      </div>
+    </div>
+    <div
+      class="grid gap-6 md:grid-cols-2"
+    >
+      <div
+        class="rounded-xl border bg-card text-card-foreground shadow"
+      >
+        <div
+          class="flex flex-col space-y-1.5 p-6"
+        >
+          <div
+            class="font-semibold leading-none tracking-tight"
+          >
+            Upcoming Elections
+          </div>
+          <div
+            class="text-sm text-muted-foreground"
+          >
+            Next scheduled elections
+          </div>
+        </div>
+        <div
+          class="p-6 pt-0"
+        >
+          <div
+            class="space-y-4"
+          >
+            <p
+              class="text-muted-foreground text-center py-4"
+            >
+              No upcoming elections scheduled
+            </p>
+          </div>
+        </div>
+      </div>
+      <div
+        class="rounded-xl border bg-card text-card-foreground shadow"
+      >
+        <div
+          class="flex flex-col space-y-1.5 p-6"
+        >
+          <div
+            class="font-semibold leading-none tracking-tight"
+          >
+            Recent Activity
+          </div>
+          <div
+            class="text-sm text-muted-foreground"
+          >
+            Latest system updates
+          </div>
+        </div>
+        <div
+          class="p-6 pt-0"
+        >
+          <div
+            class="space-y-4"
+          >
+            <div
+              class="flex justify-between items-center"
+            >
+              <div>
+                <p
+                  class="font-medium"
+                >
+                  System Status
+                </p>
+                <p
+                  class="text-sm text-muted-foreground"
+                >
+                  All systems operational
+                </p>
+              </div>
+              <div
+                class="w-2 h-2 bg-green-500 rounded-full"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;

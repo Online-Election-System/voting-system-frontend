@@ -1,5 +1,5 @@
-import { logout } from "@/lib/auth";
-import api from "@/lib/axios";
+import { logout } from "@/src/lib/services/authService";
+import api from "../lib/axios";
 
 jest.mock("@/lib/axios", () => ({
   __esModule: true,
@@ -23,12 +23,10 @@ describe("logout helper", () => {
     await logout();
 
     expect(api.post).toHaveBeenCalledWith(
-      "/api/v1/logout",
+      "/voter-registration/api/v1/logout",
       null,
       expect.any(Object)
     );
 
-    expect(window.localStorage.removeItem).toHaveBeenCalledWith("token");
-    expect(window.localStorage.removeItem).toHaveBeenCalledWith("userType");
   });
 });

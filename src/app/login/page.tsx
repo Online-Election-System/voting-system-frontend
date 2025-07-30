@@ -28,66 +28,38 @@ export default function LoginForm() {
     setLoading(true);
 
     try {
+      console.log("Login attempt with NIC:", nic);
       const response = await api.post("/voter-registration/api/v1/login", {
         nic,
         password,
       });
 
-      const { token, userType: backendRole, userId, fullName, message } = response.data;
+      const {
+        userType: backendRole,
+        message,
+      } = response.data;
 
-      // Map backend snake_case roles to frontend camelCase roles
-      // UPDATED: Added mapping for verified roles
-      const roleMap: Record<string, string> = {
-        admin: "admin",
-        government_official: "governmentOfficial",
-        election_commission: "electionCommission",
-        chief_occupant: "chiefOccupant",
-        household_member: "householdMember",
-        verified_chief_occupant: "verifiedChiefOccupant",
-        verified_household_member: "verifiedHouseholdMember"
-      };
-
-      const userType = roleMap[backendRole] ?? backendRole;
+      const userType = backendRole;
 
       console.log("Login Response Debug:");
       console.log("Full response:", response.data);
       console.log("backendRole received:", backendRole);
       console.log("mapped userType:", userType);
-      console.log("userType type:", typeof backendRole);
-      console.log("token received:", !!token);
 
-      if (!token) throw new Error("Token missing in response");
+      // No need to store anything - cookies are set by the server
+      // Session info will be available via getSessionInfo()
 
-      // Store token
-      localStorage.setItem("token", token);
-      localStorage.setItem("userType", userType);
-      localStorage.setItem("userId", userId);
-      localStorage.setItem("fullName", fullName);
-
-      // The `nic` variable is the one the user typed into the form.
-      localStorage.setItem("userNic", nic);
-
-      // DEBUG: Verify what was actually stored
-      console.log("After storage - what's in localStorage:");
-      console.log("userType:", localStorage.getItem("userType"));
-      console.log("token:", !!localStorage.getItem("token"));
-      console.log("userNic", localStorage.getItem("userNic"));
-
-      // Set default authorization header
-      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-
-      // UPDATED: Modified dashboard route mapping to handle verified users
+      // Choose dashboard route per role
       const roleToPath: Record<string, string> = {
         admin: "/admin/dashboard",
-        governmentOfficial: "/government-official/dashboard",
-        electionCommission: "/election-commission/dashboard",
-        chiefOccupant: "/chief-Occupant/dashboard",
-        householdMember: "/household-member/dashboard",
-        verifiedChiefOccupant: "/enrollment/dashboard",  // Verified chief occupants go to enrollment
-        verifiedHouseholdMember: "/enrollment/dashboard"  // Verified household members go to enrollment
+        government_official: "/government-official/dashboard",
+        election_commission: "/election-commission/dashboard",
+        chief_occupant: "/chief-occupant/dashboard",
+        household_member: "/household-member/dashboard",
+        polling_station: "/polling-station",
       };
 
-      if (userType === "householdMember" && message.includes("First-time")) {
+      if (userType === "household_member" && message.includes("First-time")) {
         router.push("/change-password");
       } else {
         router.push(roleToPath[userType] ?? "/dashboard");
@@ -101,7 +73,7 @@ export default function LoginForm() {
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <Card className="w-full max-w-md mx-auto my-[5vw]">
       <CardHeader>
         <CardTitle className="text-xl font-black mx-auto">Login</CardTitle>
         <CardDescription className="mx-auto">
