@@ -1,0 +1,39 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`ChiefOccupantDashboard UI renders consistently (snapshot) 1`] = `
+<div>
+  <div
+    class="flex min-h-screen flex-col"
+  >
+    <main
+      class="flex flex-1 flex-col items-center justify-center p-4 md:p-6"
+    >
+      <div
+        class="max-w-3xl text-center"
+      >
+        <h1
+          class="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl"
+        >
+          Welcome to the Election System
+        </h1>
+        <p
+          class="mt-4 text-lg text-muted-foreground md:text-xl"
+        >
+          Manage your enrollments, view upcoming elections, and stay informed about your voting status — all in one place.
+        </p>
+        <div
+          class="mt-8"
+        >
+          <img
+            alt="Election System Illustration"
+            class="mx-auto"
+            height="400"
+            src="/election-illustration.svg?height=400&width=600"
+            width="600"
+          />
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+`;
