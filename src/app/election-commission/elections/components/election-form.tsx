@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { format, isBefore, isAfter, isWithinInterval } from "date-fns";
+import { format, isBefore, isAfter, isWithinInterval, addYears } from "date-fns";
 import { Calendar as CalendarIcon, Clock, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -55,7 +55,7 @@ export function ElectionForm({
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<ElectionStatus>("Scheduled");
   const [startDate, setStartDate] = useState<Date | undefined>();
-  const [endDate, setEndDate] = useState<Date | undefined>();
+  const [endDate, setEndDate] = useState<Date | undefined>(); // Auto-calculated, not user input
   const [enrolDdl, setEnrolDdl] = useState<Date | undefined>();
   const [noOfCandidates, setNoOfCandidates] = useState(0);
   const [dateError, setDateError] = useState<string | null>(null);
@@ -72,11 +72,20 @@ export function ElectionForm({
   // Calendar popover states
   const [electionDateOpen, setElectionDateOpen] = useState(false);
   const [startDateOpen, setStartDateOpen] = useState(false);
-  const [endDateOpen, setEndDateOpen] = useState(false);
   const [enrolDdlOpen, setEnrolDdlOpen] = useState(false);
 
   // Combined loading state
   const isFormLoading = isLoading || isSubmitting;
+
+  // Auto-calculate end date when election date changes
+  useEffect(() => {
+    if (electionDate) {
+      const calculatedEndDate = addYears(electionDate, 10);
+      setEndDate(calculatedEndDate);
+    } else {
+      setEndDate(undefined);
+    }
+  }, [electionDate]);
 
   // Calculate status based on dates and times - memoized to prevent infinite loops
   const calculateStatus = useCallback((): ElectionStatus => {
@@ -193,10 +202,18 @@ export function ElectionForm({
       setNoOfCandidates(editingElection.noOfCandidates || 0);
 
       // Handle dates
-      setElectionDate(simpleDateToDate(editingElection.electionDate));
+      const electionDateFromEdit = simpleDateToDate(editingElection.electionDate);
+      setElectionDate(electionDateFromEdit);
       setStartDate(simpleDateToDate(editingElection.startDate));
-      setEndDate(simpleDateToDate(editingElection.endDate));
       setEnrolDdl(simpleDateToDate(editingElection.enrolDdl));
+      
+      // For editing: use existing end date or calculate from election date
+      const existingEndDate = simpleDateToDate(editingElection.endDate);
+      if (existingEndDate) {
+        setEndDate(existingEndDate);
+      } else if (electionDateFromEdit) {
+        setEndDate(addYears(electionDateFromEdit, 10));
+      }
 
       // Format time values
       if (editingElection.startTime) {
@@ -412,7 +429,7 @@ export function ElectionForm({
           description,
           status: currentStatus,
           startDate: dateToSimpleDate(startDate!)!,
-          endDate: dateToSimpleDate(endDate!)!,
+          endDate: dateToSimpleDate(endDate!)!, // Auto-calculated end date
           enrolDdl: dateToSimpleDate(enrolDdl!)!,
           noOfCandidates,
           candidateIds: selectedCandidates.map(
@@ -627,38 +644,6 @@ export function ElectionForm({
 
               <div className="grid gap-2">
                 <Label>
-                  End Date<span className="text-red-500">*</span>
-                </Label>
-                <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !endDate && "text-muted-foreground"
-                      )}
-                      disabled={isFormLoading}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {endDate ? format(endDate, "PPP") : "Select end date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={endDate}
-                      onSelect={(date) =>
-                        handleDateSelect(date, setEndDate, setEndDateOpen)
-                      }
-                      initialFocus
-                      disabled={isFormLoading}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div className="grid gap-2">
-                <Label>
                   Enrollment Deadline<span className="text-red-500">*</span>
                 </Label>
                 <Popover open={enrolDdlOpen} onOpenChange={setEnrolDdlOpen}>
@@ -690,6 +675,7 @@ export function ElectionForm({
                   </PopoverContent>
                 </Popover>
               </div>
+
               <div className="grid gap-2">
                 <Label>
                   Election Date<span className="text-red-500">*</span>
@@ -730,6 +716,18 @@ export function ElectionForm({
                   </PopoverContent>
                 </Popover>
               </div>
+
+              {/* Show calculated end date for reference */}
+              {endDate && (
+                <div className="grid gap-2">
+                  <Label className="text-muted-foreground">
+                    End Date (Auto-calculated)
+                  </Label>
+                  <div className="px-3 py-2 text-sm bg-muted rounded-md text-muted-foreground">
+                    {format(endDate, "PPP")} (10 years after election date)
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">

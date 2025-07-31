@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { Trophy, Users, MapPin, AlertTriangle, Download, RefreshCw, BarChart3, PieChart, Clock, ArrowLeft, CheckCircle } from "lucide-react"
+import { Trophy, Users, MapPin, AlertTriangle, Download, RefreshCw, BarChart3, PieChart, Clock, ArrowLeft, CheckCircle, Vote, Eye, EyeOff } from "lucide-react"
 import { CandidateResultsCard } from "./(components)/CandidateResultsCard"
 import { DistrictAnalysisCard } from "./(components)/DistrictAnalysisCard"
 import { ElectionSummaryCard } from "./(components)/ElectionSummaryCard"
@@ -28,8 +28,15 @@ import {
   type BackendDistrictVoteTotals,
 } from "./hooks/useReslult"
 
-// Import simple elections hook (no React Query dependency)
-import { useSimpleElections, hasElectionEnded, type TimeOfDay } from "./hooks/useSimpleElections"
+// Import updated elections hook with corrected logic
+import { 
+  useSimpleElections, 
+  areResultsAvailable, 
+  isElectionActive,
+  hasVotingEnded,
+  hasResultsExpired,
+  type TimeOfDay 
+} from "./hooks/useSimpleElections"
 
 // Utility functions
 const safeNumber = (value: number | undefined | null): number => value || 0;
@@ -65,7 +72,19 @@ const formatDate = (dateObj?: any): string => {
   });
 };
 
-// Function to check if election has ended is now imported from useSimpleElections
+// Function to get voting end time display
+const getVotingEndTime = (election: any): string => {
+  if (!election.startDate || !election.endTime) return "N/A";
+  
+  return `${formatDate(election.startDate)} at ${formatTime(election.endTime)}`;
+};
+
+// Function to get results availability end time
+const getResultsEndTime = (election: any): string => {
+  if (!election.endDate) return "N/A";
+  
+  return formatDate(election.endDate);
+};
 
 // Election Selection Component
 function ElectionSelection({ onElectionSelect }: { onElectionSelect: (election: any) => void }) {
@@ -103,109 +122,94 @@ function ElectionSelection({ onElectionSelect }: { onElectionSelect: (election: 
   const {
     completedElections = [],
     activeElections = [],
-    upcomingElections = [],
   } = electionsData || {};
-
-  // Filter only elections that have ended
-  const endedElections = [
-    ...completedElections,
-    ...activeElections.filter(hasElectionEnded),
-  ].sort((a, b) => {
-    // Sort by end date, most recent first
-    const endDateA = new Date(a.endDate?.year || 0, (a.endDate?.month || 1) - 1, a.endDate?.day || 1);
-    const endDateB = new Date(b.endDate?.year || 0, (b.endDate?.month || 1) - 1, b.endDate?.day || 1);
-    return endDateB.getTime() - endDateA.getTime();
-  });
 
   return (
     <div className="container py-8 max-w-6xl mx-auto">
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold mb-4">Election Results</h1>
-        <p className="text-lg text-gray-600">Select a completed election to view its results</p>
+        <p className="text-lg text-gray-600">Select an election to view its results</p>
       </div>
 
-      {endedElections.length === 0 ? (
-        <Card className="text-center p-8">
-          <p className="text-lg text-gray-600 mb-4">No completed elections available for viewing results.</p>
-          <p className="text-sm text-gray-500">Results will be available after elections have concluded.</p>
-        </Card>
-      ) : (
-        <div className="space-y-6">
+      {/* Results Available Elections */}
+      {completedElections.length > 0 && (
+        <div className="space-y-6 mb-8">
           <div className="text-center">
-            <Badge variant="secondary" className="text-sm">
-              {endedElections.length} completed election{endedElections.length !== 1 ? 's' : ''} available
+            <Badge variant="outline" className="text-sm">
+              {completedElections.length} election{completedElections.length !== 1 ? 's' : ''} with results available
             </Badge>
           </div>
 
           <div className="grid gap-4 max-w-4xl mx-auto">
-            {endedElections.map((election: any) => (
+            {completedElections.map((election: any) => (
               <Card 
                 key={election.id}
-                className="ring-1 ring-green-400 bg-green-50 dark:bg-green-950/20 cursor-pointer transition-all duration-200 hover:shadow-lg hover:ring-green-600"
+                className="ring-1 ring-black dark:bg-green-950/20 cursor-pointer transition-all duration-200 hover:shadow-lg hover:ring-green-600 hover:bg-green-50"
                 onClick={() => onElectionSelect(election)}
               >
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
-                      <CardTitle className="text-green-800 dark:text-green-400 flex items-center gap-2">
-                        <CheckCircle className="h-5 w-5" />
+                      <CardTitle className="dark:text-green-400 flex items-center gap-2">
+                        <BarChart3 className="h-5 w-5" />
                         {election.electionName}
-                        <Badge variant="outline" className="ml-2 border-green-500 text-green-700">
-                          Completed
-                        </Badge>
                       </CardTitle>
-                      <p className="text-sm font-medium text-green-600 mt-1">
+                      <p className="text-sm text-gray-600 font-medium mt-1">
                         {election.electionType}
                       </p>
+                      {election.description && (
+                        <p className="text-sm text-gray-600 dark:text-green-300">
+                          {election.description}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-4">
-                      {election.description && (
-                        <p className="text-sm text-green-600 dark:text-green-300">
-                          {election.description}
-                        </p>
-                      )}
                       <div className="space-y-2">
-                        <div className="flex items-center text-sm text-green-600">
-                          <span className="font-medium">Started:</span>
-                          <span className="ml-2">{formatDate(election.startDate)} at {formatTime(election.startTime)}</span>
+                        <div className="flex items-center text-sm">
+                          <span className="font-medium">Voting Period:</span>
+                          <span className="ml-2">{formatDate(election.startDate)} ({formatTime(election.startTime)} - {formatTime(election.endTime)})</span>
                         </div>
-                        <div className="flex items-center text-sm text-green-600">
-                          <span className="font-medium">Ended:</span>
-                          <span className="ml-2">{formatDate(election.endDate)} at {formatTime(election.endTime)}</span>
+                        <div className="flex items-center text-sm">
+                          <span className="font-medium">Voting Ended:</span>
+                          <span className="ml-2">{getVotingEndTime(election)}</span>
+                        </div>
+                        <div className="flex items-center text-sm">
+                          <span className="font-medium">Results Until:</span>
+                          <span className="ml-2">{getResultsEndTime(election)}</span>
                         </div>
                       </div>
                     </div>
                     <div className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="text-center p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg ring-1 ring-green-200">
-                          <Users className="h-4 w-4 mx-auto text-green-600 mb-1" />
-                          <p className="text-xs text-green-600 dark:text-green-400 font-medium">
+                        <div className="text-center p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg ring-1 ring-gray-200">
+                          <Users className="h-4 w-4 mx-auto text-gray-600 mb-1" />
+                          <p className="text-xs text-gray-600 dark:text-green-400 font-medium">
                             Candidates
                           </p>
-                          <p className="text-sm font-bold text-green-800 dark:text-green-300">
+                          <p className="text-sm font-bold text-gray-800 dark:text-green-300">
                             {election.noOfCandidates || 0}
                           </p>
                         </div>
-                        <div className="text-center p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg ring-1 ring-green-200">
-                          <BarChart3 className="h-4 w-4 mx-auto text-green-600 mb-1" />
-                          <p className="text-xs text-green-600 dark:text-green-400 font-medium">
+                        <div className="text-center p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg ring-1 ring-gray-200">
+                          <BarChart3 className="h-4 w-4 mx-auto text-gray-600 mb-1" />
+                          <p className="text-xs text-gray-600 dark:text-green-400 font-medium">
                             View Results
                           </p>
-                          <p className="text-sm font-bold text-green-800 dark:text-green-300">
-                            Click Here
+                          <p className="text-sm font-bold text-gray-800 dark:text-green-300">
+                            Available
                           </p>
                         </div>
                       </div>
                     </div>
                   </div>
                   
-                  <div className="mt-4 p-3 bg-green-100 dark:bg-green-900/30 rounded-lg text-center">
-                    <p className="text-green-800 dark:text-green-300 font-medium">
-                      📊 Click to view complete election results and analysis
+                  <div className="mt-4 p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg text-center ring-1 ring-gray-200">
+                    <p className="text-black dark:text-green-300 font-medium">
+                      Click to view complete election results and analysis
                     </p>
                   </div>
                 </CardContent>
@@ -215,14 +219,36 @@ function ElectionSelection({ onElectionSelect }: { onElectionSelect: (election: 
         </div>
       )}
 
-      {/* Show ongoing elections info */}
+      {/* No Results Available Message */}
+      {completedElections.length === 0 && (
+        <Card className="text-center p-8 mb-8">
+          <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+          <p className="text-lg text-gray-600 mb-2">No election results available at this time.</p>
+          <p className="text-sm text-gray-500">Results will appear here after elections conclude and within their display period.</p>
+        </Card>
+      )}
+
+      {/* Active Elections Alert */}
       {activeElections.length > 0 && (
-        <div className="mt-8 max-w-4xl mx-auto">
-          <Alert className="border-yellow-200 bg-yellow-50">
-            <Clock className="h-4 w-4 text-yellow-600" />
-            <AlertDescription className="text-yellow-800">
-              <strong>Note:</strong> There {activeElections.length === 1 ? 'is' : 'are'} {activeElections.length} ongoing election{activeElections.length !== 1 ? 's' : ''}. 
-              Results will be available after {activeElections.length === 1 ? 'it concludes' : 'they conclude'}.
+        <div className="mb-8 max-w-4xl mx-auto">
+          <Alert className="border-red-200 bg-red-50">
+            <Vote className="h-4 w-4 text-red-600" />
+            <AlertDescription className="text-red-800">
+              <div className="space-y-2">
+                <p className="font-medium">Live Voting in Progress!</p>
+                <p className="text-sm">
+                  There {activeElections.length === 1 ? 'is' : 'are'} currently <strong>{activeElections.length}</strong> active election{activeElections.length !== 1 ? 's' : ''} where voting is ongoing. 
+                  Results will be available after voting concludes.
+                </p>
+                <div className="text-xs space-y-1 mt-2">
+                  {activeElections.map((election: any) => (
+                    <div key={election.id} className="flex items-center justify-between p-2 bg-red-100 rounded">
+                      <span className="font-medium">{election.electionName}</span>
+                      <span>Voting ends: {getVotingEndTime(election)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </AlertDescription>
           </Alert>
         </div>
@@ -231,7 +257,7 @@ function ElectionSelection({ onElectionSelect }: { onElectionSelect: (election: 
   );
 }
 
-// Results Dashboard Component (moved from main component)
+// Results Dashboard Component (same as before, but using updated validation)
 function ResultsDashboard({ selectedElection, onBack }: { selectedElection: any; onBack: () => void }) {
   const electionId = selectedElection.id;
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
@@ -324,10 +350,6 @@ function ResultsDashboard({ selectedElection, onBack }: { selectedElection: any;
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center mb-6">
-          <Button variant="outline" onClick={onBack} className="mr-4">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Elections
-          </Button>
           <h1 className="text-2xl font-bold">Loading Results for {selectedElection.electionName}</h1>
         </div>
         <div className="flex items-center justify-center min-h-[400px]">
@@ -345,10 +367,6 @@ function ResultsDashboard({ selectedElection, onBack }: { selectedElection: any;
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center mb-6">
-          <Button variant="outline" onClick={onBack} className="mr-4">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Elections
-          </Button>
           <h1 className="text-2xl font-bold">Results for {selectedElection.electionName}</h1>
         </div>
         <Alert className="max-w-2xl mx-auto border-red-200 bg-red-50">
@@ -381,17 +399,13 @@ function ResultsDashboard({ selectedElection, onBack }: { selectedElection: any;
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <Button variant="outline" onClick={onBack}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Elections
-          </Button>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
               Results: {selectedElection.electionName}
             </h1>
             <p className="text-sm text-gray-600 flex items-center mt-1">
               <Badge variant="outline" className="mr-2">{selectedElection.electionType}</Badge>
-              Ended: {formatDate(selectedElection.endDate)} at {formatTime(selectedElection.endTime)}
+              Voting Period: {formatDate(selectedElection.startDate)} ({formatTime(selectedElection.startTime)} - {formatTime(selectedElection.endTime)})
             </p>
           </div>
         </div>
@@ -408,16 +422,6 @@ function ResultsDashboard({ selectedElection, onBack }: { selectedElection: any;
             <Download className="h-4 w-4 mr-2" />
             Export Results
           </Button>
-        </div>
-      </div>
-
-      {/* Connection Status */}
-      <div className="flex items-center justify-center">
-        <div className="flex items-center space-x-2 text-sm text-gray-600 bg-gray-50 px-3 py-1 rounded-full">
-          <div className={`w-2 h-2 rounded-full ${error ? 'bg-red-500' : 'bg-green-500'} ${!error ? 'animate-pulse' : ''}`}></div>
-          <span>
-            {error ? 'API Connection Issues' : 'Connected to Results API'}
-          </span>
         </div>
       </div>
 
@@ -681,7 +685,7 @@ function ResultsDashboard({ selectedElection, onBack }: { selectedElection: any;
                         <span className="font-bold">{candidates.length}</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span>Election Status</span>
+                        <span>Voting Status</span>
                         <Badge className="bg-green-600">Completed</Badge>
                       </div>
                       
@@ -741,8 +745,8 @@ function ResultsDashboard({ selectedElection, onBack }: { selectedElection: any;
         <p>
           Results last updated: {lastRefresh.toLocaleString()} | 
           Election: {selectedElection.electionName} | 
-          Status: Completed | 
-          Data source: Results API v1
+          Voting Period: {formatDate(selectedElection.startDate)} ({formatTime(selectedElection.startTime)} - {formatTime(selectedElection.endTime)}) | 
+          Results Available Until: {getResultsEndTime(selectedElection)}
         </p>
         
         {candidates && (
@@ -760,11 +764,15 @@ export default function ResultsPage() {
   const [selectedElection, setSelectedElection] = useState<any>(null);
 
   const handleElectionSelect = (election: any) => {
-    // Double-check that the election has ended before allowing results viewing
-    if (hasElectionEnded(election)) {
+    // Validate that results are available for this election
+    if (areResultsAvailable(election)) {
       setSelectedElection(election);
+    } else if (isElectionActive(election)) {
+      alert('Voting is currently in progress for this election. Results will be available after voting concludes.');
+    } else if (hasResultsExpired(election)) {
+      alert('The results display period for this election has ended.');
     } else {
-      alert('Results are only available for completed elections.');
+      alert('This election has not started yet. Results will be available after voting concludes.');
     }
   };
 

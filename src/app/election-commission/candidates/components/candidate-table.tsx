@@ -2,6 +2,23 @@ import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import { Pencil, Trash2, RefreshCw, Loader2, User, Image as ImageIcon } from "lucide-react";
 import { Candidate } from "../candidate.types";
 
@@ -24,6 +41,65 @@ interface CandidateTableProps {
   isLoading?: boolean;
   error?: Error | null;
   itemsPerPage?: number;
+}
+
+// Delete Confirmation Dialog Component
+interface DeleteCandidateDialogProps {
+  trigger: React.ReactNode;
+  onConfirm: () => void;
+  candidateName: string;
+  isActive: boolean;
+}
+
+function DeleteCandidateDialog({
+  trigger,
+  onConfirm,
+  candidateName,
+  isActive,
+}: DeleteCandidateDialogProps) {
+  if (isActive) {
+    return (
+      <AlertDialog>
+        <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cannot Delete Active Candidate</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{candidateName}</strong> is currently active and cannot be deleted. 
+              Please deactivate the candidate first before attempting to delete.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Close</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    );
+  }
+
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete Candidate</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to delete <strong>{candidateName}</strong>? 
+            This action cannot be undone and will remove all associated data.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction 
+            onClick={onConfirm}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Delete Candidate
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
 }
 
 // Component for displaying circular images with fallback
@@ -218,12 +294,6 @@ export const CandidateTable = ({
     return candidate.partyName || 'Independent';
   };
 
-  const handleDeleteWithConfirm = (candidateId: string, candidateName: string) => {
-    if (confirm(`Are you sure you want to delete ${candidateName}?`)) {
-      onDelete(candidateId);
-    }
-  };
-
   // Get final paginated data
   const finalPaginatedData = colorFilteredData.slice(
     (currentPage - 1) * itemsPerPage,
@@ -410,18 +480,50 @@ export const CandidateTable = ({
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={() => handleDeleteWithConfirm(
-                            candidate.candidateId || candidate.id, 
-                            candidate.candidateName
+                        
+                        <TooltipProvider>
+                          {candidate.isActive !== false ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <DeleteCandidateDialog
+                                  candidateName={candidate.candidateName}
+                                  isActive={candidate.isActive}
+                                  onConfirm={() => onDelete(candidate.candidateId || candidate.id)}
+                                  trigger={
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      aria-label={`Cannot delete active candidate ${candidate.candidateName}`}
+                                      disabled={isLoading}
+                                      className="opacity-50 cursor-not-allowed"
+                                    >
+                                      <Trash2 className="h-4 w-4 text-gray-400" />
+                                    </Button>
+                                  }
+                                />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Cannot delete active candidate. Deactivate first.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <DeleteCandidateDialog
+                              candidateName={candidate.candidateName}
+                              isActive={candidate.isActive !== false}
+                              onConfirm={() => onDelete(candidate.candidateId || candidate.id)}
+                              trigger={
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  aria-label={`Delete ${candidate.candidateName}`}
+                                  disabled={isLoading}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              }
+                            />
                           )}
-                          aria-label={`Delete ${candidate.candidateName}`}
-                          disabled={isLoading}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        </TooltipProvider>
                       </div>
                     </TableCell>
                   </TableRow>
