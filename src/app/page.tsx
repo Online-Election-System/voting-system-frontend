@@ -1,49 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
+import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, BarChart3, ExternalLink, Shield, Vote, AlertCircle, CheckCircle } from "lucide-react"
+import { Users, BarChart3, Shield, Vote, AlertCircle, CheckCircle } from "lucide-react"
 
 export default function SriLankaElectionCommission() {
   const [searchQuery, setSearchQuery] = useState("")
   const [financeSearchQuery, setFinanceSearchQuery] = useState("")
-
-  // Upcoming election countdown (example: 45 days from now)
-  const [targetDate] = useState(() => {
-    const date = new Date()
-    date.setDate(date.getDate() + 45)
-    return date
-  })
-
-  const [timeLeft, setTimeLeft] = useState({
-    days: 0,
-    hours: 0,
-    minutes: 0,
-    seconds: 0,
-  })
-
-  useEffect(() => {
-    const calculateTimeLeft = () => {
-      const difference = targetDate.getTime() - new Date().getTime()
-      if (difference > 0) {
-        setTimeLeft({
-          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-          minutes: Math.floor((difference / 1000 / 60) % 60),
-          seconds: Math.floor((difference / 1000) % 60),
-        })
-      } else {
-        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 })
-      }
-    }
-
-    calculateTimeLeft()
-    const timer = setInterval(calculateTimeLeft, 1000)
-    return () => clearInterval(timer)
-  }, [targetDate])
 
   return (
     <div className="bg-background">
@@ -60,14 +24,11 @@ export default function SriLankaElectionCommission() {
                 elections in Sri Lanka. We ensure democratic processes and maintain electoral integrity across the
                 nation.
               </p>
-              <Button size="lg" className="bg-white text-slate-800 hover:bg-gray-100">
-                Find out more
-              </Button>
             </div>
             <div className="relative">
               <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-transparent rounded-lg"></div>
               <img
-                src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTbJI44RjZwNNH6Imgym4ZHmf0QYrbx8NUHxw&s?height=300&width=500"
+                src="https://d3i6fh83elv35t.cloudfront.net/static/2024/09/2024-09-21T121605Z_1643122364_RC2X4AAZV25X_RTRMADP_3_SRI-LANKA-ELECTION-1024x683.jpg"
                 alt="Sri Lankan Election Symbols"
                 className="w-full h-auto rounded-lg opacity-80"
               />
@@ -87,55 +48,10 @@ export default function SriLankaElectionCommission() {
             </div>
             <div className="flex-grow text-center md:text-left">
               <h2 className="text-2xl font-bold text-gray-800 mb-2">Presidential Election 2024</h2>
-              <div className="flex flex-wrap justify-center md:justify-start gap-4 mb-2">
-                <div className="bg-white px-3 py-2 rounded-lg shadow-sm">
-                  <span className="text-2xl font-bold text-orange-600">{timeLeft.days}</span>
-                  <span className="text-sm text-gray-600 ml-1">Days</span>
-                </div>
-                <div className="bg-white px-3 py-2 rounded-lg shadow-sm">
-                  <span className="text-2xl font-bold text-orange-600">{timeLeft.hours}</span>
-                  <span className="text-sm text-gray-600 ml-1">Hours</span>
-                </div>
-                <div className="bg-white px-3 py-2 rounded-lg shadow-sm">
-                  <span className="text-2xl font-bold text-orange-600">{timeLeft.minutes}</span>
-                  <span className="text-sm text-gray-600 ml-1">Minutes</span>
-                </div>
-              </div>
               <p className="text-gray-700">
                 Voter registration is now open. Ensure your details are up to date to participate in Sri Lanka's
                 democratic process.
               </p>
-            </div>
-            <div className="flex-shrink-0">
-              <Button className="bg-orange-500 hover:bg-orange-600 text-white">Register to Vote</Button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Voter ID Section */}
-      <section className="bg-gradient-to-r from-pink-200 to-purple-200 py-12">
-        <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
-            <div className="space-y-4">
-              <h2 className="text-3xl font-bold text-gray-800">Voter ID</h2>
-              <p className="text-gray-700 text-lg">
-                All voters in Sri Lanka need to show valid photo identification to vote at polling stations during
-                elections.
-              </p>
-              <p className="text-gray-600">
-                Don't have ID?{" "}
-                <Link href="#" className="text-blue-600 underline">
-                  Apply for voter ID now
-                </Link>
-              </p>
-              <Button className="bg-slate-800 hover:bg-slate-700 text-white">Find out more</Button>
-            </div>
-            <div className="relative">
-              <div className="bg-blue-500 text-white p-8 rounded-lg transform rotate-3 shadow-lg">
-                <h3 className="text-2xl font-bold mb-2">Bring photo ID to vote</h3>
-                <CheckCircle className="w-12 h-12" />
-              </div>
             </div>
           </div>
         </div>
@@ -168,6 +84,97 @@ export default function SriLankaElectionCommission() {
         </div>
       </section>
 
+      {/* Voting Instructions Section */}
+      <section className="py-16">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl font-bold text-center mb-12 text-gray-800">How to Vote Online</h2>
+          <div className="max-w-4xl mx-auto">
+            <Card className="mb-8">
+              <CardHeader>
+                <CardTitle className="text-2xl text-center text-blue-800 flex items-center justify-center gap-2">
+                  <Users className="w-8 h-8" />
+                  Voting Instructions for Voters
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <p className="text-center text-gray-600 text-lg mb-8">
+                  Follow these simple steps to cast your vote securely online
+                </p>
+
+                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {/* Step 1 */}
+                  <div className="text-center space-y-4">
+                    <div className="bg-blue-500 text-white w-16 h-16 rounded-full flex items-center justify-center mx-auto text-2xl font-bold">
+                      1
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-800">Login</h3>
+                    <p className="text-sm text-gray-600">
+                      Enter your voter National ID and password to access the voting system
+                    </p>
+                    <div className="bg-blue-50 p-3 rounded-lg">
+                      <p className="text-xs text-blue-700 font-medium">Required: National ID & Password</p>
+                    </div>
+                  </div>
+
+                  {/* Step 2 */}
+                  <div className="text-center space-y-4">
+                    <div className="bg-green-500 text-white w-16 h-16 rounded-full flex items-center justify-center mx-auto text-2xl font-bold">
+                      2
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-800">Proceed to Vote</h3>
+                    <p className="text-sm text-gray-600">Click the "Proceed to Vote" button to access the ballot</p>
+                    <div className="bg-green-50 p-3 rounded-lg">
+                      <p className="text-xs text-green-700 font-medium">Verify your details first</p>
+                    </div>
+                  </div>
+
+                  {/* Step 3 */}
+                  <div className="text-center space-y-4">
+                    <div className="bg-orange-500 text-white w-16 h-16 rounded-full flex items-center justify-center mx-auto text-2xl font-bold">
+                      3
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-800">Select Candidate</h3>
+                    <p className="text-sm text-gray-600">Choose your preferred candidate from the ballot options</p>
+                    <div className="bg-orange-50 p-3 rounded-lg">
+                      <p className="text-xs text-orange-700 font-medium">Review before selecting</p>
+                    </div>
+                  </div>
+
+                  {/* Step 4 */}
+                  <div className="text-center space-y-4">
+                    <div className="bg-purple-500 text-white w-16 h-16 rounded-full flex items-center justify-center mx-auto text-2xl font-bold">
+                      4
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-800">Confirm Vote</h3>
+                    <p className="text-sm text-gray-600">
+                      Review your selection and confirm your vote to complete the process
+                    </p>
+                    <div className="bg-purple-50 p-3 rounded-lg">
+                      <p className="text-xs text-purple-700 font-medium">Vote cannot be changed</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Important Notes */}
+                <div className="mt-8 bg-yellow-50 border-l-4 border-yellow-400 p-6">
+                  <div className="flex items-start">
+                    <AlertCircle className="w-6 h-6 text-yellow-600 mt-1 mr-3" />
+                    <div>
+                      <h4 className="text-lg font-semibold text-yellow-800 mb-2">Important Reminders</h4>
+                      <ul className="text-sm text-yellow-700 space-y-1">
+                        <li>• Keep your National ID and password secure</li>
+                        <li>• Vote only once - duplicate votes will be rejected</li>
+                        <li>• Contact support if you encounter any issues</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
       {/* Search Sections */}
       <section className="py-16">
         <div className="container mx-auto px-4">
@@ -187,8 +194,8 @@ export default function SriLankaElectionCommission() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="flex-1"
+                    readOnly
                   />
-                  <Button className="bg-slate-800 hover:bg-slate-700">Search</Button>
                 </div>
               </CardContent>
             </Card>
@@ -208,11 +215,8 @@ export default function SriLankaElectionCommission() {
                     value={financeSearchQuery}
                     onChange={(e) => setFinanceSearchQuery(e.target.value)}
                     className="flex-1"
+                    readOnly
                   />
-                  <Button className="bg-slate-800 hover:bg-slate-700">
-                    <span>Start your search</span>
-                    <ExternalLink className="w-4 h-4 ml-2" />
-                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -220,58 +224,7 @@ export default function SriLankaElectionCommission() {
         </div>
       </section>
 
-      {/* You might be interested in */}
-      <section className="py-16 bg-gray-50">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold mb-12 text-gray-800">You might be interested in</h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <Card className="overflow-hidden">
-              <div className="bg-gradient-to-br from-slate-800 to-blue-800 text-white p-6 h-48 flex items-end">
-                <div className="space-y-2">
-                  <Vote className="w-12 h-12" />
-                  <h3 className="text-xl font-bold">Report on the 2024 Parliamentary Elections</h3>
-                </div>
-              </div>
-              <CardContent className="p-6">
-                <p className="text-gray-600 text-sm">
-                  Find out how the 2024 parliamentary elections in Sri Lanka were run, with insights from voters,
-                  candidates, and electoral administrators.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="overflow-hidden">
-              <div className="bg-gradient-to-br from-blue-600 to-purple-600 text-white p-6 h-48 flex items-end">
-                <div className="space-y-2">
-                  <Users className="w-12 h-12" />
-                  <h3 className="text-xl font-bold">Young people's views on politics and voting</h3>
-                </div>
-              </div>
-              <CardContent className="p-6">
-                <p className="text-gray-600 text-sm">
-                  Research into what 16-25 year olds across Sri Lanka know about politics and voting, and what is needed
-                  to engage more young people with democracy.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="overflow-hidden">
-              <div className="bg-gradient-to-br from-purple-600 to-pink-600 text-white p-6 h-48 flex items-end">
-                <div className="space-y-2">
-                  <Shield className="w-12 h-12" />
-                  <h3 className="text-xl font-bold">Campaigning for your vote</h3>
-                </div>
-              </div>
-              <CardContent className="p-6">
-                <p className="text-gray-600 text-sm">
-                  Find out more about the rules around campaigning and political advertising in Sri Lanka.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
-
+   
       {/* Latest News */}
       <section className="py-16">
         <div className="container mx-auto px-4">
