@@ -390,36 +390,38 @@ export function ChiefOccupantForm({
           />
         </div>
         <div className="space-y-2">
-          <Label>Date of Birth</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant={"outline"}
-                className={cn(
-                  "w-full justify-start text-left font-normal",
-                  !chiefOccupant.dob && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {chiefOccupant.dob ? (
-                  format(chiefOccupant.dob, "PPP")
-                ) : (
-                  <span>Pick a date</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <Calendar
-                mode="single"
-                selected={chiefOccupant.dob}
-                onSelect={(date) => onChange("dob", date)}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
-      </div>
-
+              <Label>Date of Birth *</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !chiefOccupant.dob && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {chiefOccupant.dob ? format(chiefOccupant.dob, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={chiefOccupant.dob}
+                    onSelect={(date) => onChange("dob", date)}
+                    initialFocus
+                    disabled={{ 
+                    after: new Date(), 
+                    before: new Date(new Date().setFullYear(new Date().getFullYear() - 120)) 
+                  }}
+                  captionLayout="dropdown"
+                  fromYear={1900}
+                  toYear={new Date().getFullYear()}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+      </div>          
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Gender</Label>

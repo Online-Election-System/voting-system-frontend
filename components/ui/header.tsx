@@ -70,7 +70,7 @@ const navigationData: NavigationItem[] = [
     label: "Profile",
     href: "/enrollment/profile",
     icon: Home,
-    roles: ["verifiedChiefOccupant","verifiedHouseholdMember","chief_occupant" ,"household_member"],
+    roles: ["verifiedChiefOccupant","verifiedHouseholdMember"],
     requiresAuth: true,
   },
   

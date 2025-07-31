@@ -15,99 +15,52 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff } from "lucide-react";
 import api from "../../lib/axios";
+import { isAuthenticated } from "@/src/lib/cookies";
+import Link from "next/link";
 
 export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [nic, setNic] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError("");
 
     try {
-      console.log("Login attempt with NIC:", nic);
       const response = await api.post("/voter-registration/api/v1/login", {
         nic,
         password,
       });
 
-      const {
-        userType: backendRole,
-        message,
-      } = response.data;
+      const { userType: backendRole, message } = response.data;
 
-
-      // Map backend snake_case roles to frontend camelCase roles
-      // UPDATED: Added mapping for verified roles
-      const roleMap: Record<string, string> = {
-        admin: "admin",
-        government_official: "governmentOfficial",
-        election_commission: "electionCommission",
-        chief_occupant: "chiefOccupant",
-        household_member: "householdMember",
-        verified_chief_occupant: "verifiedChiefOccupant",
-        verified_household_member: "verifiedHouseholdMember"
-      };
-
-      const userType = roleMap[backendRole] ?? backendRole;
-      const token = response.data.token;
-      const userId = response.data.userId;
-      const fullName = response.data.fullName;
-
-      console.log("Login Response Debug:");
-      console.log("Full response:", response.data);
-      console.log("backendRole received:", backendRole);
-      console.log("mapped userType:", userType);
-      console.log("userType type:", typeof backendRole);
-      console.log("token received:", !!token);
-
-      // No need to store anything - cookies are set by the server
-      // Session info will be available via getSessionInfo()
-
-      // Store token
-      localStorage.setItem("token", token);
-      localStorage.setItem("userType", userType);
-      localStorage.setItem("userId", userId);
-      localStorage.setItem("fullName", fullName);
-
-      // The `nic` variable is the one the user typed into the form.
-      localStorage.setItem("userNic", nic);
-
-      // DEBUG: Verify what was actually stored
-      console.log("After storage - what's in localStorage:");
-      console.log("userType:", localStorage.getItem("userType"));
-      console.log("token:", !!localStorage.getItem("token"));
-      console.log("userNic", localStorage.getItem("userNic"));
-
-
-      // No need to store anything - cookies are set by the server
-      // Session info will be available via getSessionInfo()
-
-
-      // UPDATED: Modified dashboard route mapping to handle verified users
       const roleToPath: Record<string, string> = {
         admin: "/admin/dashboard",
-        governmentOfficial: "/government-official/dashboard",
-        electionCommission: "/election-commission/dashboard",
-        chiefOccupant: "/chief-occupant/dashboard",
-        householdMember: "/household-member/dashboard",
-        verifiedChiefOccupant: "/enrollment/dashboard",  // Verified chief occupants go to enrollment
-        verifiedHouseholdMember: "/enrollment/dashboard",  // Verified household members go to enrollment
-        polling_station: "/polling-station/vote"
-
+        government_official: "/government-official/dashboard",
+        election_commission: "/election-commission/dashboard",
+        chief_occupant: "/chief-occupant/dashboard",
+        household_member: "/household-member/dashboard",
+        polling_station: "/polling-station",
       };
 
-      if (userType === "householdMember" && message.includes("First-time")) {
-        router.push("/change-password");
-      } else {
-        router.push(roleToPath[userType] ?? "/dashboard");
+      // First-time login for household members
+      if (backendRole === "household_member" && message.includes("First-time")) {
+        router.push("/login/change-password");
+        return;
       }
+
+      router.push(roleToPath[backendRole] ?? "/dashboard");
     } catch (error: any) {
       console.error("Login error:", error);
-      alert("Login failed: Invalid NIC or password.");
+      setError(
+        error.response?.data?.message || 
+        "Login failed. Please check your credentials and try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -119,13 +72,19 @@ export default function LoginForm() {
         <CardTitle className="text-xl font-black mx-auto">Login</CardTitle>
         <CardDescription className="mx-auto">
           Don't have an account?{" "}
-          <a href="/register" className="text-blue-600 underline">
+          <Link href="/register" className="text-blue-600 underline">
             Register
-          </a>
+          </Link>
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
+          {error && (
+            <div className="text-red-500 text-sm text-center p-2 bg-red-50 rounded">
+              {error}
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="nic">National Identity Card Number</Label>
             <Input
@@ -134,8 +93,10 @@ export default function LoginForm() {
               value={nic}
               onChange={(e) => setNic(e.target.value)}
               required
+              autoComplete="username"
             />
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
             <div className="relative">
@@ -146,6 +107,7 @@ export default function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                autoComplete="current-password"
               />
               <Button
                 type="button"
@@ -153,6 +115,7 @@ export default function LoginForm() {
                 size="icon"
                 className="absolute right-2 top-1/2 -translate-y-1/2"
                 onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? (
                   <EyeOff className="h-4 w-4" />
@@ -160,6 +123,14 @@ export default function LoginForm() {
                   <Eye className="h-4 w-4" />
                 )}
               </Button>
+            </div>
+            <div className="text-right">
+              <Link 
+                href="/login/change-password" 
+                className="text-sm text-blue-600 hover:underline"
+              >
+                Change password?
+              </Link>
             </div>
           </div>
         </CardContent>
