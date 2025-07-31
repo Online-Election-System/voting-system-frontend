@@ -5,10 +5,6 @@ export const ELECTION_TYPES = [
 ];
 
 export const ELECTION_STATUSES: { value: ElectionStatus; label: string }[] = [
-  { value: "Scheduled", label: "Scheduled" },
-  { value: "Upcoming", label: "Upcoming" },
-  { value: "Active", label: "Active" },
-  { value: "Completed", label: "Completed" },
   { value: "Cancelled", label: "Cancelled" },
 ];
 

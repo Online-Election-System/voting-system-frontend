@@ -12,6 +12,7 @@ import {
   FileText,
   Settings,
   Loader2,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/src/lib/utils";
@@ -39,11 +40,6 @@ type NavigationItem = {
 };
 
 const navigationData: NavigationItem[] = [
-  {
-    label: "About",
-    href: "/about",
-    icon: FileText,
-  },
   {
     label: "Dashboard",
     href: "/election-commission/dashboard",
@@ -125,6 +121,13 @@ const navigationData: NavigationItem[] = [
     href: "/household-member/dashboard",
     icon: Home,
     roles: ["household_member"],
+    requiresAuth: true,
+  },
+  {
+    label: "Results",
+    href: "/results",
+    icon: BarChart3,
+    roles: ["chief_occupant", "household_member", "election_commission"],
     requiresAuth: true,
   },
   
