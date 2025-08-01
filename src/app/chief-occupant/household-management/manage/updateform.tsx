@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useMemo } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -10,6 +11,7 @@ import { useFileUpload } from "@/src/app/register/hooks/use-file-upload-hook"
 import { Check, X, Upload, FileText } from "lucide-react"
 import { v4 as uuidv4 } from 'uuid'
 import { cn } from "@/src/lib/utils"
+import { isAuthenticated } from "@/src/lib/cookies"
 
 export interface HouseholdMember {
   memberId: string
@@ -72,6 +74,8 @@ export function UpdateHouseholdMemberForm({
   const [documentUrl, setDocumentUrl] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const router = useRouter()
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080"
 
   // File upload hook
   const {
@@ -220,6 +224,14 @@ export function UpdateHouseholdMemberForm({
     setLoading(true)
     setError(null)
     
+    // Check authentication before submission
+    if (!isAuthenticated()) {
+      setError("Authentication required. Please log in.")
+      setLoading(false)
+      router.push("/login")
+      return
+    }
+
     if (!selectedMember) {
       setError('Please select a household member')
       setLoading(false)
@@ -261,15 +273,23 @@ export function UpdateHouseholdMemberForm({
         throw new Error('At least one field must be updated')
       }
 
-      const response = await fetch('http://localhost:8080/household-management/api/v1/update-member', {
+      const response = await fetch(`${API_BASE_URL}/household-management/api/v1/update-member`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Ensure cookies are sent
         body: JSON.stringify(requestData),
       })
 
       if (!response.ok) {
+        // Handle authentication errors
+        if (response.status === 401 || response.status === 403) {
+          setError("Authentication failed. Please log in again.")
+          router.push("/login")
+          return
+        }
+
         const errorData = await response.json()
         throw new Error(errorData.message || 'Failed to submit update request')
       }

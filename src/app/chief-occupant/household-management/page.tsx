@@ -1,13 +1,14 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Users, CheckCircle, XCircle, Clock, Plus, Edit, Trash2, UserPlus, FileText, Eye } from "lucide-react"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
-
+import { getUserId, isAuthenticated } from "@/src/lib/cookies"
 import { AddHouseholdMemberForm } from "./manage/addform"
 import { UpdateHouseholdMemberForm } from "./manage/updateform"
 import { DeleteHouseholdMemberDialog } from "./manage/removeform"
@@ -76,6 +77,8 @@ export default function HouseholdManagementPage() {
   const [isDeleteMemberDialogOpen, setIsDeleteMemberDialogOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
+   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080"
 
   // Function to format date
   const formatDate = (dateString?: string) => {
@@ -110,7 +113,7 @@ export default function HouseholdManagementPage() {
         }
        
         const res = await axios.get(
-          `http://localhost:8080/household-management/api/v1/household/${chiefOccupantId}/members`,
+          `${API_BASE_URL}/household-management/api/v1/household/${chiefOccupantId}/members`,
           {
             headers: {
               "Content-Type": "application/json"
@@ -149,6 +152,14 @@ export default function HouseholdManagementPage() {
 
       } catch (error: any) {
         console.error("Failed to fetch household data", error);
+        
+        // Handle authentication errors
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          setError("Authentication failed. Please log in again.");
+          router.push("/login");
+          return;
+        }
+        
         setError(
           error.response?.data?.message ||
           error.message ||
@@ -160,7 +171,7 @@ export default function HouseholdManagementPage() {
     };
 
     fetchHouseholdData();
-  }, [])
+  }, [router])
 
   const refreshData = async () => {
     const chiefOccupantId = localStorage.getItem("userId");

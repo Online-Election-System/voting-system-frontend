@@ -18,9 +18,11 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog"
 import { useFileUpload } from "@/src/app/register/hooks/use-file-upload-hook"
-import { useRef, useState } from "react"
+import { useRef, useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import axios from "axios"
 import { v4 as uuidv4 } from 'uuid'
+import { getUserId, isAuthenticated } from "@/src/lib/cookies"
 
 interface AddHouseholdMemberFormProps {
   onSuccess?: () => void;
@@ -34,7 +36,10 @@ export function AddHouseholdMemberForm({ onSuccess }: AddHouseholdMemberFormProp
   const [civilStatus, setCivilStatus] = useState("")
   const [relationship, setRelationship] = useState("")
   const [chiefOccupantApproval, setChiefOccupantApproval] = useState<"approve" | "disapprove">("approve")
-  const chiefOccupantId = localStorage.getItem("userId")
+  const [chiefOccupantId, setChiefOccupantId] = useState<string | null>(null)
+  const [authError, setAuthError] = useState<string | null>(null)
+  const router = useRouter()
+   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080"
 
   // File upload refs and states for NIC
   const nicFileInputRef = useRef<HTMLInputElement>(null)
@@ -79,6 +84,28 @@ export function AddHouseholdMemberForm({ onSuccess }: AddHouseholdMemberFormProp
   const [nicDocumentUrl, setNicDocumentUrl] = useState<string | null>(null)
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Authentication check and setup
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    // Check authentication
+    if (!isAuthenticated()) {
+      setAuthError("Not authenticated. Please log in.")
+      router.push("/login")
+      return
+    }
+
+    const userId = getUserId()
+    if (!userId) {
+      setAuthError("User ID not found in session.")
+      router.push("/login")
+      return
+    }
+
+    setChiefOccupantId(userId)
+    setAuthError(null)
+  }, [router])
 
   // Handle NIC document upload
   const handleNicFileSelect = async (file: File) => {
@@ -196,6 +223,14 @@ export function AddHouseholdMemberForm({ onSuccess }: AddHouseholdMemberFormProp
     e.preventDefault()
     setIsSubmitting(true)
 
+    // Check authentication before submission
+    if (!chiefOccupantId) {
+      setAuthError("Authentication required. Please log in.")
+      setIsSubmitting(false)
+      router.push("/login")
+      return
+    }
+
     // Validate required fields
     if (!fullName || !nicNumber || !dateOfBirth || !civilStatus || !relationship) {
       alert("Please fill all required fields")
@@ -233,12 +268,13 @@ export function AddHouseholdMemberForm({ onSuccess }: AddHouseholdMemberFormProp
       }
 
       const response = await axios.post(
-        "http://localhost:8080/household-management/api/v1/add-member", 
+        `${API_BASE_URL}/household-management/api/v1/add-member`, 
         requestData,
         {
           headers: {
             "Content-Type": "application/json",
           },
+          withCredentials: true // Ensure cookies are sent with request
         }
       )
 
@@ -266,6 +302,25 @@ export function AddHouseholdMemberForm({ onSuccess }: AddHouseholdMemberFormProp
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  // Show auth error if present
+  if (authError) {
+    return (
+      <DialogContent className="sm:max-w-[600px]">
+        <DialogHeader>
+          <DialogTitle>Authentication Error</DialogTitle>
+          <DialogDescription>
+            {authError}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex justify-center py-4">
+          <Button onClick={() => router.push("/login")}>
+            Go to Login
+          </Button>
+        </div>
+      </DialogContent>
+    )
   }
 
   return (
@@ -566,7 +621,7 @@ export function AddHouseholdMemberForm({ onSuccess }: AddHouseholdMemberFormProp
         <Button 
           type="submit" 
           className="w-full mt-4" 
-          disabled={uploadingNic || uploadingPhoto || isSubmitting}
+          disabled={uploadingNic || uploadingPhoto || isSubmitting || !chiefOccupantId}
         >
           {isSubmitting ? "Submitting..." : "Submit for Approval"}
         </Button>

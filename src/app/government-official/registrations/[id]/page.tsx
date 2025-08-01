@@ -1,12 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, Check, X, Download, Eye } from "lucide-react"
+import { ArrowLeft, Check, X, Download, Eye, Loader2, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import {
   Dialog,
@@ -18,49 +18,175 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 
-export default function RegistrationDetail({ params }: { params: { id: string } }) {
+interface RegistrationDetail {
+  fullName: string;
+  nic: string;
+  dob: string;
+  phone?: string;
+  gender: string;
+  civilStatus: string;
+  electoralDistrict: string;
+  pollingDivision: string;
+  pollingDistrictNumber: string;
+  gramaNiladhariDivision?: string;
+  village?: string;
+  houseNumber?: string;
+  address: string;
+  status: string;
+  idCopyPath?: string;
+  photoCopyPath?: string;
+  role: string;
+}
+
+const API_BASE_URL = 'http://localhost:8080/api/v1';
+
+export default function RegistrationDetail({ params }: { params: Promise<{ id: string }> }) {
   const [rejectionReason, setRejectionReason] = useState("")
   const [showRejectDialog, setShowRejectDialog] = useState(false)
+  const [registration, setRegistration] = useState<RegistrationDetail | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [nicId, setNicId] = useState<string | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
 
-  // Mock data - in real app, fetch based on params.id
-  const registration = {
-    id: params.id,
-    fullName: "Saman Perera",
-    nic: "199512345678",
-    dob: "1995-03-15",
-    phone: "0771234567",
-    gender: "Male",
-    civilStatus: "Married",
-    electoralDistrict: "Colombo",
-    pollingDivision: "Colombo Central",
-    pollingDistrictNumber: "001",
-    gramaNiladhariDivision: "Pettah",
-    village: "Main Street",
-    houseNumber: "45",
-    address: "No. 45, Main Street, Colombo",
-    status: "pending",
-    submittedDate: "2024-01-15",
-    submittedTime: "10:30 AM",
-    nicDocument: "/placeholder.svg?height=400&width=600&text=NIC+Document",
+  // Resolve params Promise
+  useEffect(() => {
+    const resolveParams = async () => {
+      const resolvedParams = await params;
+      setNicId(resolvedParams.id);
+    };
+    resolveParams();
+  }, [params]);
+
+  useEffect(() => {
+    if (!nicId) return;
+    
+    const fetchRegistration = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await fetch(`${API_BASE_URL}/registrations/application/${nicId}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Failed to fetch registration: ${response.status} ${response.statusText} - ${errorText}`);
+        }
+
+        const data = await response.json();
+        setRegistration(data);
+      } catch (err: any) {
+        setError(err.message);
+        console.error('Error fetching registration detail:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchRegistration();
+  }, [nicId])
+
+  const handleApprove = async () => {
+    if (!nicId || isProcessing) return;
+    
+    try {
+      setIsProcessing(true);
+      setError(null);
+      
+      const response = await fetch(`${API_BASE_URL}/registrations/${nicId}/approve`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to approve registration: ${response.status} ${response.statusText} - ${errorText}`)
+      }
+      
+      // Refresh the data after approval
+      window.location.reload()
+    } catch (err: any) {
+      setError(err.message || 'Failed to approve registration')
+    } finally {
+      setIsProcessing(false);
+    }
   }
 
-  const handleApprove = () => {
-    console.log(`Approving registration ${params.id}`)
-    // Implementation for approval
+  const handleReject = async () => {
+    if (!nicId || !rejectionReason.trim() || isProcessing) return;
+    
+    try {
+      setIsProcessing(true);
+      setError(null);
+      
+      const response = await fetch(`${API_BASE_URL}/registrations/${nicId}/reject`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ reason: rejectionReason.trim() })
+      })
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to reject registration: ${response.status} ${response.statusText} - ${errorText}`)
+      }
+      
+      setShowRejectDialog(false)
+      setRejectionReason("")
+      // Refresh the data after rejection
+      window.location.reload()
+    } catch (err: any) {
+      setError(err.message || 'Failed to reject registration')
+    } finally {
+      setIsProcessing(false);
+    }
   }
 
-  const handleReject = () => {
-    console.log(`Rejecting registration ${params.id} with reason: ${rejectionReason}`)
-    setShowRejectDialog(false)
-    // Implementation for rejection
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="flex items-center gap-2">
+          <Loader2 className="w-6 h-6 animate-spin" />
+          <span>Loading registration details...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-red-600 flex items-center gap-2">
+          <AlertCircle className="w-5 h-5" />
+          {error}
+        </div>
+      </div>
+    )
+  }
+
+  if (!registration) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-600">Registration not found</div>
+      </div>
+    )
   }
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center gap-4">
         <Button asChild variant="ghost" size="sm">
-          <Link href="/registrations">
-            <ArrowLeft className="w-4 h-4" />
+          <Link href="/government-official/registrations">
+            <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Registrations
           </Link>
         </Button>
@@ -71,185 +197,249 @@ export default function RegistrationDetail({ params }: { params: { id: string } 
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Details */}
+        {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Personal Information */}
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Personal Information</CardTitle>
-                  <CardDescription>Basic details of the applicant</CardDescription>
-                </div>
-                <Badge
-                  className={
-                    registration.status === "pending"
-                      ? "bg-gray-100 text-gray-800"
-                      : registration.status === "approved"
-                        ? "bg-gray-100 text-gray-800"
-                        : "bg-gray-100 text-gray-800"
-                  }
-                >
-                  {registration.status}
-                </Badge>
-              </div>
+              <CardTitle>Personal Information</CardTitle>
+              <CardDescription>Basic details of the applicant</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-gray-600">Full Name</Label>
-                  <p className="text-sm font-semibold">{registration.fullName}</p>
+                  <Label className="text-sm font-medium text-gray-500">Full Name</Label>
+                  <p className="text-gray-900">{registration.fullName}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-600">NIC Number</Label>
-                  <p className="text-sm font-semibold">{registration.nic}</p>
+                  <Label className="text-sm font-medium text-gray-500">NIC Number</Label>
+                  <p className="text-gray-900 font-mono">{registration.nic}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-600">Date of Birth</Label>
-                  <p className="text-sm">{registration.dob}</p>
+                  <Label className="text-sm font-medium text-gray-500">Date of Birth</Label>
+                  <p className="text-gray-900">{registration.dob}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-600">Phone Number</Label>
-                  <p className="text-sm">{registration.phone}</p>
+                  <Label className="text-sm font-medium text-gray-500">Phone Number</Label>
+                  <p className="text-gray-900">{registration.phone || '-'}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-600">Gender</Label>
-                  <p className="text-sm">{registration.gender}</p>
+                  <Label className="text-sm font-medium text-gray-500">Gender</Label>
+                  <p className="text-gray-900 capitalize">{registration.gender}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-600">Civil Status</Label>
-                  <p className="text-sm">{registration.civilStatus}</p>
+                  <Label className="text-sm font-medium text-gray-500">Civil Status</Label>
+                  <p className="text-gray-900 capitalize">{registration.civilStatus}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
+          {/* Electoral Information */}
           <Card>
             <CardHeader>
               <CardTitle>Electoral Information</CardTitle>
-              <CardDescription>Electoral district and polling details</CardDescription>
+              <CardDescription>Electoral district & polling details</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-gray-600">Electoral District</Label>
-                  <p className="text-sm">{registration.electoralDistrict}</p>
+                  <Label className="text-sm font-medium text-gray-500">Electoral District</Label>
+                  <p className="text-gray-900">{registration.electoralDistrict}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-600">Polling Division</Label>
-                  <p className="text-sm">{registration.pollingDivision}</p>
+                  <Label className="text-sm font-medium text-gray-500">Polling Division</Label>
+                  <p className="text-gray-900">{registration.pollingDivision}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-600">Polling District Number</Label>
-                  <p className="text-sm">{registration.pollingDistrictNumber}</p>
+                  <Label className="text-sm font-medium text-gray-500">Polling District Number</Label>
+                  <p className="text-gray-900">{registration.pollingDistrictNumber}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-600">Grama Niladhari Division</Label>
-                  <p className="text-sm">{registration.gramaNiladhariDivision}</p>
+                  <Label className="text-sm font-medium text-gray-500">Grama Niladhari Division</Label>
+                  <p className="text-gray-900">{registration.gramaNiladhariDivision || '-'}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
+          {/* Address Information */}
           <Card>
             <CardHeader>
               <CardTitle>Address Information</CardTitle>
               <CardDescription>Residential address details</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-gray-600">Village/Street/Estate</Label>
-                  <p className="text-sm">{registration.village}</p>
+                  <Label className="text-sm font-medium text-gray-500">Village/Street/Estate</Label>
+                  <p className="text-gray-900">{registration.village || '-'}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-600">House Number</Label>
-                  <p className="text-sm">{registration.houseNumber}</p>
+                  <Label className="text-sm font-medium text-gray-500">House Number</Label>
+                  <p className="text-gray-900">{registration.houseNumber || '-'}</p>
                 </div>
-                <div className="md:col-span-2">
-                  <Label className="text-sm font-medium text-gray-600">Full Address</Label>
-                  <p className="text-sm">{registration.address}</p>
-                </div>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-gray-500">Full Address</Label>
+                <p className="text-gray-900">{registration.address}</p>
               </div>
             </CardContent>
           </Card>
 
+          {/* Documents */}
           <Card>
             <CardHeader>
-              <CardTitle>NIC Document</CardTitle>
-              <CardDescription>Scanned copy of National Identity Card</CardDescription>
+              <CardTitle>Documents</CardTitle>
+              <CardDescription>Submitted identity documents</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-                  <img
-                    src={registration.nicDocument || "/placeholder.svg"}
-                    alt="NIC Document"
-                    className="w-full max-w-md mx-auto rounded border"
-                  />
+            <CardContent className="space-y-4">
+              {/* NIC Document */}
+              {registration.idCopyPath && (
+                <div>
+                  <Label className="text-sm font-medium text-gray-500 mb-2 block">NIC Document</Label>
+                  <div className="border rounded-lg p-4 bg-gray-50">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-gray-600">National Identity Card</span>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" asChild>
+                          <a href={registration.idCopyPath} target="_blank" rel="noopener noreferrer">
+                            <Eye className="w-4 h-4 mr-1" />
+                            View
+                          </a>
+                        </Button>
+                        <Button size="sm" variant="outline" asChild>
+                          <a href={registration.idCopyPath} download>
+                            <Download className="w-4 h-4 mr-1" />
+                            Download
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+                    <img 
+                      src={registration.idCopyPath} 
+                      alt="NIC Document" 
+                      className="w-full h-48 object-contain border rounded"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        const nextSibling = e.currentTarget.nextElementSibling as HTMLElement;
+                        if (nextSibling) nextSibling.classList.remove('hidden');
+                      }}
+                    />
+                    <div className="hidden text-gray-500 text-center py-8">
+                      Document preview not available
+                    </div>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm">
-                    <Eye className="w-4 h-4 mr-2" />
-                    View Full Size
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Download className="w-4 h-4 mr-2" />
-                    Download
-                  </Button>
+              )}
+
+              {/* Photo Document */}
+              {registration.photoCopyPath && (
+                <div>
+                  <Label className="text-sm font-medium text-gray-500 mb-2 block">Photo</Label>
+                  <div className="border rounded-lg p-4 bg-gray-50">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-gray-600">Applicant Photo</span>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" asChild>
+                          <a href={registration.photoCopyPath} target="_blank" rel="noopener noreferrer">
+                            <Eye className="w-4 h-4 mr-1" />
+                            View
+                          </a>
+                        </Button>
+                        <Button size="sm" variant="outline" asChild>
+                          <a href={registration.photoCopyPath} download>
+                            <Download className="w-4 h-4 mr-1" />
+                            Download
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+                    <img 
+                      src={registration.photoCopyPath} 
+                      alt="Applicant Photo" 
+                      className="w-full h-48 object-contain border rounded"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        const nextSibling = e.currentTarget.nextElementSibling as HTMLElement;
+                        if (nextSibling) nextSibling.classList.remove('hidden');
+                      }}
+                    />
+                    <div className="hidden text-gray-500 text-center py-8">
+                      Photo preview not available
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {!registration.idCopyPath && !registration.photoCopyPath && (
+                <div className="text-gray-500 text-center py-8">
+                  No documents available
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Actions Sidebar */}
+        {/* Sidebar */}
         <div className="space-y-6">
+          {/* Application Status */}
           <Card>
             <CardHeader>
               <CardTitle>Application Status</CardTitle>
-              <CardDescription>Current status and submission details</CardDescription>
+              <CardDescription>Current status details</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label className="text-sm font-medium text-gray-600">Status</Label>
-                <Badge
-                  className={`mt-1 ${
-                    registration.status === "pending"
-                      ? "bg-gray-100 text-gray-800"
-                      : registration.status === "approved"
-                        ? "bg-gray-100 text-gray-800"
-                        : "bg-gray-100 text-gray-800"
-                  }`}
-                >
-                  {registration.status}
-                </Badge>
-              </div>
-              <div>
-                <Label className="text-sm font-medium text-gray-600">Submitted Date</Label>
-                <p className="text-sm">{registration.submittedDate}</p>
-              </div>
-              <div>
-                <Label className="text-sm font-medium text-gray-600">Submitted Time</Label>
-                <p className="text-sm">{registration.submittedTime}</p>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-sm font-medium text-gray-500">Status</Label>
+                  <div className="mt-1">
+                    <Badge variant={
+                      registration.status === 'pending' ? 'secondary' : 
+                      registration.status === 'approved' ? 'default' : 
+                      'destructive'
+                    }>
+                      {registration.status}
+                    </Badge>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {registration.status === "pending" && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Actions</CardTitle>
-                <CardDescription>Approve or reject this application</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button onClick={handleApprove} className="w-full bg-gray-800 hover:bg-gray-900 text-white">
-                  <Check className="w-4 h-4 mr-2" />
-                  Approve Registration
+          {/* Actions */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Actions</CardTitle>
+              <CardDescription>Approve or reject this application</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <Button 
+                  onClick={handleApprove} 
+                  className="w-full bg-green-600 hover:bg-green-700"
+                  disabled={registration.status !== 'pending' || isProcessing}
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4 mr-2" />
+                      Approve Registration
+                    </>
+                  )}
                 </Button>
-
+                
                 <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
                   <DialogTrigger asChild>
-                    <Button variant="destructive" className="w-full">
+                    <Button 
+                      variant="destructive" 
+                      className="w-full"
+                      disabled={registration.status !== 'pending' || isProcessing}
+                    >
                       <X className="w-4 h-4 mr-2" />
                       Reject Registration
                     </Button>
@@ -263,9 +453,9 @@ export default function RegistrationDetail({ params }: { params: { id: string } 
                     </DialogHeader>
                     <div className="space-y-4">
                       <div>
-                        <Label htmlFor="reason">Rejection Reason</Label>
+                        <Label htmlFor="rejection-reason">Rejection Reason</Label>
                         <Textarea
-                          id="reason"
+                          id="rejection-reason"
                           placeholder="Enter the reason for rejection..."
                           value={rejectionReason}
                           onChange={(e) => setRejectionReason(e.target.value)}
@@ -274,35 +464,49 @@ export default function RegistrationDetail({ params }: { params: { id: string } 
                       </div>
                     </div>
                     <DialogFooter>
-                      <Button variant="outline" onClick={() => setShowRejectDialog(false)}>
+                      <Button variant="outline" onClick={() => setShowRejectDialog(false)} disabled={isProcessing}>
                         Cancel
                       </Button>
-                      <Button variant="destructive" onClick={handleReject}>
-                        Reject Application
+                      <Button 
+                        variant="destructive" 
+                        onClick={handleReject}
+                        disabled={!rejectionReason.trim() || isProcessing}
+                      >
+                        {isProcessing ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          'Reject Application'
+                        )}
                       </Button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
-              </CardContent>
-            </Card>
-          )}
+              </div>
+            </CardContent>
+          </Card>
 
+          {/* Quick Info */}
           <Card>
             <CardHeader>
               <CardTitle>Quick Info</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Application ID:</span>
-                <span className="font-medium">#{registration.id}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Age:</span>
-                <span className="font-medium">29 years</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">District:</span>
-                <span className="font-medium">{registration.electoralDistrict}</span>
+            <CardContent>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Application ID:</span>
+                  <span className="font-mono">{registration.nic}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Role:</span>
+                  <span className="capitalize">{registration.role.replace('_', ' ')}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">District:</span>
+                  <span>{registration.electoralDistrict}</span>
+                </div>
               </div>
             </CardContent>
           </Card>

@@ -188,26 +188,6 @@ export default function EditElectionPage() {
           </Card>
         )}
 
-        {/* Current Status Display */}
-        <Card className="bg-blue-50 border-blue-200">
-          <CardContent className="pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <p className="text-sm font-medium text-blue-900">Current Status</p>
-                <p className="text-lg font-semibold text-blue-700">{realTimeStatus}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-blue-900">Database Status</p>
-                <p className="text-lg font-semibold text-blue-700">{election.status}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-blue-900">Election Type</p>
-                <p className="text-lg font-semibold text-blue-700">{election.electionType}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Form Card */}
         <Card>
           <CardContent>

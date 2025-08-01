@@ -2,7 +2,7 @@
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { PieChart } from "lucide-react"
-import type { CandidateExportData } from "@/app/results/types"
+import type { CandidateExportData } from "../types"
 
 interface VoteDistributionChartProps {
   candidates: CandidateExportData[]

@@ -7,11 +7,18 @@ jest.mock("@/lib/hooks/use-toast", () => ({
   useToast: () => ({ toast: jest.fn() }),
 }));
 
+// Mock cookie util
+jest.mock("../lib/cookies", () => ({
+  getUserType: jest.fn(),
+}));
+
 jest.mock("@/components/auth/Unauthorized", () => {
   return function Unauthorized() {
     return <div>Unauthorized</div>;
   };
 });
+
+import { getUserType } from "../lib/cookies";
 
 const roles = [
   ["admin", "/admin/dashboard"],
@@ -21,7 +28,7 @@ const roles = [
 
 describe("RoleGuard component", () => {
   it.each(roles)("allows %s role", (role) => {
-    (window.localStorage.getItem as jest.Mock).mockReturnValue(role);
+    (getUserType as jest.Mock).mockReturnValue(role);
 
     render(
       <RoleGuard requiredRole={role}>
@@ -33,7 +40,7 @@ describe("RoleGuard component", () => {
   });
 
   it.each(roles)("blocks other roles for %s", (role) => {
-    (window.localStorage.getItem as jest.Mock).mockReturnValue("someOtherRole");
+    (getUserType as jest.Mock).mockReturnValue("someOtherRole");
 
     render(
       <RoleGuard requiredRole={role}>

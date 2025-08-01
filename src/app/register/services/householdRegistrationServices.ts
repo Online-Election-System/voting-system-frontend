@@ -1,5 +1,6 @@
 import { ChiefOccupant, HouseholdDetails, MemberInfo } from "../types";
 import api from "../../../lib/axios";
+import { PhoneOutgoing } from "lucide-react";
 
 export const submitHouseholdRegistration = async (
   chiefOccupant: ChiefOccupant,

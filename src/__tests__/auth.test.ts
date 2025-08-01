@@ -23,12 +23,10 @@ describe("logout helper", () => {
     await logout();
 
     expect(api.post).toHaveBeenCalledWith(
-      "/api/v1/logout",
+      "/voter-registration/api/v1/logout",
       null,
       expect.any(Object)
     );
 
-    expect(window.localStorage.removeItem).toHaveBeenCalledWith("token");
-    expect(window.localStorage.removeItem).toHaveBeenCalledWith("userType");
   });
 });

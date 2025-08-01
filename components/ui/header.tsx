@@ -12,6 +12,7 @@ import {
   FileText,
   Settings,
   Loader2,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/src/lib/utils";
@@ -24,8 +25,8 @@ type UserRole =
   | "election_commission"
   | "chief_occupant"
   | "household_member"
-  | "verifiedChiefOccupant"
-  | "verifiedHouseholdMember"
+  | "verified_chief_occupant"
+  | "verified_household_member"
   | "polling_station"
   | null;
 
@@ -39,12 +40,6 @@ type NavigationItem = {
 };
 
 const navigationData: NavigationItem[] = [
-  // ... keep your existing navigationData ...
-  {
-    label: "About",
-    href: "/about",
-    icon: FileText,
-  },
   {
     label: "Dashboard",
     href: "/election-commission/dashboard",
@@ -56,24 +51,30 @@ const navigationData: NavigationItem[] = [
     label: "Home",
     href: "/enrollment/dashboard",
     icon: Home,
-    roles: ["verifiedChiefOccupant","verifiedHouseholdMember"],
+    roles: ["verified_chief_occupant","verified_household_member"],
     requiresAuth: true,
   },
   {
     label: "Elections",
     href: "/enrollment/elections",
     icon: Vote,
-    roles: ["election_commission","verifiedChiefOccupant","verifiedHouseholdMember"],
+    roles: ["verified_chief_occupant","verified_household_member"],
     requiresAuth: true,
   },
   {
     label: "Profile",
     href: "/enrollment/profile",
     icon: Home,
-    roles: ["verifiedChiefOccupant","verifiedHouseholdMember"],
+    roles: ["verified_chief_occupant","verified_household_member"],
     requiresAuth: true,
   },
-  
+  {
+    label: "Elections",
+    href: "/election-commission/elections",
+    icon: Users,
+    roles: ["election_commission"],
+    requiresAuth: true,
+  },  
   {
     label: "Candidates",
     href: "/election-commission/candidates",
@@ -120,6 +121,13 @@ const navigationData: NavigationItem[] = [
     href: "/household-member/dashboard",
     icon: Home,
     roles: ["household_member"],
+    requiresAuth: true,
+  },
+  {
+    label: "Results",
+    href: "/results",
+    icon: BarChart3,
+    roles: ["chief_occupant", "household_member", "election_commission"],
     requiresAuth: true,
   },
   

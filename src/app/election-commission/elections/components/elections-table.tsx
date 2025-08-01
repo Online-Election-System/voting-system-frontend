@@ -13,6 +13,7 @@ import { Election } from "../election.types";
 import { ElectionStatusBadge } from "./election-status-badge";
 import { formatSimpleDate, simpleDateToDate } from "../utils/date-utils";
 import { formatTimeOfDay } from "../utils/time-utils";
+import { calculateRealTimeElectionStatus } from "../utils/election-status-utils";
 import { DeleteConfirmationDialog } from "./delete-election";
 import Link from "next/link";
 import { useElection, usePrefetchElection } from "../hooks/use-elections";
@@ -37,6 +38,20 @@ interface ElectionsTableProps {
   itemsPerPage?: number;
 }
 
+// Enhanced Election Status Badge Component for Real-time Status
+function RealTimeStatusDisplay({ election }: { election: Election }) {
+  const realTimeStatus = calculateRealTimeElectionStatus(election);
+  const isCancelled = election.status === 'Cancelled';
+  
+  // If cancelled, show only database status
+  if (isCancelled) {
+    return <ElectionStatusBadge status={election.status} />;
+  }
+  
+  // If they match, show just the real-time status
+  return <ElectionStatusBadge status={realTimeStatus} />;
+}
+
 export function ElectionsTable({
   elections,
   onDelete,
@@ -59,6 +74,16 @@ export function ElectionsTable({
 
   const prefetchElection = usePrefetchElection();
 
+  // Enhanced elections with real-time status for filtering
+  const electionsWithRealTimeStatus = useMemo(() => {
+    return elections.map(election => ({
+      ...election,
+      realTimeStatus: election.status === 'Cancelled' 
+        ? election.status 
+        : calculateRealTimeElectionStatus(election)
+    }));
+  }, [elections]);
+
   // Use shared table search hook
   const {
     searchQuery,
@@ -75,7 +100,7 @@ export function ElectionsTable({
     updateSort,
     clearFilters,
   } = useTableSearch(
-    elections,
+    electionsWithRealTimeStatus,
     ["electionName", "electionType", "description"],
     itemsPerPage
   );
@@ -88,6 +113,7 @@ export function ElectionsTable({
     return types.sort().map((type) => ({ label: type, value: type }));
   }, [elections]);
 
+  // Enhanced status options to include real-time statuses
   const statusOptions: FilterOption[] = [
     { label: "Scheduled", value: "Scheduled" },
     { label: "Upcoming", value: "Upcoming" },
@@ -103,17 +129,33 @@ export function ElectionsTable({
     { label: "This Year", value: "this-year" },
   ];
 
+  // Enhanced filtering to work with real-time status
+  const filteredByStatus = useMemo(() => {
+    if (!filters.status || filters.status === "all") {
+      return filteredData;
+    }
+
+    return filteredData.filter((election) => {
+      // Use real-time status for filtering if not cancelled
+      const statusToCheck = election.status === 'Cancelled' 
+        ? election.status 
+        : election.realTimeStatus;
+      
+      return statusToCheck === filters.status;
+    });
+  }, [filteredData, filters.status]);
+
   // Handle date range filtering
   const filteredByDateRange = useMemo(() => {
     if (!filters.dateRange || filters.dateRange === "all") {
-      return filteredData;
+      return filteredByStatus;
     }
 
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    return filteredData.filter((election) => {
+    return filteredByStatus.filter((election) => {
       if (!election.electionDate) return false;
 
       const electionDate = simpleDateToDate(election.electionDate);
@@ -135,7 +177,7 @@ export function ElectionsTable({
           return true;
       }
     });
-  }, [filteredData, filters.dateRange]);
+  }, [filteredByStatus, filters.dateRange]);
 
   // Sort filtered elections by date (newest first)
   const sortedElections = useMemo(() => {
@@ -147,6 +189,17 @@ export function ElectionsTable({
         const dateA = simpleDateToDate(a.electionDate)?.getTime() || 0;
         const dateB = simpleDateToDate(b.electionDate)?.getTime() || 0;
         return dateB - dateA;
+      });
+    }
+
+    // Handle sorting by real-time status
+    if (sortConfig.field === 'status') {
+      return [...dataToSort].sort((a, b) => {
+        const statusA = a.status === 'Cancelled' ? a.status : a.realTimeStatus;
+        const statusB = b.status === 'Cancelled' ? b.status : b.realTimeStatus;
+        
+        const comparison = statusA.localeCompare(statusB);
+        return sortConfig.direction === 'asc' ? comparison : -comparison;
       });
     }
 
@@ -176,10 +229,26 @@ export function ElectionsTable({
     setSelectedElectionId(null);
   };
 
-  // Helper function to determine row styling
+  // Helper function to determine row styling based on real-time status
   const getRowStyling = (election: Election) => {
     const baseClass = "cursor-pointer transition-colors";
-    return `${baseClass} hover:bg-gray-50 dark:hover:bg-gray-800`;
+    const realTimeStatus = election.status === 'Cancelled' 
+      ? election.status 
+      : calculateRealTimeElectionStatus(election);
+    
+    // Add subtle styling based on real-time status
+    switch (realTimeStatus) {
+      case 'Active':
+        return `${baseClass} hover:bg-green-50 dark:hover:bg-green-900/20 border-l-2 border-l-green-500`;
+      case 'Upcoming':
+        return `${baseClass} hover:bg-blue-50 dark:hover:bg-blue-900/20`;
+      case 'Completed':
+        return `${baseClass} hover:bg-gray-50 dark:hover:bg-gray-800`;
+      case 'Cancelled':
+        return `${baseClass} hover:bg-red-50 dark:hover:bg-red-900/20 opacity-75`;
+      default:
+        return `${baseClass} hover:bg-gray-50 dark:hover:bg-gray-800`;
+    }
   };
 
   return (
@@ -325,7 +394,7 @@ export function ElectionsTable({
                   </TableCell>
                   <TableCell>{election.noOfCandidates || 0}</TableCell>
                   <TableCell>
-                    <ElectionStatusBadge status={election.status} />
+                    <RealTimeStatusDisplay election={election} />
                   </TableCell>
                   <TableCell
                     className="text-right"

@@ -2,7 +2,24 @@ import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Pencil, Trash2, RefreshCw, Loader2 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+import { Pencil, Trash2, RefreshCw, Loader2, User, Image as ImageIcon } from "lucide-react";
 import { Candidate } from "../candidate.types";
 
 // Import shared components
@@ -26,6 +43,129 @@ interface CandidateTableProps {
   itemsPerPage?: number;
 }
 
+// Delete Confirmation Dialog Component
+interface DeleteCandidateDialogProps {
+  trigger: React.ReactNode;
+  onConfirm: () => void;
+  candidateName: string;
+  isActive: boolean;
+}
+
+function DeleteCandidateDialog({
+  trigger,
+  onConfirm,
+  candidateName,
+  isActive,
+}: DeleteCandidateDialogProps) {
+  if (isActive) {
+    return (
+      <AlertDialog>
+        <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cannot Delete Active Candidate</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{candidateName}</strong> is currently active and cannot be deleted. 
+              Please deactivate the candidate first before attempting to delete.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Close</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    );
+  }
+
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete Candidate</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to delete <strong>{candidateName}</strong>? 
+            This action cannot be undone and will remove all associated data.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction 
+            onClick={onConfirm}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Delete Candidate
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+// Component for displaying circular images with fallback
+interface CircularImageProps {
+  src?: string | null;
+  alt: string;
+  fallbackIcon?: React.ReactNode;
+  size?: "sm" | "md";
+}
+
+function CircularImage({ src, alt, fallbackIcon, size = "sm" }: CircularImageProps) {
+  const sizeClasses = {
+    sm: "h-8 w-8",
+    md: "h-10 w-10"
+  };
+
+  const iconSizeClasses = {
+    sm: "h-4 w-4",
+    md: "h-5 w-5"
+  };
+
+  if (!src) {
+    return (
+      <div className={`${sizeClasses[size]} rounded-full bg-gray-100 flex items-center justify-center`}>
+        {fallbackIcon || <ImageIcon className={`${iconSizeClasses[size]} text-gray-400`} />}
+      </div>
+    );
+  }
+
+  return (
+    <div className={`${sizeClasses[size]} rounded-full overflow-hidden bg-gray-100 flex items-center justify-center`}>
+      <img 
+        src={src} 
+        alt={alt}
+        className="h-full w-full object-cover"
+        onError={(e) => {
+          // Hide broken image and show fallback
+          e.currentTarget.style.display = 'none';
+          const parent = e.currentTarget.parentElement;
+          if (parent) {
+            parent.innerHTML = `
+              <div class="${iconSizeClasses[size]} text-gray-400">
+                ${fallbackIcon ? fallbackIcon : '<svg class="w-full h-full" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>'}
+              </div>
+            `;
+          }
+        }}
+      />
+    </div>
+  );
+}
+
+// Component for party color display
+function PartyColorSwatch({ color, partyName }: { color: string; partyName: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div 
+        className="h-4 w-4 rounded-full border border-gray-300"
+        style={{ backgroundColor: color }}
+        title={`${partyName} color: ${color}`}
+      />
+      <span className="text-xs text-gray-500 font-mono">{color}</span>
+    </div>
+  );
+}
+
 export const CandidateTable = ({ 
   candidates,
   onEdit, 
@@ -34,7 +174,7 @@ export const CandidateTable = ({
   error = null,
   itemsPerPage = 10 
 }: CandidateTableProps) => {
-  // Use shared table search hook
+  // Use shared table search hook with expanded search fields
   const {
     searchQuery,
     filters,
@@ -49,7 +189,11 @@ export const CandidateTable = ({
     updateFilter,
     updateSort,
     clearFilters,
-  } = useTableSearch(candidates, ['candidateName', 'partyName', 'email'], itemsPerPage);
+  } = useTableSearch(
+    candidates, 
+    ['candidateName', 'partyName', 'partyColor', 'candidateId'], 
+    itemsPerPage
+  );
 
   // Get unique political parties for filter dropdown
   const partyFilterOptions = useMemo((): FilterOption[] => {
@@ -60,6 +204,20 @@ export const CandidateTable = ({
     )].sort();
     
     return parties.map(party => ({ label: party, value: party }));
+  }, [candidates]);
+
+  // Get unique party colors for filter dropdown
+  const colorFilterOptions = useMemo((): FilterOption[] => {
+    const colors = [...new Set(
+      candidates
+        .map(c => c.partyColor)
+        .filter((color): color is string => Boolean(color))
+    )].sort();
+    
+    return colors.map(color => ({ 
+      label: color.toUpperCase(), 
+      value: color 
+    }));
   }, [candidates]);
 
   // Status filter options
@@ -74,11 +232,14 @@ export const CandidateTable = ({
     { label: "Name (Z-A)", value: "name-desc" },
     { label: "Party (A-Z)", value: "party-asc" },
     { label: "Party (Z-A)", value: "party-desc" },
+    { label: "Color (A-Z)", value: "color-asc" },
+    { label: "Color (Z-A)", value: "color-desc" },
   ];
 
   const fieldMap: Record<string, keyof Candidate> = {
     name: "candidateName",
     party: "partyName",
+    color: "partyColor",
   };
 
   // Handle custom sort option
@@ -97,6 +258,7 @@ export const CandidateTable = ({
     const reverseMap: Record<string, string> = {
       candidateName: "name",
       partyName: "party",
+      partyColor: "color",
     };
     const displayField = reverseMap[sortConfig.field] || sortConfig.field;
     return `${displayField}-${sortConfig.direction}`;
@@ -117,23 +279,28 @@ export const CandidateTable = ({
     });
   }, [filteredData, filters.status]);
 
+  // Filter by party color
+  const colorFilteredData = useMemo(() => {
+    if (!filters.partyColor || filters.partyColor === "all") {
+      return statusFilteredData;
+    }
+    
+    return statusFilteredData.filter(candidate => 
+      candidate.partyColor === filters.partyColor
+    );
+  }, [statusFilteredData, filters.partyColor]);
+
   const getPartyName = (candidate: Candidate) => {
     return candidate.partyName || 'Independent';
   };
 
-  const handleDeleteWithConfirm = (candidateId: string, candidateName: string) => {
-    if (confirm(`Are you sure you want to delete ${candidateName}?`)) {
-      onDelete(candidateId);
-    }
-  };
-
   // Get final paginated data
-  const finalPaginatedData = statusFilteredData.slice(
+  const finalPaginatedData = colorFilteredData.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
 
-  const finalTotalPages = Math.ceil(statusFilteredData.length / itemsPerPage);
+  const finalTotalPages = Math.ceil(colorFilteredData.length / itemsPerPage);
 
   if (error) {
     return (
@@ -162,7 +329,7 @@ export const CandidateTable = ({
           <SearchInput
             value={searchQuery}
             onChange={setSearchQuery}
-            placeholder="Search candidates..."
+            placeholder="Search candidates by name, party, or ID..."
           />
 
           <FilterControls hasActiveFilters={hasActiveFilters} onClearFilters={clearFilters}>
@@ -171,6 +338,12 @@ export const CandidateTable = ({
               value={filters.partyName || "all"}
               options={partyFilterOptions}
               onChange={(value) => updateFilter("partyName", value)}
+            />
+            <FilterSelect
+              label="Party Color"
+              value={filters.partyColor || "all"}
+              options={colorFilterOptions}
+              onChange={(value) => updateFilter("partyColor", value)}
             />
             <FilterSelect
               label="Status"
@@ -190,7 +363,7 @@ export const CandidateTable = ({
 
         <ResultsSummary
           hasActiveFilters={hasActiveFilters}
-          filteredCount={statusFilteredData.length}
+          filteredCount={colorFilteredData.length}
           totalCount={candidates.length}
           itemName="candidates"
         />
@@ -200,6 +373,7 @@ export const CandidateTable = ({
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Photo</TableHead>
                 <TableHead>
                   <SortableHeader
                     field="candidateName"
@@ -218,6 +392,16 @@ export const CandidateTable = ({
                     Political Party
                   </SortableHeader>
                 </TableHead>
+                <TableHead>Party Symbol</TableHead>
+                <TableHead>
+                  <SortableHeader
+                    field="partyColor"
+                    currentSort={sortConfig}
+                    onSort={updateSort}
+                  >
+                    Party Color
+                  </SortableHeader>
+                </TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -225,7 +409,7 @@ export const CandidateTable = ({
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
+                  <TableCell colSpan={7} className="text-center py-8">
                     <div className="flex items-center justify-center space-x-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
                       <span>Loading candidates...</span>
@@ -234,7 +418,7 @@ export const CandidateTable = ({
                 </TableRow>
               ) : finalPaginatedData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                     {hasActiveFilters 
                       ? "No candidates match your search criteria" 
                       : "No candidates found. Add your first candidate to get started."
@@ -243,9 +427,39 @@ export const CandidateTable = ({
                 </TableRow>
               ) : (
                 finalPaginatedData.map((candidate) => (
-                  <TableRow key={candidate.id || candidate.candidateId} className="hover:bg-muted/50">
-                    <TableCell className="font-medium">{candidate.candidateName}</TableCell>
-                    <TableCell>{getPartyName(candidate)}</TableCell>
+                  <TableRow key={candidate.candidateId || candidate.id} className="hover:bg-muted/50">
+                    <TableCell>
+                      <CircularImage 
+                        src={candidate.candidateImage} 
+                        alt={`${candidate.candidateName} photo`}
+                        fallbackIcon={<User className="h-4 w-4 text-gray-400" />}
+                        size="md"
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      <div>
+                        <div className="font-medium">{candidate.candidateName}</div>
+                        <div className="text-xs text-gray-500 font-mono">
+                          ID: {candidate.candidateId || candidate.id}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium">{getPartyName(candidate)}</div>
+                    </TableCell>
+                    <TableCell>
+                      <CircularImage 
+                        src={candidate.partySymbol} 
+                        alt={`${getPartyName(candidate)} symbol`}
+                        fallbackIcon={<ImageIcon className="h-4 w-4 text-gray-400" />}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <PartyColorSwatch 
+                        color={candidate.partyColor} 
+                        partyName={getPartyName(candidate)}
+                      />
+                    </TableCell>
                     <TableCell>
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                         candidate.isActive 
@@ -266,18 +480,50 @@ export const CandidateTable = ({
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={() => handleDeleteWithConfirm(
-                            candidate.id || candidate.candidateId, 
-                            candidate.candidateName
+                        
+                        <TooltipProvider>
+                          {candidate.isActive !== false ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <DeleteCandidateDialog
+                                  candidateName={candidate.candidateName}
+                                  isActive={candidate.isActive}
+                                  onConfirm={() => onDelete(candidate.candidateId || candidate.id)}
+                                  trigger={
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      aria-label={`Cannot delete active candidate ${candidate.candidateName}`}
+                                      disabled={isLoading}
+                                      className="opacity-50 cursor-not-allowed"
+                                    >
+                                      <Trash2 className="h-4 w-4 text-gray-400" />
+                                    </Button>
+                                  }
+                                />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Cannot delete active candidate. Deactivate first.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <DeleteCandidateDialog
+                              candidateName={candidate.candidateName}
+                              isActive={candidate.isActive !== false}
+                              onConfirm={() => onDelete(candidate.candidateId || candidate.id)}
+                              trigger={
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  aria-label={`Delete ${candidate.candidateName}`}
+                                  disabled={isLoading}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              }
+                            />
                           )}
-                          aria-label={`Delete ${candidate.candidateName}`}
-                          disabled={isLoading}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        </TooltipProvider>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -290,7 +536,7 @@ export const CandidateTable = ({
         <TablePagination
           currentPage={currentPage}
           totalPages={finalTotalPages}
-          totalItems={statusFilteredData.length}
+          totalItems={colorFilteredData.length}
           itemsPerPage={itemsPerPage}
           onPageChange={setCurrentPage}
           itemName="candidates"

@@ -124,14 +124,6 @@ export default function LoginForm() {
                 )}
               </Button>
             </div>
-            <div className="text-right">
-              <Link 
-                href="/login/change-password" 
-                className="text-sm text-blue-600 hover:underline"
-              >
-                Change password?
-              </Link>
-            </div>
           </div>
         </CardContent>
         <CardFooter>

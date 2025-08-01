@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useRef, useMemo, useEffect } from "react"
+import { useState, useRef, useMemo } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -18,6 +19,7 @@ import { useFileUpload } from "@/src/app/register/hooks/use-file-upload-hook"
 import { Check, X, Upload, FileText, Trash2 } from "lucide-react"
 import { v4 as uuidv4 } from 'uuid'
 import { cn } from "@/src/lib/utils"
+import { isAuthenticated } from "@/src/lib/cookies"
 
 interface HouseholdMember {
   memberId: string
@@ -51,6 +53,8 @@ export function DeleteHouseholdMemberDialog({
   const [documentUrl, setDocumentUrl] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const router = useRouter()
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080"
 
   // Combined members array
   const allMembers = useMemo(() => [
@@ -86,6 +90,13 @@ export function DeleteHouseholdMemberDialog({
   })
 
   const handleDocumentUpload = async (file: File) => {
+    // Check authentication before upload
+    if (!isAuthenticated()) {
+      setError("Authentication required. Please log in.")
+      router.push("/login")
+      return null
+    }
+
     if (!selectedMember) {
       alert('Please select a member first')
       return null
@@ -230,6 +241,14 @@ export function DeleteHouseholdMemberDialog({
     setLoading(true)
     setError(null)
     
+    // Check authentication before submission
+    if (!isAuthenticated()) {
+      setError("Authentication required. Please log in.")
+      setLoading(false)
+      router.push("/login")
+      return
+    }
+
     if (!selectedMember) {
       setError('Please select a member')
       setLoading(false)
@@ -269,15 +288,23 @@ export function DeleteHouseholdMemberDialog({
         rejectionReason: null
       }
 
-      const response = await fetch('http://localhost:8080/household-management/api/v1/delete-member', {
+      const response = await fetch(`${API_BASE_URL}/household-management/api/v1/delete-member`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Ensure cookies are sent
         body: JSON.stringify(deleteRequest),
       })
 
       if (!response.ok) {
+        // Handle authentication errors
+        if (response.status === 401 || response.status === 403) {
+          setError("Authentication failed. Please log in again.")
+          router.push("/login")
+          return
+        }
+
         const errorData = await response.json()
         throw new Error(errorData.message || 'Failed to submit delete request')
       }
