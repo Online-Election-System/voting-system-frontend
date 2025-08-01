@@ -24,7 +24,11 @@ import axios from "axios"
 import { v4 as uuidv4 } from 'uuid'
 import { getUserId, isAuthenticated } from "@/src/lib/cookies"
 
-export function AddHouseholdMemberForm() {
+interface AddHouseholdMemberFormProps {
+  onSuccess?: () => void;
+}
+
+export function AddHouseholdMemberForm({ onSuccess }: AddHouseholdMemberFormProps) {
   const [fullName, setFullName] = useState("")
   const [nicNumber, setNicNumber] = useState("")
   const [dateOfBirth, setDateOfBirth] = useState<Date | undefined>(undefined)
@@ -37,11 +41,17 @@ export function AddHouseholdMemberForm() {
   const router = useRouter()
    const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080"
 
-  // File upload refs and states
+  // File upload refs and states for NIC
   const nicFileInputRef = useRef<HTMLInputElement>(null)
   const [nicDragOver, setNicDragOver] = useState(false)
-  const isFileUploadEnabled = nicNumber.length > 0
+  const isNicFileUploadEnabled = nicNumber.length > 0
   const [selectedNicFile, setSelectedNicFile] = useState<File | null>(null)
+
+  // File upload refs and states for Photo
+  const photoFileInputRef = useRef<HTMLInputElement>(null)
+  const [photoDragOver, setPhotoDragOver] = useState(false)
+  const isPhotoUploadEnabled = fullName.length > 0
+  const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null)
 
   // NIC Document upload hook
   const {
@@ -57,7 +67,22 @@ export function AddHouseholdMemberForm() {
     allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'],
   })
 
+  // Photo upload hook - using verification bucket but specific folder
+  const {
+    uploadFileToFolder: uploadPhoto,
+    uploading: uploadingPhoto,
+    progress: photoProgress,
+    error: photoError,
+    resetUploadState: resetPhotoState,
+    cleanupSpecificFile: cleanupPhotoFile,
+  } = useFileUpload({
+    bucket: 'verification',
+    maxFileSize: 5 * 1024 * 1024,
+    allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
+  })
+
   const [nicDocumentUrl, setNicDocumentUrl] = useState<string | null>(null)
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Authentication check and setup
@@ -84,7 +109,7 @@ export function AddHouseholdMemberForm() {
 
   // Handle NIC document upload
   const handleNicFileSelect = async (file: File) => {
-    if (!isFileUploadEnabled) {
+    if (!isNicFileUploadEnabled) {
       alert('Please enter NIC number before uploading the document')
       return
     }
@@ -95,7 +120,26 @@ export function AddHouseholdMemberForm() {
     }
   }
 
-  // Handle NIC file input change
+  // Handle Photo upload to AddRequestPhotos folder
+  const handlePhotoSelect = async (file: File) => {
+    if (!isPhotoUploadEnabled) {
+      alert('Please enter full name before uploading the photo')
+      return
+    }
+    setSelectedPhotoFile(file)
+    const uploadedUrl = await uploadPhoto(
+      file, 
+      'AddRequestPhotos', // Folder path
+      fullName, // Using full name as identifier
+      photoUrl || undefined, 
+      !!photoUrl
+    )
+    if (uploadedUrl) {
+      setPhotoUrl(uploadedUrl)
+    }
+  }
+
+  // Handle file input changes
   const handleNicFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
@@ -103,7 +147,14 @@ export function AddHouseholdMemberForm() {
     }
   }
 
-  // Handle NIC drag events
+  const handlePhotoInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      handlePhotoSelect(file)
+    }
+  }
+
+  // Handle drag events for NIC
   const handleNicDragOver = (e: React.DragEvent) => {
     e.preventDefault()
     setNicDragOver(true)
@@ -123,7 +174,27 @@ export function AddHouseholdMemberForm() {
     }
   }
 
-  // Remove NIC file
+  // Handle drag events for Photo
+  const handlePhotoDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setPhotoDragOver(true)
+  }
+
+  const handlePhotoDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setPhotoDragOver(false)
+  }
+
+  const handlePhotoDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setPhotoDragOver(false)
+    const file = e.dataTransfer.files[0]
+    if (file && file.type.startsWith('image/')) {
+      handlePhotoSelect(file)
+    }
+  }
+
+  // Remove files
   const removeNicFile = async () => {
     if (nicDocumentUrl) {
       await cleanupNicFile(nicDocumentUrl)
@@ -132,6 +203,18 @@ export function AddHouseholdMemberForm() {
       setSelectedNicFile(null)
       if (nicFileInputRef.current) {
         nicFileInputRef.current.value = ""
+      }
+    }
+  }
+
+  const removePhotoFile = async () => {
+    if (photoUrl) {
+      await cleanupPhotoFile(photoUrl)
+      setPhotoUrl(null)
+      resetPhotoState()
+      setSelectedPhotoFile(null)
+      if (photoFileInputRef.current) {
+        photoFileInputRef.current.value = ""
       }
     }
   }
@@ -161,9 +244,15 @@ export function AddHouseholdMemberForm() {
       return
     }
 
+    if (!photoUrl) {
+      alert("Please upload a photo")
+      setIsSubmitting(false)
+      return
+    }
+
     try {
       const requestData = {
-        addRequestId: uuidv4(), // Generate UUID on client side to match backend expectation
+        addRequestId: uuidv4(),
         chiefOccupantId,
         nicNumber,
         fullName,
@@ -173,10 +262,10 @@ export function AddHouseholdMemberForm() {
         relationshipToChief: relationship,
         chiefOccupantApproval,
         requestStatus: "PENDING",
-        nicOrBirthCertificatePath: nicDocumentUrl
+        reason: "—",
+        nicOrBirthCertificatePath: nicDocumentUrl,
+        photoCopyPath: photoUrl
       }
-
-      console.log("Submitting:", requestData)
 
       const response = await axios.post(
         `${API_BASE_URL}/household-management/api/v1/add-member`, 
@@ -189,7 +278,6 @@ export function AddHouseholdMemberForm() {
         }
       )
 
-      console.log("API Response:", response.data)
       alert("Household member addition submitted for GN Officer approval.")
       
       // Reset form
@@ -201,22 +289,15 @@ export function AddHouseholdMemberForm() {
       setRelationship("")
       setNicDocumentUrl(null)
       setSelectedNicFile(null)
+      setPhotoUrl(null)
+      setSelectedPhotoFile(null)
+
+      // Call success callback
+      if (onSuccess) {
+        onSuccess()
+      }
 
     } catch (err: any) {
-      console.error("Full error:", err)
-      
-      // Handle authentication errors
-      if (err.response?.status === 401 || err.response?.status === 403) {
-        setAuthError("Authentication failed. Please log in again.")
-        router.push("/login")
-        return
-      }
-      
-      if (err.response) {
-        console.error("Response data:", err.response.data)
-        console.error("Response status:", err.response.status)
-        console.error("Response headers:", err.response.headers)
-      }
       alert("Submission failed: " + (err.response?.data?.message || err.message))
     } finally {
       setIsSubmitting(false)
@@ -359,7 +440,7 @@ export function AddHouseholdMemberForm() {
 
         {/* NIC Document Upload Section */}
         <div className="space-y-4">
-          <h3 className="font-medium text-sm">NIC Document</h3>
+          <h3 className="font-medium text-sm">NIC/Birth Certificate Document</h3>
           <div className="space-y-2">
             <Label htmlFor="document">NIC / Birth Certificate *</Label>
             <div
@@ -369,12 +450,12 @@ export function AddHouseholdMemberForm() {
                 nicDocumentUrl && "border-green-500 bg-green-50",
                 uploadingNic && "border-gray-300 bg-gray-50",
                 !nicDragOver && !nicDocumentUrl && !uploadingNic && "border-gray-300 hover:border-gray-400",
-                !isFileUploadEnabled && "opacity-50 cursor-not-allowed"
+                !isNicFileUploadEnabled && "opacity-50 cursor-not-allowed"
               )}
               onDragOver={handleNicDragOver}
               onDragLeave={handleNicDragLeave}
               onDrop={handleNicDrop}
-              onClick={() => !uploadingNic && isFileUploadEnabled && nicFileInputRef.current?.click()}
+              onClick={() => !uploadingNic && isNicFileUploadEnabled && nicFileInputRef.current?.click()}
             >
               <input
                 ref={nicFileInputRef}
@@ -383,7 +464,7 @@ export function AddHouseholdMemberForm() {
                 accept="image/*,.pdf"
                 onChange={handleNicFileInputChange}
                 className="hidden"
-                disabled={uploadingNic || !isFileUploadEnabled}
+                disabled={uploadingNic || !isNicFileUploadEnabled}
               />
 
               {uploadingNic ? (
@@ -421,7 +502,7 @@ export function AddHouseholdMemberForm() {
                     <p className="text-xs text-gray-500">
                       Images (PNG, JPG, WEBP) or PDF up to 5MB
                     </p>
-                    {!isFileUploadEnabled && (
+                    {!isNicFileUploadEnabled && (
                       <p className="text-xs text-amber-600 mt-1">
                         Enter NIC number first to enable file upload
                       </p>
@@ -432,6 +513,85 @@ export function AddHouseholdMemberForm() {
             </div>
             {nicError && (
               <p className="text-sm text-red-500">{nicError}</p>
+            )}
+          </div>
+        </div>
+
+        {/* Photo Upload Section */}
+        <div className="space-y-4">
+          <h3 className="font-medium text-sm">Household Member Photo</h3>
+          <div className="space-y-2">
+            <Label htmlFor="photo">Passport Size Photo *</Label>
+            <div
+              className={cn(
+                "border-2 border-dashed rounded-lg p-4 text-center transition-colors cursor-pointer",
+                photoDragOver && "border-blue-500 bg-blue-50",
+                photoUrl && "border-green-500 bg-green-50",
+                uploadingPhoto && "border-gray-300 bg-gray-50",
+                !photoDragOver && !photoUrl && !uploadingPhoto && "border-gray-300 hover:border-gray-400",
+                !isPhotoUploadEnabled && "opacity-50 cursor-not-allowed"
+              )}
+              onDragOver={handlePhotoDragOver}
+              onDragLeave={handlePhotoDragLeave}
+              onDrop={handlePhotoDrop}
+              onClick={() => !uploadingPhoto && isPhotoUploadEnabled && photoFileInputRef.current?.click()}
+            >
+              <input
+                ref={photoFileInputRef}
+                type="file"
+                id="photo"
+                accept="image/*"
+                onChange={handlePhotoInputChange}
+                className="hidden"
+                disabled={uploadingPhoto || !isPhotoUploadEnabled}
+              />
+
+              {uploadingPhoto ? (
+                <div className="space-y-2 p-4">
+                  <div className="animate-spin mx-auto h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+                  <p className="text-sm text-gray-600">Uploading... {photoProgress}%</p>
+                </div>
+              ) : photoUrl ? (
+                <div className="space-y-3 p-2">
+                  <div className="flex items-center justify-center space-x-2 text-green-600">
+                    <Check className="h-5 w-5" />
+                    <span className="font-medium">Photo uploaded</span>
+                  </div>
+                  <div className="mt-2 flex justify-center">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        removePhotoFile()
+                      }}
+                    >
+                      Remove File
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2 p-4">
+                  <Upload className="h-8 w-8 mx-auto text-gray-400" />
+                  <div>
+                    <p className="text-sm text-gray-600">
+                      <strong>Click to upload</strong> or drag and drop
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Images (PNG, JPG, WEBP) up to 5MB
+                    </p>
+                    {!isPhotoUploadEnabled && (
+                      <p className="text-xs text-amber-600 mt-1">
+                        Enter full name first to enable file upload
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            {photoError && (
+              <p className="text-sm text-red-500">{photoError}</p>
             )}
           </div>
         </div>
@@ -461,7 +621,7 @@ export function AddHouseholdMemberForm() {
         <Button 
           type="submit" 
           className="w-full mt-4" 
-          disabled={uploadingNic || isSubmitting || !chiefOccupantId}
+          disabled={uploadingNic || uploadingPhoto || isSubmitting || !chiefOccupantId}
         >
           {isSubmitting ? "Submitting..." : "Submit for Approval"}
         </Button>

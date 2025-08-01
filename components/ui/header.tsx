@@ -13,6 +13,14 @@ import {
   Settings,
   Loader2,
   BarChart3,
+  Plus,
+  UserPlus,
+  UserMinus,
+  UserRoundCheck,
+  UserRoundPlus,
+  UserRoundMinus,
+  UserCheck,
+  UserCog,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/src/lib/utils";
@@ -90,10 +98,42 @@ const navigationData: NavigationItem[] = [
     requiresAuth: true,
   },
   {
-    label: "Gov Dashboard",
+    label: "Home",
     href: "/government-official/dashboard",
     icon: Home,
     roles: ["government_official"],
+    requiresAuth: true,
+  },
+
+  {
+    label: "Review",
+    href: "/government-official/registrations",
+    icon: UserCheck,
+    roles: ["governmentOfficial"],
+    requiresAuth: true,
+  },
+
+  {
+    label: "Remove",
+    href: "/government-official/removal-requests",
+    icon: UserMinus,
+    roles: ["governmentOfficial"],
+    requiresAuth: true,
+  },
+
+  {
+    label: "Add",
+    href: "/government-official/add-members",
+    icon: UserPlus,
+    roles: ["governmentOfficial"],
+    requiresAuth: true,
+  },
+
+  {
+    label: "Update",
+    href: "/government-official/update-members",
+    icon: UserCog,
+    roles: ["governmentOfficial"],
     requiresAuth: true,
   },
 

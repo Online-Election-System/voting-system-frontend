@@ -1,116 +1,266 @@
+"use client"
+
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Users, UserCheck, UserMinus, UserPlus, UserCog } from "lucide-react"
+import { Users, UserCheck, UserMinus, UserPlus, UserCog, Loader2 } from "lucide-react"
 import Link from "next/link"
 
+// API base URL - adjust as needed
+const API_BASE_URL = "http://localhost:8080/api/v1"
+
+interface CountsData {
+  pendingAddMemberRequests: number
+  pendingUpdateMemberRequests: number
+  pendingReviewRegistrations: number
+  pendingRemovalRequests: number
+}
+
 export default function Dashboard() {
-  // Mock data for pending counts
-  const pendingAddMemberRequests = 5
-  const pendingUpdateMemberRequests = 2
+  const [counts, setCounts] = useState<CountsData>({
+    pendingAddMemberRequests: 0,
+    pendingUpdateMemberRequests: 0,
+    pendingReviewRegistrations: 0,
+    pendingRemovalRequests: 0,
+  })
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchAllCounts()
+  }, [])
+
+  const fetchAllCounts = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      // Make all API calls in parallel
+      const [
+        addMemberResponse,
+        registrationResponse,
+        removalResponse,
+        // Note: Update member endpoint not provided, keeping as 0 for now
+      ] = await Promise.all([
+        fetch(`${API_BASE_URL}/add-member-requests/counts`).catch((e) => ({ ok: false, error: e })),
+        fetch(`${API_BASE_URL}/registrations/counts`).catch((e) => ({ ok: false, error: e })),
+        fetch(`${API_BASE_URL}/removal-requests/counts`).catch((e) => ({ ok: false, error: e })),
+      ])
+
+      const newCounts: CountsData = {
+        pendingAddMemberRequests: 0,
+        pendingUpdateMemberRequests: 0, // Keep as 0 since endpoint not provided
+        pendingReviewRegistrations: 0,
+        pendingRemovalRequests: 0,
+      }
+
+      // Process add member requests counts
+      if (addMemberResponse.ok) {
+        try {
+          const addMemberData = await (addMemberResponse as Response).json()
+          newCounts.pendingAddMemberRequests = addMemberData.pending || 0
+        } catch (e) {
+          console.error("Error parsing add member counts:", e)
+        }
+      } else {
+        console.error("Failed to fetch add member counts")
+      }
+
+      // Process registration counts
+      if (registrationResponse.ok) {
+        try {
+          const registrationData = await (registrationResponse as Response).json()
+          newCounts.pendingReviewRegistrations = registrationData.pending || 0
+        } catch (e) {
+          console.error("Error parsing registration counts:", e)
+        }
+      } else {
+        console.error("Failed to fetch registration counts")
+      }
+
+      // Process removal requests counts
+      if (removalResponse.ok) {
+        try {
+          const removalData = await (removalResponse as Response).json()
+          newCounts.pendingRemovalRequests = removalData.pending || 0
+        } catch (e) {
+          console.error("Error parsing removal counts:", e)
+        }
+      } else {
+        console.error("Failed to fetch removal counts")
+      }
+
+      setCounts(newCounts)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch counts")
+      console.error("Error fetching counts:", err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Calculate total pending requests
+  const totalPendingRequests =
+    counts.pendingAddMemberRequests +
+    counts.pendingUpdateMemberRequests +
+    counts.pendingReviewRegistrations +
+    counts.pendingRemovalRequests
 
   const stats = [
     {
-      title: "Total Approved Voters", // Changed from "Total Registered Voters"
+      title: "Total Approved Voters",
       value: "1,247",
       description: "Active voters in division",
       icon: Users,
-      color: "bg-gray-100 text-gray-800",
     },
     {
-      title: "Total Rejected Voters", // Changed from "Removal Requests"
+      title: "Total Rejected Voters",
       value: "3",
-      description: "Total rejected removal requests", // Updated description
+      description: "Total rejected removal requests",
       icon: UserMinus,
-      color: "bg-gray-100 text-gray-800",
-      // Removed urgent: true as it's no longer a pending action
     },
     {
       title: "Total Households",
       value: "342",
       description: "Registered households",
       icon: Users,
-      color: "bg-gray-100 text-gray-800",
+    },
+    {
+      title: "Total Pending Requests",
+      value: loading ? "..." : totalPendingRequests.toString(),
+      description: "Across all categories",
+      icon: UserCog,
     },
   ]
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
-        <p className="text-gray-600">Monitor and manage voter registrations in your division</p>
-      </div>
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
-          <Card key={index} className="relative">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-              <stat.icon className="h-4 w-4 text-gray-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-gray-600">{stat.description}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-          <CardDescription>Common tasks and shortcuts</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Link
-              href="/government-official/registrations"
-              className="h-auto p-4 flex flex-col items-center gap-2 bg-white border border-gray-300 text-gray-800 hover:bg-gray-100 hover:text-black transition-colors rounded-lg"
-            >
-              <UserCheck className="w-6 h-6" />
-              <span>Review Registrations</span>
-              <Badge className="bg-gray-800 text-white">12 Pending</Badge>
-            </Link>
-            <Link
-              href="/government-official/removal-requests"
-              className="h-auto p-4 flex flex-col items-center gap-2 bg-white border border-gray-300 text-gray-800 hover:bg-gray-100 hover:text-black transition-colors rounded-lg"
-            >
-              <UserMinus className="w-6 h-6" />
-              <span>Handle Removals</span>
-              <Badge variant="outline" className="border-gray-800 text-gray-800">
-                3 Pending
-              </Badge>
-            </Link>
-            <Link
-              href="/government-official/households"
-              className="h-auto p-4 flex flex-col items-center gap-2 bg-white border border-gray-300 text-gray-800 hover:bg-gray-100 hover:text-black transition-colors rounded-lg"
-            >
-              <Users className="w-6 h-6" />
-              <span>Manage Households</span>
-            </Link>
-            <Link
-              href="/government-official/add-members"
-              className="h-auto p-4 flex flex-col items-center gap-2 bg-white border border-gray-300 text-gray-800 hover:bg-gray-100 hover:text-black transition-colors rounded-lg relative"
-            >
-              <UserPlus className="w-6 h-6" />
-              <span>Add New Member</span>
-              <Badge variant="outline" className="border-gray-800 text-gray-800">
-                3 Pending
-              </Badge>
-            </Link>
-            <Link
-              href="/government-official/update-members"
-              className="h-auto p-4 flex flex-col items-center gap-2 bg-white border border-gray-300 text-gray-800 hover:bg-gray-100 hover:text-black transition-colors rounded-lg relative"
-            >
-              <UserCog className="w-6 h-6" />
-              <span>Update Member</span>
-              <Badge variant="outline" className="border-gray-800 text-gray-800">
-                3 Pending
-              </Badge>
-            </Link>
+    <div className="min-h-screen bg-gray-50 py-8 px-4 md:px-6 lg:px-8">
+      {" "}
+      {/* Added gray background */}
+      <div className="container mx-auto">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard Overview</h1> {/* Changed to gray-900 */}
+          <p className="text-gray-600 mt-2">Monitor and manage voter registrations in your division</p>{" "}
+          {/* Changed to gray-600 */}
+        </div>
+
+        {/* Error Display */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-600 text-sm">
+              Warning: Could not fetch some pending counts. Showing available data.
+            </p>
           </div>
-        </CardContent>
-      </Card>
-      {/* Removed Recent Activity section */}
+        )}
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
+          {stats.map((stat, index) => (
+            <Card key={index} className="bg-white text-gray-900 shadow-md border border-gray-200">
+              {" "}
+              {/* Changed to bg-white, text-gray-900, border-gray-200, shadow-md */}
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-gray-600">{stat.title}</CardTitle>{" "}
+                {/* Changed to gray-600 */}
+                <stat.icon className="h-5 w-5 text-gray-500" /> {/* Changed to gray-500 */}
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{stat.value}</div>
+                <p className="text-xs text-gray-500 mt-1">{stat.description}</p> {/* Changed to gray-500 */}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Quick Actions */}
+        <Card className="bg-white text-gray-900 shadow-md border border-gray-200">
+          {" "}
+          {/* Changed to bg-white, text-gray-900, border-gray-200, shadow-md */}
+          <CardHeader>
+            <CardTitle className="text-xl font-semibold">Quick Actions</CardTitle>
+            <CardDescription className="text-gray-600">Common tasks and shortcuts</CardDescription>{" "}
+            {/* Changed to gray-600 */}
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <Link
+                href="/government-official/registrations"
+                className="group flex flex-col items-center justify-center p-6 rounded-lg border border-gray-200 bg-white text-gray-900 hover:bg-gray-50 transition-colors duration-200 ease-in-out" // Changed bg-white, text-gray-900, border-gray-200, hover:bg-gray-50
+              >
+                <UserCheck className="w-8 h-8 mb-2 text-primary group-hover:text-primary-foreground" />
+                <span className="font-medium text-lg text-center">Review Registrations</span>
+                {loading ? (
+                  <div className="mt-2 flex items-center">
+                    <Loader2 className="w-3 h-3 animate-spin mr-1 text-gray-500" /> {/* Changed to gray-500 */}
+                    <span className="text-xs text-gray-500">Loading...</span> {/* Changed to gray-500 */}
+                  </div>
+                ) : counts.pendingReviewRegistrations > 0 ? (
+                  <Badge className="mt-2 bg-primary text-primary-foreground hover:bg-primary/90">
+                    {counts.pendingReviewRegistrations} Pending
+                  </Badge>
+                ) : null}
+              </Link>
+              <Link
+                href="/government-official/removal-requests"
+                className="group flex flex-col items-center justify-center p-6 rounded-lg border border-gray-200 bg-white text-gray-900 hover:bg-gray-50 transition-colors duration-200 ease-in-out" // Changed bg-white, text-gray-900, border-gray-200, hover:bg-gray-50
+              >
+                <UserMinus className="w-8 h-8 mb-2 text-primary group-hover:text-primary-foreground" />
+                <span className="font-medium text-lg text-center">Handle Removals</span>
+                {loading ? (
+                  <div className="mt-2 flex items-center">
+                    <Loader2 className="w-3 h-3 animate-spin mr-1 text-gray-500" /> {/* Changed to gray-500 */}
+                    <span className="text-xs text-gray-500">Loading...</span> {/* Changed to gray-500 */}
+                  </div>
+                ) : counts.pendingRemovalRequests > 0 ? (
+                  <Badge className="mt-2 bg-primary text-primary-foreground hover:bg-primary/90">
+                    {counts.pendingRemovalRequests} Pending
+                  </Badge>
+                ) : null}
+              </Link>
+              <Link
+                href="/government-official/add-members"
+                className="group flex flex-col items-center justify-center p-6 rounded-lg border border-gray-200 bg-white text-gray-900 hover:bg-gray-50 transition-colors duration-200 ease-in-out" // Changed bg-white, text-gray-900, border-gray-200, hover:bg-gray-50
+              >
+                <UserPlus className="w-8 h-8 mb-2 text-primary group-hover:text-primary-foreground" />
+                <span className="font-medium text-lg text-center">Add New Member</span>
+                {loading ? (
+                  <div className="mt-2 flex items-center">
+                    <Loader2 className="w-3 h-3 animate-spin mr-1 text-gray-500" /> {/* Changed to gray-500 */}
+                    <span className="text-xs text-gray-500">Loading...</span> {/* Changed to gray-500 */}
+                  </div>
+                ) : counts.pendingAddMemberRequests > 0 ? (
+                  <Badge className="mt-2 bg-primary text-primary-foreground hover:bg-primary/90">
+                    {counts.pendingAddMemberRequests} Pending
+                  </Badge>
+                ) : null}
+              </Link>
+              <Link
+                href="/government-official/update-members"
+                className="group flex flex-col items-center justify-center p-6 rounded-lg border border-gray-200 bg-white text-gray-900 hover:bg-gray-50 transition-colors duration-200 ease-in-out" // Changed bg-white, text-gray-900, border-gray-200, hover:bg-gray-50
+              >
+                <UserCog className="w-8 h-8 mb-2 text-primary group-hover:text-primary-foreground" />
+                <span className="font-medium text-lg text-center">Update Member</span>
+                {loading ? (
+                  <div className="mt-2 flex items-center">
+                    <Loader2 className="w-3 h-3 animate-spin mr-1 text-gray-500" /> {/* Changed to gray-500 */}
+                    <span className="text-xs text-gray-500">Loading...</span> {/* Changed to gray-500 */}
+                  </div>
+                ) : counts.pendingUpdateMemberRequests > 0 ? (
+                  <Badge className="mt-2 bg-primary text-primary-foreground hover:bg-primary/90">
+                    {counts.pendingUpdateMemberRequests} Pending
+                  </Badge>
+                ) : null}
+              </Link>
+              <Link
+                href="/government-official/households"
+                className="group flex flex-col items-center justify-center p-6 rounded-lg border border-gray-200 bg-white text-gray-900 hover:bg-gray-50 transition-colors duration-200 ease-in-out" // Changed bg-white, text-gray-900, border-gray-200, hover:bg-gray-50
+              >
+                <Users className="w-8 h-8 mb-2 text-primary group-hover:text-primary-foreground" />
+                <span className="font-medium text-lg text-center">Manage Households</span>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
