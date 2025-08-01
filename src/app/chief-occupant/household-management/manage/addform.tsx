@@ -39,7 +39,7 @@ export function AddHouseholdMemberForm({ onSuccess }: AddHouseholdMemberFormProp
   const [chiefOccupantId, setChiefOccupantId] = useState<string | null>(null)
   const [authError, setAuthError] = useState<string | null>(null)
   const router = useRouter()
-   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080"
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080"
 
   // File upload refs and states for NIC
   const nicFileInputRef = useRef<HTMLInputElement>(null)

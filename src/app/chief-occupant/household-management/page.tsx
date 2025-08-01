@@ -12,6 +12,8 @@ import { AddHouseholdMemberForm } from "./manage/addform"
 import { UpdateHouseholdMemberForm } from "./manage/updateform"
 import { DeleteHouseholdMemberDialog } from "./manage/removeform"
 import axios from "axios";
+import { getUserId, isAuthenticated } from "@/src/lib/cookies"
+import router from "next/router"
 
 interface HouseholdMember {
   memberId: string
@@ -115,12 +117,14 @@ export default function HouseholdManagementPage() {
         setLoading(true);
         setError(null);
         
-        const chiefOccupantId = localStorage.getItem("userId");
-        const token = localStorage.getItem("token");
+    const chiefOccupantId = getUserId();
 
-        if (!chiefOccupantId || !token) {
-          throw new Error("Authentication required");
-        }
+    if (!isAuthenticated()) {
+    setError("Not authenticated. Please log in.")
+    router.push("/login")
+    return
+    }
+
        
         const res = await axios.get(
           `http://localhost:8080/household-management/api/v1/household/${chiefOccupantId}/members`,
@@ -179,10 +183,7 @@ export default function HouseholdManagementPage() {
   }, [])
 
   const refreshData = async () => {
-    const chiefOccupantId = localStorage.getItem("userId");
-    const token = localStorage.getItem("token");
-
-    if (!chiefOccupantId || !token) return;
+    const chiefOccupantId = getUserId();
 
     try {
       const res = await axios.get(
