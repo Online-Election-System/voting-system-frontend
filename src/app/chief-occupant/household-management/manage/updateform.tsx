@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
 import { useFileUpload } from "@/src/app/register/hooks/use-file-upload-hook"
 import { Check, X, Upload, FileText } from "lucide-react"
 import { v4 as uuidv4 } from 'uuid'
@@ -18,6 +17,9 @@ export interface HouseholdMember {
   memberId: string
   memberName: string
   nic: string
+  phoneNumber?: string
+  email?: string
+  civilStatus?: string
   relationship: string
 }
 
@@ -25,33 +27,48 @@ export interface ChiefOccupant {
   memberId: string
   fullName: string
   nic: string
+  phoneNumber?: string
+  email?: string
+  civilStatus?: string
 }
 
+// Add interface for pending add requests
+interface PendingAddRequest {
+  id: string
+  nic: string
+  requestStatus: string
+  memberName?: string
+}
+
+// Updated interface to match backend requirements
 interface UpdateRequestData {
   updateRequestId: string
-  chiefOccupantId: string  // The chief occupant making the request
-  householdMemberId: string  // Use special value for chief occupant updates
-  newFullName: string
-  requestStatus: string
+  chiefOccupantId: string
+  householdMemberId: string | null
+  newFullName?: string
+  newCivilStatus?: string
   relevantCertificatePath: string
-  newResidentArea: string | null
+  reason: null
 }
 
+// Updated interface to include pendingAddRequests
 interface UpdateHouseholdMemberFormProps {
   householdMembers?: HouseholdMember[]
   chiefOccupant?: ChiefOccupant
+  pendingAddRequests?: PendingAddRequest[]
   onSuccess?: () => void
 }
 
 export function UpdateHouseholdMemberForm({ 
   householdMembers = [], 
-  chiefOccupant, 
+  chiefOccupant,
+  pendingAddRequests = [],
   onSuccess 
 }: UpdateHouseholdMemberFormProps) {
   // State variables
   const [selectedMember, setSelectedMember] = useState<string>("")
   const [newName, setNewName] = useState<string>("")
-  const [newResidentArea, setNewResidentArea] = useState<string>("")
+  const [newCivilStatus, setNewCivilStatus] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
   const [documentUrl, setDocumentUrl] = useState<string | null>(null)
@@ -75,78 +92,15 @@ export function UpdateHouseholdMemberForm({
     cleanupOnUnmount: false,
   })
 
-  // Combined members array - include both chief occupant and household members (memoized)
-  const allMembers = useMemo(() => [
-    ...(chiefOccupant ? [{
-      id: chiefOccupant.memberId,
-      nic: chiefOccupant.nic,
-      name: chiefOccupant.fullName,
-      relationship: "Chief Occupant",
-      isChiefOccupant: true
-    }] : []),
-    ...householdMembers.map(member => ({
-      id: member.memberId,
-      nic: member.nic,
-      name: member.memberName,
-      relationship: member.relationship,
-      isChiefOccupant: false
-    }))
-  ], [chiefOccupant, householdMembers])
-
-  // Effect to set name when member is selected
-  useEffect(() => {
-    if (selectedMember) {
-      const member = allMembers.find(m => m.id === selectedMember)
-      if (member) {
-        setNewName(member.name)
+  // Remove document handler
+  const removeDocument = async () => {
+    if (documentUrl) {
+      await cleanupSpecificFile(documentUrl)
+      setDocumentUrl(null)
+      resetUploadState()
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
       }
-    } else {
-      setNewName("")
-      setNewResidentArea("")
-    }
-  }, [selectedMember, allMembers])
-
-  // Document upload handler
-  const handleDocumentUpload = async (file: File) => {
-    // Check authentication before upload
-    if (!isAuthenticated()) {
-      setError("Authentication required. Please log in.")
-      router.push("/login")
-      return null
-    }
-
-    if (!selectedMember) {
-      alert('Please select a household member first')
-      return null
-    }
-
-    const member = allMembers.find(m => m.id === selectedMember)
-    if (!member) return null
-
-    // Use the member's NIC as the nicNumber parameter
-    const nicNumber = member.nic || member.id // fallback to ID if NIC is not available
-    
-    console.log('Uploading file for member:', member.name, 'NIC:', nicNumber)
-    
-    try {
-      // Use the new uploadFileToFolder method
-      const uploadedUrl = await uploadFileToFolder(
-        file, 
-        'UpdateRequestDocs', // folder path
-        nicNumber,
-        documentUrl ?? undefined, // current file URL (for replacement) - convert null to undefined
-        false // don't delete previous automatically
-      )
-      
-      if (uploadedUrl) {
-        console.log('File uploaded successfully to UpdateRequestDocs folder:', uploadedUrl)
-        setDocumentUrl(uploadedUrl)
-      }
-      return uploadedUrl
-    } catch (error) {
-      console.error('File upload failed:', error)
-      alert('File upload failed. Please try again.')
-      return null
     }
   }
 
@@ -178,17 +132,91 @@ export function UpdateHouseholdMemberForm({
     }
   }
 
-  // Remove document handler
-  const removeDocument = async () => {
-    if (documentUrl) {
-      await cleanupSpecificFile(documentUrl)
-      setDocumentUrl(null)
-      resetUploadState()
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ""
+  // Document upload handler
+  const handleDocumentUpload = async (file: File) => {
+    if (!selectedMember) {
+      alert('Please select a household member first')
+      return null
+    }
+
+    const member = allMembers.find(m => m.id === selectedMember)
+    if (!member) return null
+
+    try {
+      const uploadedUrl = await uploadFileToFolder(
+        file, 
+        'UpdateRequestDocs',
+        member.nic || member.id,
+        documentUrl ?? undefined,
+        false
+      )
+      
+      if (uploadedUrl) {
+        setDocumentUrl(uploadedUrl)
       }
+      return uploadedUrl
+    } catch (error) {
+      console.error('File upload failed:', error)
+      alert('File upload failed. Please try again.')
+      return null
     }
   }
+
+  // Combined members array with filtering for pending add requests
+  const allMembers = useMemo(() => {
+    // Get NICs of pending add requests to filter them out
+    const pendingNICs = new Set(
+      pendingAddRequests
+        .filter(req => req.requestStatus === 'PENDING')
+        .map(req => req.nic)
+    )
+
+    console.log('Pending NICs to exclude:', Array.from(pendingNICs))
+
+    // Filter household members to exclude those with pending add requests
+    const filteredHouseholdMembers = householdMembers.filter(member => {
+      const shouldExclude = pendingNICs.has(member.nic)
+      if (shouldExclude) {
+        console.log(`Excluding member ${member.memberName} (${member.nic}) - has pending add request`)
+      }
+      return !shouldExclude
+    })
+
+    console.log(`Filtered household members: ${filteredHouseholdMembers.length} out of ${householdMembers.length}`)
+
+    return [
+      ...(chiefOccupant ? [{
+        id: chiefOccupant.memberId,
+        nic: chiefOccupant.nic,
+        name: chiefOccupant.fullName,
+        civilStatus: chiefOccupant.civilStatus,
+        relationship: "Chief Occupant",
+        isChiefOccupant: true
+      }] : []),
+      ...filteredHouseholdMembers.map(member => ({
+        id: member.memberId,
+        nic: member.nic,
+        name: member.memberName,
+        civilStatus: member.civilStatus,
+        relationship: member.relationship,
+        isChiefOccupant: false
+      }))
+    ]
+  }, [chiefOccupant, householdMembers, pendingAddRequests])
+
+  // Effect to set fields when member is selected
+  useEffect(() => {
+    if (selectedMember) {
+      const member = allMembers.find(m => m.id === selectedMember)
+      if (member) {
+        setNewName(member.name)
+        setNewCivilStatus(member.civilStatus || "")
+      }
+    } else {
+      setNewName("")
+      setNewCivilStatus("")
+    }
+  }, [selectedMember, allMembers])
 
   // Form submit handler
   const handleSubmit = async (e: React.FormEvent) => {
@@ -218,32 +246,32 @@ export function UpdateHouseholdMemberForm({
 
     try {
       const member = allMembers.find(m => m.id === selectedMember)
-      if (!member) {
-        throw new Error('Selected member not found')
-      }
+      if (!member) throw new Error('Selected member not found')
 
-      // Check if selected member is the chief occupant
-      const selectedMemberData = allMembers.find(m => m.id === selectedMember);
-      const isChiefOccupant = selectedMemberData?.isChiefOccupant || false;
+      const isChiefOccupant = member.isChiefOccupant
       
-      // Create request data with proper logic:
-      // - If updating household member: householdMemberId = member ID
-      // - If updating chief occupant: householdMemberId = special sentinel value
+      // Prepare request data - matching backend interface exactly
       const requestData: UpdateRequestData = {
         updateRequestId: uuidv4(),
-        chiefOccupantId: chiefOccupant?.memberId || "", // Always the chief occupant making the request
-        householdMemberId: isChiefOccupant ? "CHIEF_OCCUPANT_UPDATE" : selectedMember, // Special value for chief occupant updates
-        newFullName: newName || member.name,
-        newResidentArea: newResidentArea.trim() || null,
-        requestStatus: 'PENDING',
-        relevantCertificatePath: documentUrl
+        chiefOccupantId: chiefOccupant?.memberId || "",
+        householdMemberId: isChiefOccupant ? null : selectedMember, // null for chief occupant
+        relevantCertificatePath: documentUrl,
+        reason: null // Always null as per backend
       }
 
-      console.log('Submitting request data:', requestData)
-      console.log('Selected member type:', isChiefOccupant ? 'Chief Occupant' : 'Household Member')
-      console.log('Selected member ID:', selectedMember)
-      console.log('Chief occupant ID (requester):', chiefOccupant?.memberId)
-      console.log('Household member ID (target):', isChiefOccupant ? 'CHIEF_OCCUPANT_UPDATE (updating chief occupant)' : selectedMember)
+      // Only include fields that are being changed
+      if (newName && newName !== member.name) {
+        requestData.newFullName = newName
+      }
+      
+      if (newCivilStatus && newCivilStatus !== member.civilStatus) {
+        requestData.newCivilStatus = newCivilStatus
+      }
+
+      // Validate at least one field is being updated
+      if (!requestData.newFullName && !requestData.newCivilStatus) {
+        throw new Error('At least one field must be updated')
+      }
 
       const response = await fetch(`${API_BASE_URL}/household-management/api/v1/update-member`, {
         method: 'POST',
@@ -266,21 +294,18 @@ export function UpdateHouseholdMemberForm({
         throw new Error(errorData.message || 'Failed to submit update request')
       }
 
-      const result = await response.json()
-      alert(`Update request submitted successfully! Request ID: ${result.requestId}`)
-
-      // Reset form
+      // Reset form on success
       setSelectedMember('')
       setNewName('')
-      setNewResidentArea('')
+      setNewCivilStatus('')
       setDocumentUrl(null)
       resetUploadState()
       if (fileInputRef.current) fileInputRef.current.value = ''
 
+      alert('Update request submitted successfully!')
       if (onSuccess) onSuccess()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit update request')
-      console.error("Update error:", err)
     } finally {
       setLoading(false)
     }
@@ -364,8 +389,12 @@ export function UpdateHouseholdMemberForm({
       <CardHeader>
         <CardTitle>Update Household Member</CardTitle>
         <CardDescription>
-          Select a member to update their details and upload relevant supporting documents.
-          Documents will be stored in the verification/UpdateRequestDocs folder.
+          Select a member to update their name and civil status.
+          {allMembers.length === 0 && (
+            <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-yellow-800 text-sm">
+              No household members available for update. All members may have pending add requests.
+            </div>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -376,9 +405,16 @@ export function UpdateHouseholdMemberForm({
               value={selectedMember} 
               onValueChange={setSelectedMember} 
               required
+              disabled={allMembers.length === 0}
             >
               <SelectTrigger id="select-member">
-                <SelectValue placeholder="Select a household member" />
+                <SelectValue 
+                  placeholder={
+                    allMembers.length === 0 
+                      ? "No members available" 
+                      : "Select a household member"
+                  } 
+                />
               </SelectTrigger>
               <SelectContent>
                 {allMembers.map((member) => (
@@ -403,13 +439,21 @@ export function UpdateHouseholdMemberForm({
               </div>
               
               <div className="grid gap-2">
-                <Label htmlFor="new-address">New Resident Area</Label>
-                <Textarea
-                  id="new-address"
-                  placeholder="(Optional) Enter new resident area if changed"
-                  value={newResidentArea}
-                  onChange={(e) => setNewResidentArea(e.target.value)}
-                />
+                <Label htmlFor="civil-status">Civil Status</Label>
+                <Select
+                  value={newCivilStatus}
+                  onValueChange={setNewCivilStatus}
+                >
+                  <SelectTrigger id="civil-status">
+                    <SelectValue placeholder="Select civil status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Single">Single</SelectItem>
+                    <SelectItem value="Married">Married</SelectItem>
+                    <SelectItem value="Divorced">Divorced</SelectItem>
+                    <SelectItem value="Widowed">Widowed</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               
               <div className="grid gap-2">
@@ -463,9 +507,6 @@ export function UpdateHouseholdMemberForm({
                 {uploadError && (
                   <p className="text-sm text-red-500">{uploadError}</p>
                 )}
-                <p className="text-xs text-muted-foreground mt-1">
-                  Documents will be stored in: verification/UpdateRequestDocs
-                </p>
               </div>
 
               {error && (

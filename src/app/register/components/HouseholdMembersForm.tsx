@@ -394,34 +394,37 @@ export function HouseholdMembersForm({
             />
           </div>
           <div className="space-y-2">
-            <Label>Date of Birth</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant={"outline"}
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !householdMembers[index]?.dob && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {householdMembers[index]?.dob ? (
-                    format(householdMembers[index].dob, "PPP")
-                  ) : (
-                    <span>Pick a date</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={householdMembers[index]?.dob}
-                  onSelect={(date) => onChange(index, "dob", date)}
-                  initialFocus
+              <Label>Date of Birth *</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !householdMembers[index].dob && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {householdMembers[index].dob? format(householdMembers[index].dob, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={householdMembers[index].dob}
+                    onSelect={(date) => onChange(index, "dob", date)}
+                    initialFocus
+                    disabled={{ 
+                    after: new Date(), 
+                    before: new Date(new Date().setFullYear(new Date().getFullYear() - 120)) 
+                  }}
+                  captionLayout="dropdown"
+                  fromYear={1900}
+                  toYear={new Date().getFullYear()}
                 />
               </PopoverContent>
             </Popover>
-          </div>
+          </div>         
           <div className="space-y-2">
             <Label>Gender</Label>
             <RadioGroup

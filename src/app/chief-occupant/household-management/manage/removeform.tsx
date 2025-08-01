@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import { useFileUpload } from "@/src/app/register/hooks/use-file-upload-hook"
 import { Check, X, Upload, FileText, Trash2 } from "lucide-react"
 import { v4 as uuidv4 } from 'uuid'
@@ -46,12 +47,14 @@ export function DeleteHouseholdMemberDialog({
   onSuccess 
 }: DeleteHouseholdMemberDialogProps) {
   const [selectedMember, setSelectedMember] = useState<string>("")
+  const [reason, setReason] = useState<string>("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [documentUrl, setDocumentUrl] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080"
 
   // Combined members array
   const allMembers = useMemo(() => [
@@ -252,6 +255,12 @@ export function DeleteHouseholdMemberDialog({
       return
     }
 
+    if (!reason.trim()) {
+      setError('Please provide a reason for deletion')
+      setLoading(false)
+      return
+    }
+
     if (!documentUrl) {
       setError('Please upload a supporting document')
       setLoading(false)
@@ -274,7 +283,9 @@ export function DeleteHouseholdMemberDialog({
         chiefOccupantId: chiefOccupant.memberId,
         householdMemberId: selectedMember,
         requestStatus: 'PENDING',
-        requiredDocumentPath: documentUrl
+        requiredDocumentPath: documentUrl,
+        reason: reason.trim(),
+        rejectionReason: null
       }
 
       const response = await fetch(`${API_BASE_URL}/household-management/api/v1/delete-member`, {
@@ -303,6 +314,7 @@ export function DeleteHouseholdMemberDialog({
 
       // Reset form
       setSelectedMember('')
+      setReason('')
       setDocumentUrl(null)
       resetUploadState()
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -328,7 +340,7 @@ export function DeleteHouseholdMemberDialog({
         <DialogHeader>
           <DialogTitle>Delete Household Member</DialogTitle>
           <DialogDescription>
-            Select a member to delete and upload relevant supporting documents.
+            Select a member to delete, provide a reason, and upload relevant supporting documents.
           </DialogDescription>
         </DialogHeader>
         
@@ -351,6 +363,21 @@ export function DeleteHouseholdMemberDialog({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="reason">Reason for Deletion *</Label>
+            <Textarea
+              id="reason"
+              placeholder="Please provide a detailed reason for removing this member from the household..."
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="min-h-[80px]"
+              required
+            />
+            <p className="text-xs text-gray-500">
+              Provide a clear explanation for why this member should be removed from the household.
+            </p>
           </div>
 
           {selectedMember && (
@@ -412,7 +439,7 @@ export function DeleteHouseholdMemberDialog({
             type="button" 
             variant="destructive"
             onClick={handleDelete}
-            disabled={!selectedMember || !documentUrl || loading || uploading}
+            disabled={!selectedMember || !reason.trim() || !documentUrl || loading || uploading}
           >
             {loading ? "Submitting..." : "Confirm Delete"}
           </Button>

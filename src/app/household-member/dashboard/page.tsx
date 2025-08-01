@@ -21,40 +21,14 @@ export default function HouseholdMemberDashboard() {
         return
       }
 
+      // Get user role
       const role = getUserType()
-      console.log("User role from cookies:", role)
-      
-      if (!role) {
-        console.log("No user role found, redirecting to login")
-        setError("Session expired. Redirecting to login...")
-        setTimeout(() => router.push("/login"), 1500)
-        return
-      }
-
-      // Optional: Check if user has the right role for this dashboard
-      if (role !== "household_member" && role !== "householdMember") {
-        console.log("User role mismatch, redirecting to appropriate dashboard")
-        setError("Access denied. Redirecting...")
-        setTimeout(() => {
-          // Redirect to appropriate dashboard based on role
-          const roleToPath: Record<string, string> = {
-            admin: "/admin/dashboard",
-            government_official: "/government-official/dashboard",
-            election_commission: "/election-commission/dashboard",
-            chief_occupant: "/chief-occupant/dashboard",
-            polling_station: "/polling-station",
-          }
-          router.push(roleToPath[role] ?? "/dashboard")
-        }, 1500)
-        return
-      }
-
       setUserRole(role)
       setLoading(false)
     }
   }, [router])
 
-  // Show loading state while checking authentication
+  // Show loading state
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col">
