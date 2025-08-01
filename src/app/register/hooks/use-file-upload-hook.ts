@@ -271,6 +271,130 @@ export function useFileUpload(options: UseFileUploadOptions) {
     return success;
   };
 
+  const uploadFileToFolder = async (
+    file: File, 
+    folderPath: string, 
+    nicNumber: string, 
+    currentFileUrl?: string, 
+    shouldDeletePrevious: boolean = false
+  ): Promise<string | null> => {
+    // Reset state
+    setUploadState({
+      uploading: true,
+      progress: 0,
+      error: null,
+      url: null,
+    });
+
+    try {
+      // Validate NIC number
+      if (!nicNumber || nicNumber.trim() === '') {
+        setUploadState(prev => ({
+          ...prev,
+          uploading: false,
+          error: 'NIC number is required before uploading files',
+        }));
+        return null;
+      }
+
+      // Validate file
+      const validationError = validateFile(file);
+      if (validationError) {
+        setUploadState(prev => ({
+          ...prev,
+          uploading: false,
+          error: validationError,
+        }));
+        return null;
+      }
+
+      // Generate filename for the specific folder
+      const timestamp = Date.now();
+      const currentDate = new Date().toISOString().split('T')[0].replace(/-/g, '');
+      
+      let fileExtension = 'jpg';
+      if (file.type === 'application/pdf') {
+        fileExtension = 'pdf';
+      } else if (file.type.includes('png')) {
+        fileExtension = 'png';
+      } else if (file.type.includes('webp')) {
+        fileExtension = 'webp';
+      } else if (file.type.includes('jpeg') || file.type.includes('jpg')) {
+        fileExtension = 'jpg';
+      }
+      
+      const cleanNicNumber = nicNumber.replace(/[^a-zA-Z0-9]/g, '');
+      const fileName = `update-${cleanNicNumber}-${currentDate}-${timestamp}.${fileExtension}`;
+      
+      // Combine folder path with filename
+      const fullPath = `${folderPath}/${fileName}`;
+      
+      console.log('Uploading file to path:', fullPath, 'in bucket:', bucket);
+
+      // Delete previous file if requested
+      if (currentFileUrl && shouldDeletePrevious) {
+        try {
+          const urlParts = currentFileUrl.split('/');
+          const filePath = urlParts.slice(-2).join('/'); // Get folder/filename
+          await deleteFile(filePath);
+          uploadedFilesRef.current.delete(filePath);
+          console.log('Previous file deleted:', filePath);
+        } catch (deleteError) {
+          console.warn('Failed to delete previous file:', deleteError);
+        }
+      }
+
+      // Upload file to Supabase Storage
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .upload(fullPath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) {
+        console.error('Upload error:', error);
+        throw new Error(`Upload failed: ${error.message}`);
+      }
+
+      if (!data?.path) {
+        throw new Error('Upload succeeded but no file path returned');
+      }
+
+      // Track the uploaded file for potential cleanup
+      uploadedFilesRef.current.add(data.path);
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(data.path);
+
+      if (!urlData?.publicUrl) {
+        throw new Error('Failed to get public URL for uploaded file');
+      }
+
+      console.log('Upload successful:', urlData.publicUrl);
+
+      setUploadState({
+        uploading: false,
+        progress: 100,
+        error: null,
+        url: urlData.publicUrl,
+      });
+
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error('Upload error details:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+      setUploadState({
+        uploading: false,
+        progress: 0,
+        error: errorMessage,
+        url: null,
+      });
+      return null;
+    }
+  };
   return {
     uploadFile,
     deleteFile,
@@ -279,6 +403,7 @@ export function useFileUpload(options: UseFileUploadOptions) {
     markAsSubmitted,
     cleanupCurrentFiles,
     cleanupSpecificFile,
+    uploadFileToFolder,
     ...uploadState,
   };
 }

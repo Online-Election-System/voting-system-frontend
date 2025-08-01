@@ -1,9 +1,15 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import RoleGuard from "@/components/auth/RoleGuard";
+import { describe } from "node:test";
 
 jest.mock("@/lib/hooks/use-toast", () => ({
   useToast: () => ({ toast: jest.fn() }),
+}));
+
+// Mock cookie util
+jest.mock("../lib/cookies", () => ({
+  getUserType: jest.fn(),
 }));
 
 jest.mock("@/components/auth/Unauthorized", () => {
@@ -12,34 +18,36 @@ jest.mock("@/components/auth/Unauthorized", () => {
   };
 });
 
+import { getUserType } from "../lib/cookies";
+
 const roles = [
   ["admin", "/admin/dashboard"],
-  ["governmentOfficial", "/government-official/dashboard"],
-  ["electionCommission", "/election-commission/dashboard"],
+  ["government_official", "/government-official/dashboard"],
+  ["election_commission", "/election-commission/dashboard"],
 ] as const;
 
 describe("RoleGuard component", () => {
   it.each(roles)("allows %s role", (role) => {
-    (window.localStorage.getItem as jest.Mock).mockReturnValue(role);
-    
+    (getUserType as jest.Mock).mockReturnValue(role);
+
     render(
       <RoleGuard requiredRole={role}>
         <div>Allowed</div>
       </RoleGuard>
     );
-    
+
     expect(screen.getByText("Allowed")).toBeInTheDocument();
   });
 
   it.each(roles)("blocks other roles for %s", (role) => {
-    (window.localStorage.getItem as jest.Mock).mockReturnValue("someOtherRole");
-    
+    (getUserType as jest.Mock).mockReturnValue("someOtherRole");
+
     render(
       <RoleGuard requiredRole={role}>
         <div>ShouldNotSee</div>
       </RoleGuard>
     );
-    
+
     expect(screen.getByText("Unauthorized")).toBeInTheDocument();
   });
 });

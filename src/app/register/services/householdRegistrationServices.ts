@@ -1,5 +1,6 @@
 import { ChiefOccupant, HouseholdDetails, MemberInfo } from "../types";
 import api from "../../../lib/axios";
+import { PhoneOutgoing } from "lucide-react";
 
 export const submitHouseholdRegistration = async (
   chiefOccupant: ChiefOccupant,
@@ -24,7 +25,8 @@ export const submitHouseholdRegistration = async (
       civilStatus: chiefOccupant.civilStatus,
       email: chiefOccupant.email,
       passwordHash: password,
-      idCopyPath: chiefOccupant.idCopyPath
+      idCopyPath: chiefOccupant.idCopyPath,
+      photoCopyPath:chiefOccupant.photoCopyPath
     },
     householdDetails: {
       electoralDistrict: householdDetails.electoralDistrict,
@@ -44,7 +46,8 @@ export const submitHouseholdRegistration = async (
         civilStatus: member.civilStatus,
         relationshipWithChiefOccupant: member.relationshipWithChiefOccupant,
         approvedByChief: member.approvedByChief,
-        idCopyPath: member.idCopyPath
+        idCopyPath: member.idCopyPath,
+        photoCopyPath:member.photoCopyPath
       })),
     },
   };

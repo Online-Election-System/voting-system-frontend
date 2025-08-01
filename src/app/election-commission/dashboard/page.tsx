@@ -449,16 +449,6 @@ export default function AdminDashboard() {
                       <p className="text-sm text-muted-foreground">Recently</p>
                     </div>
                   )}
-
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="font-medium">System Status</p>
-                      <p className="text-sm text-muted-foreground">
-                        All systems operational
-                      </p>
-                    </div>
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  </div>
                 </>
               )}
             </div>

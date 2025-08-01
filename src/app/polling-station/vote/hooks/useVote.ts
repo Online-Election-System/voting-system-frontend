@@ -1,143 +1,132 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useCallback } from "react"
-import type { VoterProfile, ValidationStatus, VoteCastRequest } from "@/src/app/vote/types/voter"
+import { useState, useEffect, useCallback } from "react";
+import type {
+  VoterProfile,
+  ValidationStatus,
+  VoteCastRequest,
+} from "@/src/app/polling-station/vote/types/voter";
 
 // API Configuration - All services on port 8080
-const API_BASE_URL = 'http://localhost:8080'
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
 
-console.log('=== ENROLLMENT ENHANCED useVote.ts LOADED ===')
+console.log("=== FIXED useVote.ts LOADED (NO SESSION CHANGES) ===");
 
-// ========== VOTER VALIDATION HOOK ==========
+// ========== VOTER VALIDATION HOOK (FIXED) ==========
 export function useVoterValidation() {
-  const [validationStatus, setValidationStatus] = useState<ValidationStatus>("idle")
-  const [voterProfile, setVoterProfile] = useState<VoterProfile | null>(null)
-  const [isValidating, setIsValidating] = useState(false)
+  const [validationStatus, setValidationStatus] =
+    useState<ValidationStatus>("idle");
+  const [voterProfile, setVoterProfile] = useState<VoterProfile | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
 
   const validateVoter = async (nic: string, password: string) => {
-    console.log('=== STARTING VOTER VALIDATION WITH ENROLLMENT ===')
-    setIsValidating(true)
-    setValidationStatus("checking")
-    setVoterProfile(null)
+    console.log("=== STARTING VOTER VALIDATION (NO SESSION CHANGE) ===");
+    setIsValidating(true);
+    setValidationStatus("checking");
+    setVoterProfile(null);
 
     try {
-      const loginPayload = {
-        nic: nic.trim(),
-        password: password.trim()
+      const validationPayload = {
+        nationalId: nic.trim(),
+        password: password.trim(),
       };
-      
-      console.log('Login request:', JSON.stringify(loginPayload, null, 2))
-      
-      // Step 1: Login to get basic user info
-      const response = await fetch(`${API_BASE_URL}/voter-registration/api/v1/login`, {
-        method: "POST",
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(loginPayload),
-      })
 
-      console.log('Login response status:', response.status)
+      console.log(
+        "Validation request:",
+        JSON.stringify(validationPayload, null, 2)
+      );
+
+      // 🔥 FIXED: Use validation endpoint instead of login endpoint
+      const response = await fetch(
+        `${API_BASE_URL}/vote/api/v1/voter/validate`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include", // Uses polling station officer's session
+          body: JSON.stringify(validationPayload),
+        }
+      );
+
+      console.log("Validation response status:", response.status);
 
       if (!response.ok) {
         if (response.status === 401 || response.status === 400) {
-          setValidationStatus("not-found")
-          return
+          console.log("Voter validation failed - invalid credentials");
+          setValidationStatus("not-found");
+          return;
         }
-        throw new Error(`HTTP ${response.status}`)
+        throw new Error(`HTTP ${response.status}`);
       }
 
-      const loginData = await response.json()
-      console.log('=== LOGIN SUCCESS ===')
-      console.log('Login data:', JSON.stringify(loginData, null, 2))
+      const validationData = await response.json();
+      console.log("=== VALIDATION SUCCESS (NO SESSION CHANGE) ===");
+      console.log("Validation data:", JSON.stringify(validationData, null, 2));
 
-      // Step 2: Get complete voter profile with household details (CRITICAL for district)
-      console.log('=== FETCHING COMPLETE PROFILE WITH HOUSEHOLD DETAILS ===')
-      const profileResponse = await fetch(`${API_BASE_URL}/voter-registration/api/v1/profile/${loginData.userId}`, {
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      let completeProfileData = loginData;
-      if (profileResponse.ok) {
-        const profileData = await profileResponse.json();
-        console.log('=== COMPLETE PROFILE WITH HOUSEHOLD DETAILS ===')
-        console.log('Profile data:', JSON.stringify(profileData, null, 2))
-        
-        // Merge login data with complete profile data
-        completeProfileData = { ...loginData, ...profileData };
-      } else {
-        console.log('Could not fetch complete profile, using login data only')
-        console.log('Profile response status:', profileResponse.status)
-      }
+      // Extract voter profile from validation response
+      const profileData = validationData.voterProfile || {};
 
       // Map to VoterProfile with comprehensive field mapping
+
       const mappedProfile: VoterProfile = {
         // Primary identification
-        id: completeProfileData.id || completeProfileData.userId || nic,
-        nationalId: completeProfileData.nic || nic,
-        fullName: completeProfileData.fullName || completeProfileData.full_name || "Unknown User",
-        
+        id: profileData.id || nic,
+        nationalId: profileData.nic || nic,
+        fullName: profileData.fullName || "Unknown User",
+
         // Contact information
-        mobileNumber: completeProfileData.phoneNumber || completeProfileData.phone_number || null,
-        
+        mobileNumber: profileData.phoneNumber || null,
+
         // Personal details
-        dob: completeProfileData.dob || null,
-        gender: completeProfileData.gender || null,
-        
-        // CRITICAL: District from household details (this is the key fix)
-        district: completeProfileData.electoralDistrict || 
-                 completeProfileData.electoral_district || 
-                 completeProfileData.district || 
-                 "District Not Available",
-        
+        dob: profileData.dob || null,
+        gender: profileData.gender || null,
+
+        // CRITICAL: District from household details
+        district:
+          profileData.electoralDistrict ||
+          profileData.district ||
+          "District Not Available",
+
         // Address details from household
-        address: completeProfileData.villageStreetEstate || 
-                completeProfileData.village_street_estate || 
-                completeProfileData.address || null,
-                
-        gramaNiladhari: completeProfileData.gramaNiladhariDivision || 
-                       completeProfileData.grama_niladhari_division || null,
-                       
-        pollingDivision: completeProfileData.pollingDivision || 
-                        completeProfileData.polling_division || null,
-                        
-        householdNo: completeProfileData.houseNumber || 
-                    completeProfileData.house_number || null,
-        
+        address: profileData.villageStreetEstate || profileData.address || null,
+
+        gramaNiladhari: profileData.gramaNiladhariDivision || null,
+        pollingDivision: profileData.pollingDivision || null,
+        householdNo: profileData.houseNumber || null,
+        nicChiefOccupant: profileData.chiefOccupantId || null,
+
         // Other fields
-        nicChiefOccupant: completeProfileData.chiefOccupantId || null,
         password: "",
         status: "eligible",
-        photo: completeProfileData.photo || null,
-     
-      }
 
-      console.log('=== FINAL MAPPED PROFILE ===')
-      console.log('District found:', mappedProfile.district)
-      console.log('Complete profile:', JSON.stringify(mappedProfile, null, 2))
+        photo: profileData.photoCopyPath || profileData.photo || null,
+      };
 
-      setVoterProfile(mappedProfile)
-      setValidationStatus("found")
-      
+      console.log("=== FINAL MAPPED PROFILE (NO SESSION CHANGE) ===");
+      console.log("District found:", mappedProfile.district);
+      console.log("Complete profile:", JSON.stringify(mappedProfile, null, 2));
+
+      setVoterProfile(mappedProfile);
+      setValidationStatus("found");
     } catch (error) {
-      console.error('=== LOGIN ERROR ===', error)
-      setValidationStatus("not-found")
+      console.error("=== VALIDATION ERROR ===", error);
+      setValidationStatus("not-found");
     } finally {
-      setIsValidating(false)
+      setIsValidating(false);
     }
-  }
+  };
 
   return {
     validationStatus,
     voterProfile,
     isValidating,
     validateVoter,
-  }
+  };
 }
 
-// ========== ENROLLMENT HOOKS ==========
+// ========== ENROLLMENT HOOKS (UNCHANGED) ==========
 export function useVoterEnrolledElections(voterId: string) {
   const [enrolledElections, setEnrolledElections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -151,23 +140,28 @@ export function useVoterEnrolledElections(voterId: string) {
 
     const fetchEnrolledElections = async () => {
       try {
-        console.log('=== FETCHING ENROLLED ELECTIONS ===')
-        console.log('Voter ID:', voterId)
-        
-        const response = await fetch(`${API_BASE_URL}/voter-registration/api/v1/voter/${voterId}/elections`, {
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        
+        console.log("=== FETCHING ENROLLED ELECTIONS ===");
+        console.log("Voter ID:", voterId);
+
+        const response = await fetch(
+          `${API_BASE_URL}/voter-registration/api/v1/voter/${voterId}/elections`,
+          {
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+
         if (!response.ok) {
-          throw new Error(`Failed to fetch enrolled elections: ${response.status}`);
+          throw new Error(
+            `Failed to fetch enrolled elections: ${response.status}`
+          );
         }
-        
+
         const data = await response.json();
-        console.log('Enrolled elections:', data)
+        console.log("Enrolled elections:", data);
         setEnrolledElections(Array.isArray(data) ? data : []);
       } catch (err: any) {
-        console.error('Error fetching enrolled elections:', err);
+        console.error("Error fetching enrolled elections:", err);
         setError(err);
       } finally {
         setLoading(false);
@@ -180,51 +174,54 @@ export function useVoterEnrolledElections(voterId: string) {
   return { enrolledElections, loading, error };
 }
 
-// ========== ELECTION HOOKS ==========
-export function useActiveElections() {
-  const [elections, setElections] = useState<any[]>([]);
+// ========== VOTING ELIGIBILITY HOOK (UPDATED TO USE VOTE ENDPOINT) ==========
+export function useVotingEligibility(voterId: string, electionId: string) {
+  const [eligibility, setEligibility] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    const fetchElections = async () => {
+    if (!voterId || !electionId) {
+      setLoading(false);
+      return;
+    }
+
+    const checkEligibility = async () => {
       try {
-        console.log('=== FETCHING ACTIVE ELECTIONS ===')
-        
-        const response = await fetch(`${API_BASE_URL}/election/api/v1/elections`, {
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        
+        console.log("=== CHECKING VOTING ELIGIBILITY ===");
+        console.log("Voter ID:", voterId, "Election ID:", electionId);
+
+        // 🔥 UPDATED: Use the vote service eligibility endpoint
+        const response = await fetch(
+          `${API_BASE_URL}/vote/api/v1/eligibility/${voterId}/election/${electionId}`,
+          {
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+
         if (!response.ok) {
-          throw new Error(`Failed to fetch elections: ${response.status}`);
+          throw new Error(`Failed to check eligibility: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        console.log('All elections:', data)
-        
-        const activeElections = Array.isArray(data) ? data.filter(election => 
-          election.status === 'Active' || 
-          election.status === 'Upcoming' || 
-          election.status === 'Scheduled'
-        ) : [];
-        
-        setElections(activeElections);
+        console.log("Voting eligibility:", data);
+        setEligibility(data);
       } catch (err: any) {
-        console.error('Error fetching elections:', err);
+        console.error("Error checking eligibility:", err);
         setError(err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchElections();
-  }, []);
+    checkEligibility();
+  }, [voterId, electionId]);
 
-  return { elections, loading, error };
+  return { eligibility, loading, error };
 }
 
-// ========== CANDIDATE HOOKS (ENROLLMENT-BASED) ==========
+// ========== CANDIDATE HOOKS (UNCHANGED) ==========
 export function useCandidatesByElection(electionId: string, voterId?: string) {
   const [candidates, setCandidates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -239,62 +236,69 @@ export function useCandidatesByElection(electionId: string, voterId?: string) {
 
     const fetchCandidates = async () => {
       try {
-        console.log('=== FETCHING CANDIDATES WITH ENROLLMENT CHECK ===')
-        console.log('Election ID:', electionId, 'Voter ID:', voterId)
-        
+        console.log("=== FETCHING CANDIDATES WITH ENROLLMENT CHECK ===");
+        console.log("Election ID:", electionId, "Voter ID:", voterId);
+
         let url;
         if (voterId) {
-          // Use enrollment-based endpoint
           url = `${API_BASE_URL}/candidate/api/v1/voter/${voterId}/election/${electionId}/candidates`;
         } else {
-          // Fallback to general endpoint
           url = `${API_BASE_URL}/candidate/api/v1/elections/${electionId}/candidates/active`;
         }
-        
-        console.log('Fetching from URL:', url)
-        
+
+        console.log("Fetching from URL:", url);
+
         const response = await fetch(url, {
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
         });
-        
-        console.log('Candidates response status:', response.status)
-        
+
+        console.log("Candidates response status:", response.status);
+
         if (!response.ok) {
           if (response.status === 404 && voterId) {
-            console.log('Voter not enrolled or no candidates, trying general endpoint...')
-            const fallbackResponse = await fetch(`${API_BASE_URL}/candidate/api/v1/elections/${electionId}/candidates/active`, {
-              credentials: 'include',
-              headers: { 'Content-Type': 'application/json' },
-            });
-            
+            console.log(
+              "Voter not enrolled or no candidates, trying general endpoint..."
+            );
+            const fallbackResponse = await fetch(
+              `${API_BASE_URL}/candidate/api/v1/elections/${electionId}/candidates/active`,
+              {
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+              }
+            );
+
             if (!fallbackResponse.ok) {
-              throw new Error(`Failed to fetch candidates: ${fallbackResponse.status}`);
+              throw new Error(
+                `Failed to fetch candidates: ${fallbackResponse.status}`
+              );
             }
-            
+
             const fallbackData = await fallbackResponse.json();
-            const candidatesList = Array.isArray(fallbackData) ? fallbackData : [];
+            const candidatesList = Array.isArray(fallbackData)
+              ? fallbackData
+              : [];
             setCandidates(candidatesList);
             return;
           }
-          
+
           throw new Error(`Failed to fetch candidates: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        console.log('Candidates data:', JSON.stringify(data, null, 2));
-        
+        console.log("Candidates data:", JSON.stringify(data, null, 2));
+
         const candidatesList = Array.isArray(data) ? data : [];
-        const activeCandidates = candidatesList.filter((candidate: any) => 
-          candidate.isActive !== false && candidate.is_active !== false
+        const activeCandidates = candidatesList.filter(
+          (candidate: any) =>
+            candidate.isActive !== false && candidate.is_active !== false
         );
-        
-        console.log('Active candidates:', activeCandidates);
+
+        console.log("Active candidates:", activeCandidates);
         setCandidates(activeCandidates);
-        
       } catch (err: any) {
-        console.error('=== ERROR FETCHING CANDIDATES ===');
-        console.error('Error details:', err);
+        console.error("=== ERROR FETCHING CANDIDATES ===");
+        console.error("Error details:", err);
         setError(err);
         setCandidates([]);
       } finally {
@@ -308,92 +312,7 @@ export function useCandidatesByElection(electionId: string, voterId?: string) {
   return { candidates, loading, error };
 }
 
-// ========== ENROLLMENT STATUS HOOKS ==========
-export function useVoterEnrollmentStatus(voterId: string, electionId: string) {
-  const [enrollmentStatus, setEnrollmentStatus] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  useEffect(() => {
-    if (!voterId || !electionId) {
-      setLoading(false);
-      return;
-    }
-
-    const checkEnrollment = async () => {
-      try {
-        console.log('=== CHECKING ENROLLMENT STATUS ===')
-        console.log('Voter ID:', voterId, 'Election ID:', electionId)
-        
-        const response = await fetch(`${API_BASE_URL}/election/api/v1/voter/${voterId}/election/${electionId}/enrolled`, {
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Failed to check enrollment: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log('Enrollment status:', data)
-        setEnrollmentStatus(data);
-      } catch (err: any) {
-        console.error('Error checking enrollment:', err);
-        setError(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkEnrollment();
-  }, [voterId, electionId]);
-
-  return { enrollmentStatus, loading, error };
-}
-
-export function useVotingEligibility(voterId: string, electionId: string) {
-  const [eligibility, setEligibility] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  useEffect(() => {
-    if (!voterId || !electionId) {
-      setLoading(false);
-      return;
-    }
-
-    const checkEligibility = async () => {
-      try {
-        console.log('=== CHECKING VOTING ELIGIBILITY ===')
-        console.log('Voter ID:', voterId, 'Election ID:', electionId)
-        
-        const response = await fetch(`${API_BASE_URL}/vote/api/v1/eligibility/${voterId}/election/${electionId}`, {
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Failed to check eligibility: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log('Voting eligibility:', data)
-        setEligibility(data);
-      } catch (err: any) {
-        console.error('Error checking eligibility:', err);
-        setError(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkEligibility();
-  }, [voterId, electionId]);
-
-  return { eligibility, loading, error };
-}
-
-// ========== VOTE CASTING HOOK ==========
+// ========== VOTE CASTING HOOK (UNCHANGED - WORKS WITH POLLING STATION SESSION) ==========
 export function useCastVote() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -403,41 +322,43 @@ export function useCastVote() {
     setLoading(true);
     setError(null);
     setResult(null);
-    
+
     try {
       const voteData = {
         voterId: voteInput.voterId,
         electionId: voteInput.electionId,
         candidateId: voteInput.candidateId,
         district: voteInput.district,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
-      console.log('=== CASTING VOTE ===');
-      console.log('Vote data:', JSON.stringify(voteData, null, 2));
+      console.log("=== CASTING VOTE WITH POLLING STATION SESSION ===");
+      console.log("Vote data:", JSON.stringify(voteData, null, 2));
 
+      // 🔥 This uses the polling station officer's session (POLLING_STATION role)
       const response = await fetch(`${API_BASE_URL}/vote/api/v1/votes/cast`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include", // Uses polling station officer's session
         body: JSON.stringify(voteData),
       });
 
-      console.log('Vote response status:', response.status);
+      console.log("Vote response status:", response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Vote error response:', errorText);
+        console.error("Vote error response:", errorText);
         throw new Error(`Vote failed: ${response.status} - ${errorText}`);
       }
 
-      const res = response.status === 201 ? { success: true } : await response.json();
-      console.log('=== VOTE SUCCESS ===');
+      const res =
+        response.status === 201 ? { success: true } : await response.json();
+      console.log("=== VOTE SUCCESS ===");
       setResult(res);
       return res;
     } catch (err: any) {
-      console.error('=== VOTE FAILED ===');
-      console.error('Error details:', err);
+      console.error("=== VOTE FAILED ===");
+      console.error("Error details:", err);
       setError(err);
       throw err;
     } finally {
@@ -446,4 +367,54 @@ export function useCastVote() {
   }, []);
 
   return { cast, loading, error, result };
+}
+
+// ========== OTHER HOOKS (UNCHANGED) ==========
+export function useActiveElections() {
+  const [elections, setElections] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    const fetchElections = async () => {
+      try {
+        console.log("=== FETCHING ACTIVE ELECTIONS ===");
+
+        const response = await fetch(
+          `${API_BASE_URL}/election/api/v1/elections`,
+          {
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch elections: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log("All elections:", data);
+
+        const activeElections = Array.isArray(data)
+          ? data.filter(
+              (election) =>
+                election.status === "Active" ||
+                election.status === "Upcoming" ||
+                election.status === "Scheduled"
+            )
+          : [];
+
+        setElections(activeElections);
+      } catch (err: any) {
+        console.error("Error fetching elections:", err);
+        setError(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchElections();
+  }, []);
+
+  return { elections, loading, error };
 }

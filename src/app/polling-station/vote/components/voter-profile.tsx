@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { User, Calendar, MapPin, Phone, Vote, Home, Bug } from "lucide-react"
 import { useState } from "react"
-import type { VoterProfile as VoterProfileType, ValidationStatus } from "@/src/app/vote/types/voter"
+import type { VoterProfile as VoterProfileType, ValidationStatus } from "@/src/app/polling-station/vote/types/voter"
 
 interface VoterProfileProps {
   validationStatus: ValidationStatus

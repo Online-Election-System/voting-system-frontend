@@ -1,27 +1,27 @@
-// import { StatusCounts, RegistrationApplication, RegistrationDetails } from './types';
+import { StatusCounts, RegistrationApplication, RegistrationDetails } from './types';
 
-// // The base URL of your Ballerina backend
-// const API_BASE_URL = 'http://localhost:8080/api/v1';
+// The base URL of your Ballerina backend
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
 
-// // A generic fetch function to handle errors and JSON parsing
-// async function fetchAPI<T>(url: string, options: RequestInit = {}): Promise<T> {
-//   const response = await fetch(url, {
-//     ...options,
-//     headers: {
-//       'Content-Type': 'application/json',
-//       ...options.headers,
-//     },
-//   });
+// A generic fetch function to handle errors and JSON parsing
+async function fetchAPI<T>(url: string, options: RequestInit = {}): Promise<T> {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
 
-//   if (!response.ok) {
-//     const errorText = await response.text();
-//     throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
-//   }
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
+  }
 
-//   // Handle responses that might not have a body (e.g., 204 No Content)
-//   if (response.status === 204 || response.headers.get('content-length') === '0') {
-//       return null as T;
-//   }
+  // Handle responses that might not have a body (e.g., 204 No Content)
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
+      return null as T;
+  }
   
 //   return response.json() as T;
 // }

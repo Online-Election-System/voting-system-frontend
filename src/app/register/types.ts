@@ -5,7 +5,8 @@ export type MemberInfo = {
   gender: string
   civilStatus: string
   relationshipWithChiefOccupant: string
-  idCopyPath: string | null
+  idCopyPath: string 
+  photoCopyPath:string
   approvedByChief: boolean
 }
 
@@ -16,7 +17,8 @@ export type ChiefOccupant = {
   gender: string
   civilStatus: string
   phoneNumber: string
-  idCopyPath: string | null
+  idCopyPath: string 
+  photoCopyPath:string
   email: string
   passwordHash: string
 }

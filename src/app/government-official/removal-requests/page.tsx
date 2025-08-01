@@ -197,10 +197,21 @@ export default function RemovalRequests() {
     const matchesSearch =
       req.memberName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       req.memberNic.includes(searchTerm) ||
-      req.requestedBy.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === "all" || req.status === statusFilter
-    return matchesSearch && matchesStatus
-  })
+      req.requestedBy.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === "all" || req.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-red-600 flex items-center gap-2">
+          <AlertCircle className="w-5 h-5" />
+          {error}
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (
