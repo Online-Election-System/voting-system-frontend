@@ -1,14 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Users, CheckCircle, XCircle, Clock, Plus, Edit, Trash2, UserPlus, FileText, Eye } from "lucide-react"
+import { Users, CheckCircle, XCircle, Clock, Plus, Edit, Trash2, UserPlus, FileText, Eye, UserMinus } from "lucide-react"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
-import { getUserId, isAuthenticated } from "@/src/lib/cookies"
+
 import { AddHouseholdMemberForm } from "./manage/addform"
 import { UpdateHouseholdMemberForm } from "./manage/updateform"
 import { DeleteHouseholdMemberDialog } from "./manage/removeform"
@@ -51,6 +50,20 @@ interface UpdateRequest {
   isChiefOccupantUpdate: boolean
 }
 
+// Interface for delete requests
+interface DeleteRequest {
+  deleteRequestId: string
+  chiefOccupantId: string
+  householdMemberId: string
+  memberName: string
+  memberNic: string
+  requestStatus: string
+  requiredDocumentPath: string
+  requestDate: string
+  reason: string
+  rejectionReason?: string
+}
+
 // Add interface for pending add requests
 interface PendingAddRequest {
   id: string
@@ -71,14 +84,13 @@ export default function HouseholdManagementPage() {
   const [householdMembers, setHouseholdMembers] = useState<HouseholdMember[]>([])
   const [chiefOccupant, setChiefOccupant] = useState<ChiefOccupant | null>(null)
   const [updateRequests, setUpdateRequests] = useState<UpdateRequest[]>([])
+  const [deleteRequests, setDeleteRequests] = useState<DeleteRequest[]>([])
   const [totalMembers, setTotalMembers] = useState(0)
   const [isAddMemberDialogOpen, setIsAddMemberDialogOpen] = useState(false)
   const [isUpdateMemberDialogOpen, setIsUpdateMemberDialogOpen] = useState(false)
   const [isDeleteMemberDialogOpen, setIsDeleteMemberDialogOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const router = useRouter()
-   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080"
 
   // Function to format date
   const formatDate = (dateString?: string) => {
@@ -94,8 +106,6 @@ export default function HouseholdManagementPage() {
       return "—";
     }
   };
-
-  // Remove separate fetchUpdateRequests function - we'll get this from main API
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -113,7 +123,7 @@ export default function HouseholdManagementPage() {
         }
        
         const res = await axios.get(
-          `${API_BASE_URL}/household-management/api/v1/household/${chiefOccupantId}/members`,
+          `http://localhost:8080/household-management/api/v1/household/${chiefOccupantId}/members`,
           {
             headers: {
               "Content-Type": "application/json"
@@ -150,16 +160,11 @@ export default function HouseholdManagementPage() {
         // Set update requests from the main API response
         setUpdateRequests(data.updateRequests || []);
 
+        // Set delete requests from the main API response
+        setDeleteRequests(data.deleteRequests || []);
+
       } catch (error: any) {
         console.error("Failed to fetch household data", error);
-        
-        // Handle authentication errors
-        if (error.response?.status === 401 || error.response?.status === 403) {
-          setError("Authentication failed. Please log in again.");
-          router.push("/login");
-          return;
-        }
-        
         setError(
           error.response?.data?.message ||
           error.message ||
@@ -171,7 +176,7 @@ export default function HouseholdManagementPage() {
     };
 
     fetchHouseholdData();
-  }, [router])
+  }, [])
 
   const refreshData = async () => {
     const chiefOccupantId = localStorage.getItem("userId");
@@ -216,6 +221,9 @@ export default function HouseholdManagementPage() {
 
       // Set update requests from the main API response
       setUpdateRequests(data.updateRequests || []);
+
+      // Set delete requests from the main API response
+      setDeleteRequests(data.deleteRequests || []);
     } catch (error) {
       console.error("Failed to refresh data", error);
     }
@@ -269,10 +277,21 @@ export default function HouseholdManagementPage() {
   const rejectedRequests = householdMembers.filter(m => m.status === "Rejected");
   const reviewingRequests = householdMembers.filter(m => m.status === "D. Funding");
 
+  // Separate existing members from new requests
+  const existingApprovedMembers = householdMembers.filter(m => 
+    m.status === "Approved" && !m.isNewRequest
+  );
+  const newMemberRequests = householdMembers.filter(m => m.isNewRequest);
+
   // Filter update requests by status
   const pendingUpdateRequests = updateRequests.filter(r => r.requestStatus === "PENDING");
   const approvedUpdateRequests = updateRequests.filter(r => r.requestStatus === "APPROVED");
   const rejectedUpdateRequests = updateRequests.filter(r => r.requestStatus === "REJECTED");
+
+  // Filter delete requests by status
+  const pendingDeleteRequests = deleteRequests.filter(r => r.requestStatus === "PENDING");
+  const approvedDeleteRequests = deleteRequests.filter(r => r.requestStatus === "APPROVED");
+  const rejectedDeleteRequests = deleteRequests.filter(r => r.requestStatus === "REJECTED");
 
   // Create pendingAddRequests from householdMembers with pending status
   const pendingAddRequests: PendingAddRequest[] = householdMembers
@@ -394,17 +413,6 @@ export default function HouseholdManagementPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Pending Requests</CardTitle>
-              <Clock className="h-4 w-4 text-yellow-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{pendingRequests.length}</div>
-              <p className="text-xs text-muted-foreground">Awaiting approval</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Rejected</CardTitle>
               <XCircle className="h-4 w-4 text-red-500" />
             </CardHeader>
@@ -421,17 +429,121 @@ export default function HouseholdManagementPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{updateRequests.length}</div>
-              <p className="text-xs text-muted-foreground">Total requests</p>
+              <p className="text-xs text-muted-foreground">Information updates</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Delete Requests</CardTitle>
+              <UserMinus className="h-4 w-4 text-red-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{deleteRequests.length}</div>
+              <p className="text-xs text-muted-foreground">Member removals</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Update Requests Section */}
+        {/* 1. HOUSEHOLD MEMBERS & ADD REQUESTS TABLE - FIRST */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Household Members & Add Requests
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Current household members and new member requests are shown below.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Member Name</TableHead>
+                  <TableHead>NIC</TableHead>
+                  <TableHead>Relationship</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Rejection Reason</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {/* 1st Row: Chief Occupant */}
+                {chiefOccupant && (
+                  <TableRow className="bg-green-50 border-l-4 border-l-green-500">
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <strong>{chiefOccupant.fullName}</strong>
+                        <Badge variant="outline" className="text-xs bg-green-100 text-green-800">Chief</Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-medium">{chiefOccupant.nic}</TableCell>
+                    <TableCell className="font-medium">Chief Occupant</TableCell>
+                    <TableCell>{getStatusBadge(chiefOccupant.status)}</TableCell>
+                    <TableCell>—</TableCell>
+                  </TableRow>
+                )}
+
+                {/* 2nd: Existing Approved Members */}
+                {existingApprovedMembers.length > 0 && 
+                  existingApprovedMembers.map((member) => (
+                    <TableRow key={member.memberId} className="bg-green-50 border-l-4 border-l-green-400">
+                      <TableCell className="font-medium">{member.fullName}</TableCell>
+                      <TableCell>{member.nic}</TableCell>
+                      <TableCell>{member.relationship}</TableCell>
+                      <TableCell>{getStatusBadge(member.status)}</TableCell>
+                      <TableCell>
+                        {member.rejectionReason !== "—" ? member.rejectionReason : "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                }
+
+                {/* 3rd: New Member Requests */}
+                {newMemberRequests.length > 0 && 
+                  newMemberRequests
+                    .sort((a, b) => {
+                      // Sort by status priority: Pending -> D. Funding -> Approved -> Rejected
+                      const statusOrder = { "Pending": 0, "D. Funding": 1, "Approved": 2, "Rejected": 3 };
+                      return statusOrder[a.status as keyof typeof statusOrder] - statusOrder[b.status as keyof typeof statusOrder];
+                    })
+                    .map((member) => (
+                    <TableRow key={member.memberId} className="bg-blue-50 border-l-4 border-l-blue-400">
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {member.fullName}
+                          <Badge variant="outline" className="text-xs bg-blue-100 text-blue-800">New Request</Badge>
+                        </div>
+                      </TableCell>
+                      <TableCell>{member.nic}</TableCell>
+                      <TableCell>{member.relationship}</TableCell>
+                      <TableCell>{getStatusBadge(member.status, member.isNewRequest)}</TableCell>
+                      <TableCell>
+                        {member.rejectionReason !== "—" ? member.rejectionReason : "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                }
+
+                {/* No data row */}
+                {(!chiefOccupant && existingApprovedMembers.length === 0 && newMemberRequests.length === 0) && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      No household members or requests found
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        {/* 2. UPDATE REQUESTS TABLE - SECOND */}
         {updateRequests.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Edit className="h-5 w-5" />
+                <Edit className="h-5 w-5 text-yellow-700" />
                 Member Update Requests
               </CardTitle>
               <p className="text-sm text-muted-foreground">
@@ -442,7 +554,6 @@ export default function HouseholdManagementPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Request ID</TableHead>
                     <TableHead>Member</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Updated Fields</TableHead>
@@ -458,11 +569,8 @@ export default function HouseholdManagementPage() {
                     .map((request) => (
                     <TableRow 
                       key={request.updateRequestId}
-                      className={request.requestStatus === "PENDING" ? "bg-yellow-50" : ""}
+                      className={`bg-yellow-50 ${request.requestStatus === "PENDING" ? "border-l-4 border-l-yellow-500" : ""}`}
                     >
-                      <TableCell className="font-mono text-xs">
-                        {request.updateRequestId.slice(-8)}
-                      </TableCell>
                       <TableCell>
                         <div>
                           <div className="font-medium">{request.memberName}</div>
@@ -508,82 +616,73 @@ export default function HouseholdManagementPage() {
           </Card>
         )}
 
-        {/* Members Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Household Members & Add Requests</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Existing household members and new add member requests are shown below.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Member Name</TableHead>
-                  <TableHead>NIC</TableHead>
-                  <TableHead>Relationship</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Rejection Reason</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {/* Chief Occupant Row */}
-                {chiefOccupant && (
-                  <TableRow className="bg-green-50">
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        <strong>{chiefOccupant.fullName}</strong>
-                        <Badge variant="outline" className="text-xs">Chief</Badge>
-                      </div>
-                    </TableCell>
-                    <TableCell>{chiefOccupant.nic}</TableCell>
-                    <TableCell>Chief Occupant</TableCell>
-                    <TableCell>{getStatusBadge(chiefOccupant.status)}</TableCell>
-                    <TableCell>—</TableCell>
+        {/* 3. DELETE REQUESTS TABLE - THIRD */}
+        {deleteRequests.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <UserMinus className="h-5 w-5 text-red-700" />
+                Member Delete Requests
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Track the status of your member deletion requests.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Member</TableHead>
+                    <TableHead>Reason</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Document</TableHead>
+                    <TableHead>Rejection Reason</TableHead>
                   </TableRow>
-                )}
-
-                {/* All Member Requests */}
-                {householdMembers.length > 0 ? (
-                  householdMembers
-                    .sort((a, b) => {
-                      // Sort by status priority: Pending -> D. Funding -> Approved -> Rejected
-                      const statusOrder = { "Pending": 0, "D. Funding": 1, "Approved": 2, "Rejected": 3 };
-                      return statusOrder[a.status as keyof typeof statusOrder] - statusOrder[b.status as keyof typeof statusOrder];
-                    })
-                    .map((member) => (
+                </TableHeader>
+                <TableBody>
+                  {deleteRequests
+                    .sort((a, b) => new Date(b.requestDate).getTime() - new Date(a.requestDate).getTime())
+                    .map((request) => (
                     <TableRow 
-                      key={member.memberId} 
-                      className={member.isNewRequest ? "bg-blue-50" : ""}
+                      key={request.deleteRequestId}
+                      className={`bg-red-50 ${request.requestStatus === "PENDING" ? "border-l-4 border-l-red-500" : ""}`}
                     >
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          {member.fullName}
-                          {member.isNewRequest && (
-                            <Badge variant="outline" className="text-xs bg-blue-100">New Request</Badge>
-                          )}
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{request.memberName}</div>
+                          <div className="text-xs text-muted-foreground">{request.memberNic}</div>
                         </div>
                       </TableCell>
-                      <TableCell>{member.nic}</TableCell>
-                      <TableCell>{member.relationship}</TableCell>
-                      <TableCell>{getStatusBadge(member.status, member.isNewRequest)}</TableCell>
+                      <TableCell className="max-w-xs">
+                        <div className="text-sm truncate" title={request.reason}>
+                          {request.reason}
+                        </div>
+                      </TableCell>
                       <TableCell>
-                        {member.rejectionReason !== "—" ? member.rejectionReason : "—"}
+                        {getStatusBadge(request.requestStatus)}
+                      </TableCell>
+                      <TableCell>
+                        {request.requiredDocumentPath && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(request.requiredDocumentPath, '_blank')}
+                          >
+                            <Eye className="h-3 w-3 mr-1" />
+                            View
+                          </Button>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {request.rejectionReason || "—"}
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                      No household members or requests found
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
