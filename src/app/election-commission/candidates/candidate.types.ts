@@ -67,7 +67,7 @@ export interface CandidateEditFormData extends CandidateFormData {
   currentlyActive: boolean;     // Read-only display field
 }
 
-// Dialog component props
+// Enhanced Dialog component props with existing candidates for suggestions
 export interface CandidateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -75,6 +75,7 @@ export interface CandidateDialogProps {
   onSubmit: (data: CandidateFormData) => Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
+  existingCandidates?: Candidate[]; // New prop for party suggestions
 }
 
 // Table component props
@@ -237,3 +238,11 @@ export const COMMON_PARTY_COLORS = [
   '#A52A2A', // Brown
   '#808080', // Gray
 ] as const;
+
+// Helper interface for party suggestions
+export interface PartySuggestion {
+  partyName: string;
+  partyColor: string;
+  partySymbol?: string;
+  candidateCount: number;
+}

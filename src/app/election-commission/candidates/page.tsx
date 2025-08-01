@@ -53,7 +53,6 @@ export default function CandidatesPage() {
     openDialog(candidate);
   };
 
-  // In your candidates page.tsx, fix the handleSubmit function
   const handleSubmit = async (data: CandidateFormData) => {
     try {
       console.log("📝 Form data received:", data);
@@ -233,6 +232,7 @@ export default function CandidatesPage() {
         />
       )}
 
+      {/* Enhanced dialog with existing candidates for party suggestions */}
       <CandidateDialog
         open={open}
         onOpenChange={setOpen}
@@ -242,6 +242,7 @@ export default function CandidatesPage() {
         isLoading={
           createCandidateMutation.isPending || updateCandidateMutation.isPending
         }
+        existingCandidates={candidates} // Pass existing candidates for suggestions
       />
     </div>
   );

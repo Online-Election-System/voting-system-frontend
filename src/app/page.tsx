@@ -145,7 +145,6 @@ export default function SriLankaElectionCommission() {
           </div>
         </div>
       </section> */}
-
      
       {/* Enhanced Household Voter Registration Process */}
       <section className="py-20 bg-white">
@@ -667,8 +666,6 @@ export default function SriLankaElectionCommission() {
           </div>
         </div>
       </section>
-
-
 
       {/* Contact & Support Section */}
       <section className="py-20 bg-gradient-to-br from-gray-900 to-blue-900 text-white">

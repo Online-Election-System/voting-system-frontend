@@ -63,8 +63,25 @@ export const useCreateElection = () => {
 
       // Optimistically update cache
       queryClient.setQueryData(electionKeys.lists(), (old: any) => {
-        if (!old) return [{ ...newElection, id: 'temp-' + Date.now() }];
-        return [...old.elections || old, { ...newElection, id: 'temp-' + Date.now() }];
+        const tempElection = { ...newElection, id: 'temp-' + Date.now() };
+        
+        if (!old) return [tempElection];
+        
+        // Handle both raw array and transformed object
+        const currentElections = Array.isArray(old) ? old : (old.elections || []);
+        const newElections = [...currentElections, tempElection];
+        
+        // If old was already transformed, maintain that structure
+        if (!Array.isArray(old) && old.elections) {
+          const stats = calculateElectionStats(newElections);
+          return {
+            elections: newElections,
+            ...stats,
+          };
+        }
+        
+        // Otherwise return raw array (let select transform it)
+        return newElections;
       });
 
       return { previousElections };
@@ -85,10 +102,8 @@ export const useCreateElection = () => {
         description: "Election created successfully",
       });
       
-      // Invalidate and refetch elections list
       queryClient.invalidateQueries({ queryKey: electionKeys.lists() });
       
-      // If candidates were enrolled, invalidate candidates query for this election
       if (data?.id) {
         queryClient.invalidateQueries({ 
           queryKey: [...electionKeys.detail(data.id), 'candidates'] 
@@ -124,13 +139,24 @@ export const useUpdateElection = () => {
       // Optimistic update for elections list
       queryClient.setQueryData(electionKeys.lists(), (old: any) => {
         if (!old) return old;
-        const elections = old.elections || old;
-        return {
-          ...old,
-          elections: elections.map((election: Election) =>
-            election.id === id ? { ...election, ...data } : election
-          ),
-        };
+        
+        // Handle both raw array and transformed object
+        const currentElections = Array.isArray(old) ? old : (old.elections || []);
+        const updatedElections = currentElections.map((election: Election) =>
+          election.id === id ? { ...election, ...data } : election
+        );
+        
+        // If old was already transformed, maintain that structure
+        if (!Array.isArray(old) && old.elections) {
+          const stats = calculateElectionStats(updatedElections);
+          return {
+            elections: updatedElections,
+            ...stats,
+          };
+        }
+        
+        // Otherwise return raw array (let select transform it)
+        return updatedElections;
       });
 
       return { previousElection, previousElections };
@@ -154,7 +180,6 @@ export const useUpdateElection = () => {
         description: "Election updated successfully",
       });
       
-      // If candidates were updated, invalidate candidates query
       queryClient.invalidateQueries({ 
         queryKey: [...electionKeys.detail(id), 'candidates'] 
       });
@@ -180,11 +205,22 @@ export const useDeleteElection = () => {
       // Optimistically remove from cache
       queryClient.setQueryData(electionKeys.lists(), (old: any) => {
         if (!old) return old;
-        const elections = old.elections || old;
-        return {
-          ...old,
-          elections: elections.filter((election: Election) => election.id !== id),
-        };
+        
+        // Handle both raw array and transformed object
+        const currentElections = Array.isArray(old) ? old : (old.elections || []);
+        const filteredElections = currentElections.filter((election: Election) => election.id !== id);
+        
+        // If old was already transformed, maintain that structure
+        if (!Array.isArray(old) && old.elections) {
+          const stats = calculateElectionStats(filteredElections);
+          return {
+            elections: filteredElections,
+            ...stats,
+          };
+        }
+        
+        // Otherwise return raw array (let select transform it)
+        return filteredElections;
       });
 
       return { previousElections };

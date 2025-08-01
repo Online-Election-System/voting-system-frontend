@@ -121,20 +121,33 @@ export const useCreateCandidate = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: candidateService.createCandidate, // Now expects CandidateFormData
-    onMutate: async (newCandidate: CandidateFormData) => { // Changed type
+    mutationFn: candidateService.createCandidate,
+    onMutate: async (newCandidate: CandidateFormData) => {
       await queryClient.cancelQueries({ queryKey: candidateKeys.lists() });
 
       const previousCandidates = queryClient.getQueryData(candidateKeys.lists());
 
       // Optimistically update cache - new candidates start as inactive
       queryClient.setQueryData(candidateKeys.lists(), (old: any) => {
-        if (!old) return [{ ...newCandidate, id: 'temp-' + Date.now(), isActive: false }];
-        const candidates = old.candidates || old;
-        return {
-          ...old,
-          candidates: [...candidates, { ...newCandidate, id: 'temp-' + Date.now(), isActive: false }]
-        };
+        const tempCandidate = { ...newCandidate, id: 'temp-' + Date.now(), isActive: false };
+        
+        if (!old) return [tempCandidate];
+        
+        // Handle both raw array and transformed object
+        const currentCandidates = Array.isArray(old) ? old : (old.candidates || []);
+        const newCandidates = [...currentCandidates, tempCandidate];
+        
+        // If old was already transformed, maintain that structure
+        if (!Array.isArray(old) && old.candidates) {
+          const stats = calculateCandidateStats(newCandidates);
+          return {
+            candidates: newCandidates,
+            ...stats,
+          };
+        }
+        
+        // Otherwise return raw array (let select transform it)
+        return newCandidates;
       });
 
       return { previousCandidates };
@@ -185,15 +198,26 @@ export const useUpdateCandidate = () => {
       // Optimistic update for candidates list
       queryClient.setQueryData(candidateKeys.lists(), (old: any) => {
         if (!old) return old;
-        const candidates = old.candidates || old;
-        return {
-          ...old,
-          candidates: candidates.map((candidate: Candidate) =>
-            (candidate.id === id || candidate.candidateId === id) 
-              ? { ...candidate, ...data } // Preserve system-managed status
-              : candidate
-          ),
-        };
+        
+        // Handle both raw array and transformed object
+        const currentCandidates = Array.isArray(old) ? old : (old.candidates || []);
+        const updatedCandidates = currentCandidates.map((candidate: Candidate) =>
+          (candidate.id === id || candidate.candidateId === id) 
+            ? { ...candidate, ...data } // Preserve system-managed status
+            : candidate
+        );
+        
+        // If old was already transformed, maintain that structure
+        if (!Array.isArray(old) && old.candidates) {
+          const stats = calculateCandidateStats(updatedCandidates);
+          return {
+            candidates: updatedCandidates,
+            ...stats,
+          };
+        }
+        
+        // Otherwise return raw array (let select transform it)
+        return updatedCandidates;
       });
 
       return { previousCandidate, previousCandidates };
@@ -239,13 +263,24 @@ export const useDeleteCandidate = () => {
       // Optimistically remove from cache
       queryClient.setQueryData(candidateKeys.lists(), (old: any) => {
         if (!old) return old;
-        const candidates = old.candidates || old;
-        return {
-          ...old,
-          candidates: candidates.filter((candidate: Candidate) => 
-            candidate.id !== id && candidate.candidateId !== id
-          ),
-        };
+        
+        // Handle both raw array and transformed object
+        const currentCandidates = Array.isArray(old) ? old : (old.candidates || []);
+        const filteredCandidates = currentCandidates.filter((candidate: Candidate) => 
+          candidate.id !== id && candidate.candidateId !== id
+        );
+        
+        // If old was already transformed, maintain that structure
+        if (!Array.isArray(old) && old.candidates) {
+          const stats = calculateCandidateStats(filteredCandidates);
+          return {
+            candidates: filteredCandidates,
+            ...stats,
+          };
+        }
+        
+        // Otherwise return raw array (let select transform it)
+        return filteredCandidates;
       });
 
       return { previousCandidates };

@@ -1,9 +1,8 @@
 // components/CandidateDialog.tsx
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -14,15 +13,22 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { CandidateDialogProps, COMMON_PARTY_COLORS } from "../candidate.types";
 import { useCandidateForm } from "../hooks/use-candidate-form";
-import { User, Palette, Mail, Phone, FileText, Hash } from "lucide-react";
+import { usePartyAutoComplete } from "../hooks/use-party-suggestions";
+import { User, Palette, Check, ChevronsUpDown, Sparkles } from "lucide-react";
 
 export const CandidateDialog = ({ 
   open, 
@@ -30,7 +36,8 @@ export const CandidateDialog = ({
   candidate, 
   onSubmit, 
   onCancel,
-  isLoading = false
+  isLoading = false,
+  existingCandidates = []
 }: CandidateDialogProps) => {
   const {
     candidateName,
@@ -57,26 +64,57 @@ export const CandidateDialog = ({
     getFormData
   } = useCandidateForm(candidate);
 
+  // Use the new party suggestions hook
+  const {
+    partySuggestions,
+    handlePartySelection,
+    filterPartiesByQuery,
+    hasPartySuggestions
+  } = usePartyAutoComplete(
+    existingCandidates,
+    setPartyName,
+    setPartyColor,
+    setPartySymbol
+  );
+
+  const [partyComboOpen, setPartyComboOpen] = useState(false);
+  const [customPartyInput, setCustomPartyInput] = useState("");
+  
   const isEditing = Boolean(candidate);
 
   useEffect(() => {
     if (candidate) {
       setFormData(candidate);
+      setCustomPartyInput(candidate.partyName || "");
     } else {
       resetForm();
+      setCustomPartyInput("");
     }
   }, [candidate, setFormData, resetForm]);
+
+  const handlePartySelectionClick = (selectedParty: typeof partySuggestions[0]) => {
+    handlePartySelection(selectedParty.partyName);
+    setCustomPartyInput(selectedParty.partyName);
+    setPartyComboOpen(false);
+  };
+
+  const handleCustomPartyInput = (value: string) => {
+    setCustomPartyInput(value);
+    setPartyName(value);
+  };
 
   const handleSubmit = async () => {
     if (validateForm() && isFormValid()) {
       const formData = getFormData();
       await onSubmit(formData);
       resetForm();
+      setCustomPartyInput("");
     }
   };
 
   const handleCancel = () => {
     resetForm();
+    setCustomPartyInput("");
     onCancel();
   };
 
@@ -141,13 +179,76 @@ export const CandidateDialog = ({
                 <Palette className="h-4 w-4" />
                 Political Party <span className="text-red-500">*</span>
               </Label>
+              
+              {/* Party Selection Combobox */}
+              <Popover open={partyComboOpen} onOpenChange={setPartyComboOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={partyComboOpen}
+                    className="justify-between"
+                    disabled={isLoading}
+                  >
+                    {customPartyInput || "Select or enter political party..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0">
+                  <Command>
+                    <CommandInput 
+                      placeholder="Search or type party name..." 
+                      value={customPartyInput}
+                      onValueChange={handleCustomPartyInput}
+                    />
+                    <CommandList>
+                      {hasPartySuggestions && (
+                        <>
+                          <CommandEmpty>
+                            Press Enter to use "{customPartyInput}" as new party
+                          </CommandEmpty>
+                          <CommandGroup heading="Existing Parties">
+                            {filterPartiesByQuery(customPartyInput).map((party) => (
+                              <CommandItem
+                                key={party.partyName}
+                                value={party.partyName}
+                                onSelect={() => handlePartySelectionClick(party)}
+                                className="flex items-center justify-between"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <div 
+                                    className="h-3 w-3 rounded-full border"
+                                    style={{ backgroundColor: party.partyColor }}
+                                  />
+                                  <span>{party.partyName}</span>
+                                  <Badge variant="secondary" className="text-xs">
+                                    {party.candidateCount} candidate{party.candidateCount !== 1 ? 's' : ''}
+                                  </Badge>
+                                </div>
+                                <Check
+                                  className={`ml-2 h-4 w-4 ${
+                                    partyName === party.partyName ? "opacity-100" : "opacity-0"
+                                  }`}
+                                />
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </>
+                      )}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              
+              {/* Fallback input for custom party */}
               <Input
-                id="partyName"
-                value={partyName}
-                onChange={(e) => setPartyName(e.target.value)}
-                placeholder="Enter political party name"
+                value={customPartyInput}
+                onChange={(e) => handleCustomPartyInput(e.target.value)}
+                placeholder="Or type a new political party name"
                 disabled={isLoading}
+                className="mt-2"
               />
+              
               {errors.partyName && (
                 <span className="text-sm text-red-500">{errors.partyName}</span>
               )}
@@ -197,7 +298,14 @@ export const CandidateDialog = ({
             </h4>
 
             <div className="grid gap-2">
-              <Label htmlFor="partySymbol">Party Symbol URL</Label>
+              <Label htmlFor="partySymbol">
+                Party Symbol URL
+                {partySymbol && (
+                  <span className="text-xs text-green-600 ml-2">
+                    ✓ Auto-filled from party selection
+                  </span>
+                )}
+              </Label>
               <Input
                 id="partySymbol"
                 value={partySymbol}
@@ -205,6 +313,19 @@ export const CandidateDialog = ({
                 placeholder="https://example.com/symbol.png"
                 disabled={isLoading}
               />
+              {partySymbol && (
+                <div className="flex items-center gap-2 mt-1">
+                  <img 
+                    src={partySymbol} 
+                    alt="Party symbol preview" 
+                    className="h-8 w-8 object-contain rounded border"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                  <span className="text-xs text-muted-foreground">Preview</span>
+                </div>
+              )}
             </div>
 
             <div className="grid gap-2">
@@ -216,6 +337,19 @@ export const CandidateDialog = ({
                 placeholder="https://example.com/candidate.jpg"
                 disabled={isLoading}
               />
+              {candidateImage && (
+                <div className="flex items-center gap-2 mt-1">
+                  <img 
+                    src={candidateImage} 
+                    alt="Candidate preview" 
+                    className="h-8 w-8 object-cover rounded-full border"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                  <span className="text-xs text-muted-foreground">Preview</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
