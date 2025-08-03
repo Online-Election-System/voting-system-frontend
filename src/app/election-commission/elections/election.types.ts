@@ -36,6 +36,8 @@ export interface Election {
   enrolDdl?: SimpleDate;
   noOfCandidates: number;
   enrolledCandidates?: EnrolledCandidate[];
+  enrolledVotersCount?: number;
+  votesCount?: number;
 }
 
 export type ElectionStatus =

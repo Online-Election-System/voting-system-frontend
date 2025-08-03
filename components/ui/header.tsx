@@ -21,6 +21,7 @@ import {
   UserRoundMinus,
   UserCheck,
   UserCog,
+  Activity,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/src/lib/utils";
@@ -97,6 +98,13 @@ const navigationData: NavigationItem[] = [
     roles: ["admin"],
     requiresAuth: true,
   },
+  // {
+  //   label: "Admin Dashboard",
+  //   href: "/admin/activity-log",
+  //   icon: Activity,
+  //   roles: ["admin"],
+  //   requiresAuth: true,
+  // },
   {
     label: "Home",
     href: "/government-official/dashboard",
@@ -109,7 +117,7 @@ const navigationData: NavigationItem[] = [
     label: "Review",
     href: "/government-official/registrations",
     icon: UserCheck,
-    roles: ["governmentOfficial"],
+    roles: ["government_official"],
     requiresAuth: true,
   },
 
@@ -117,7 +125,7 @@ const navigationData: NavigationItem[] = [
     label: "Remove",
     href: "/government-official/removal-requests",
     icon: UserMinus,
-    roles: ["governmentOfficial"],
+    roles: ["government_official"],
     requiresAuth: true,
   },
 
@@ -125,7 +133,7 @@ const navigationData: NavigationItem[] = [
     label: "Add",
     href: "/government-official/add-members",
     icon: UserPlus,
-    roles: ["governmentOfficial"],
+    roles: ["government_official"],
     requiresAuth: true,
   },
 
@@ -133,7 +141,7 @@ const navigationData: NavigationItem[] = [
     label: "Update",
     href: "/government-official/update-members",
     icon: UserCog,
-    roles: ["governmentOfficial"],
+    roles: ["government_official"],
     requiresAuth: true,
   },
 

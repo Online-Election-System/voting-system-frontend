@@ -1,10 +1,23 @@
+// components/election-form.tsx
 import { useState, useEffect, useCallback } from "react";
-import { format, isBefore, isAfter, isWithinInterval, addYears } from "date-fns";
-import { Calendar as CalendarIcon, Clock, Loader2 } from "lucide-react";
+import {
+  format,
+  isBefore,
+  isAfter,
+  isWithinInterval,
+  addYears,
+} from "date-fns";
+import {
+  Calendar as CalendarIcon,
+  Clock,
+  Loader2,
+  AlertTriangle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Popover,
   PopoverContent,
@@ -18,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/src/lib/utils";
 import {
   Election,
@@ -38,6 +52,12 @@ interface ElectionFormProps {
   onSubmit: (data: ElectionCreate | ElectionUpdate) => Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
+}
+
+interface PartyConstraintViolation {
+  partyName: string;
+  candidateCount: number;
+  candidates: string[];
 }
 
 export function ElectionForm({
@@ -76,6 +96,79 @@ export function ElectionForm({
 
   // Combined loading state
   const isFormLoading = isLoading || isSubmitting;
+
+  // Check if this is a presidential election
+  const isPresidentialElection = electionType === "Presidential Election";
+
+  // Analyze party constraint violations for presidential elections
+  const partyConstraintAnalysis = useCallback(() => {
+    if (!isPresidentialElection) return { violations: [], isValid: true };
+
+    const partyGroups: Record<string, Candidate[]> = {};
+
+    selectedCandidates.forEach((candidate) => {
+      const party = candidate.partyName || "Independent";
+      if (!partyGroups[party]) {
+        partyGroups[party] = [];
+      }
+      partyGroups[party].push(candidate);
+    });
+
+    const violations: PartyConstraintViolation[] = [];
+    Object.entries(partyGroups).forEach(([partyName, partyCandidates]) => {
+      // Only check constraint for non-Independent parties
+      if (partyName !== "Independent" && partyCandidates.length > 1) {
+        violations.push({
+          partyName,
+          candidateCount: partyCandidates.length,
+          candidates: partyCandidates.map(
+            (c) => c.candidateName || c.candidateId
+          ),
+        });
+      }
+    });
+
+    return {
+      violations,
+      isValid: violations.length === 0,
+      partyGroups,
+    };
+  }, [selectedCandidates, isPresidentialElection]);
+
+  // Handle election type change and clear candidates if switching to presidential
+  const handleElectionTypeChange = useCallback(
+    (newElectionType: string) => {
+      const wasPresidential = electionType === "Presidential Election";
+      const isNowPresidential = newElectionType === "Presidential Election";
+
+      setElectionType(newElectionType);
+
+      // Preserve Independent candidates when switching to presidential
+      if (
+        !wasPresidential &&
+        isNowPresidential &&
+        selectedCandidates.length > 0
+      ) {
+        // Filter out non-Independent candidates that might cause violations
+        const validCandidates = selectedCandidates.filter((candidate) => {
+          const party = candidate.partyName || "Independent";
+          return party === "Independent";
+        });
+
+        // Only keep Independent candidates
+        if (validCandidates.length < selectedCandidates.length) {
+          setSelectedCandidates(validCandidates);
+          toast({
+            title: "Presidential Election Selected",
+            description:
+              "Non-Independent candidates were removed to comply with presidential election rules",
+            variant: "destructive",
+          });
+        }
+      }
+    },
+    [electionType, selectedCandidates]
+  );
 
   // Auto-calculate end date when election date changes
   useEffect(() => {
@@ -190,11 +283,6 @@ export function ElectionForm({
   // Initialize form when editing election changes - ONLY RUN ONCE
   useEffect(() => {
     if (editingElection && !isInitialized) {
-      console.log(
-        "Initializing form with editing election:",
-        editingElection.id
-      );
-
       setElectionName(editingElection.electionName || "");
       setElectionType(editingElection.electionType || "");
       setDescription(editingElection.description || "");
@@ -202,11 +290,13 @@ export function ElectionForm({
       setNoOfCandidates(editingElection.noOfCandidates || 0);
 
       // Handle dates
-      const electionDateFromEdit = simpleDateToDate(editingElection.electionDate);
+      const electionDateFromEdit = simpleDateToDate(
+        editingElection.electionDate
+      );
       setElectionDate(electionDateFromEdit);
       setStartDate(simpleDateToDate(editingElection.startDate));
       setEnrolDdl(simpleDateToDate(editingElection.enrolDdl));
-      
+
       // For editing: use existing end date or calculate from election date
       const existingEndDate = simpleDateToDate(editingElection.endDate);
       if (existingEndDate) {
@@ -226,7 +316,6 @@ export function ElectionForm({
       setIsInitialized(true);
     } else if (!editingElection && isInitialized) {
       // Reset form for new election
-      console.log("Resetting form for new election");
       setElectionName("");
       setElectionType("");
       setDescription("");
@@ -241,7 +330,7 @@ export function ElectionForm({
       setSelectedCandidates([]);
       setIsInitialized(false);
     }
-  }, [editingElection?.id, isInitialized]); // Only depend on election ID change
+  }, [editingElection?.id, isInitialized]);
 
   // Set selected candidates from enrolled candidates - SEPARATE EFFECT
   useEffect(() => {
@@ -250,7 +339,6 @@ export function ElectionForm({
       candidates.length > 0 &&
       isInitialized
     ) {
-      console.log("Setting selected candidates from enrolled candidates");
       const enrolledCandidateIds = editingElection.enrolledCandidates.map(
         (ec) => ec.candidateId
       );
@@ -310,6 +398,39 @@ export function ElectionForm({
     }
   }, [startTime, endTime, validateTimes]);
 
+  // Handle candidate selection change with validation
+  const handleCandidateSelection = useCallback(
+    (newSelectedCandidates: Candidate[]) => {
+      setSelectedCandidates(newSelectedCandidates);
+
+      // Immediately show validation feedback for presidential elections
+      if (isPresidentialElection && newSelectedCandidates.length > 0) {
+        const partyGroups: Record<string, Candidate[]> = {};
+        newSelectedCandidates.forEach((candidate) => {
+          const party = candidate.partyName || "Independent";
+          if (!partyGroups[party]) {
+            partyGroups[party] = [];
+          }
+          partyGroups[party].push(candidate);
+        });
+
+        const violations = Object.entries(partyGroups).filter(
+          ([, candidates]) => candidates.length > 1
+        );
+        if (violations.length > 0) {
+          toast({
+            title: "Presidential Election Constraint",
+            description: `${violations.map(([party]) => party).join(", ")} ${
+              violations.length > 1 ? "have" : "has"
+            } multiple candidates. Each party (except Independent) can only have one candidate.`,
+            variant: "destructive",
+          });
+        }
+      }
+    },
+    [isPresidentialElection]
+  );
+
   const handleSubmit = async () => {
     // Prevent multiple submissions
     if (isFormLoading) return;
@@ -339,6 +460,18 @@ export function ElectionForm({
         description: `Candidate limit exceeded by ${
           selectedCandidates.length - noOfCandidates
         }`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Presidential election constraint validation
+    const constraintCheck = partyConstraintAnalysis();
+    if (isPresidentialElection && !constraintCheck.isValid) {
+      toast({
+        title: "Presidential Election Constraint Violation",
+        description:
+          "One or more parties (other than Independent) have multiple candidates selected",
         variant: "destructive",
       });
       return;
@@ -452,11 +585,13 @@ export function ElectionForm({
   };
 
   // Form validation
+  const constraintCheck = partyConstraintAnalysis();
   const isFormValid = Boolean(
     electionName &&
       electionType &&
       !isFormLoading &&
       selectedCandidates.length === noOfCandidates &&
+      (!isPresidentialElection || constraintCheck.isValid) &&
       (editingElection ||
         (electionDate && startTime && endTime && !dateError && !timeError))
   );
@@ -501,7 +636,7 @@ export function ElectionForm({
               </Label>
               <Select
                 value={electionType}
-                onValueChange={setElectionType}
+                onValueChange={handleElectionTypeChange}
                 required
                 disabled={isFormLoading}
               >
@@ -516,6 +651,12 @@ export function ElectionForm({
                   ))}
                 </SelectContent>
               </Select>
+              {isPresidentialElection && (
+                <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
+                  Presidential Election: Each party (except Independent) can
+                  nominate only one candidate
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
@@ -535,11 +676,21 @@ export function ElectionForm({
                 />
               </div>
               <div className="grid gap-2">
-                <Label>Candidates</Label>
+                <Label>
+                  Candidates
+                  {constraintCheck.violations.length > 0 && (
+                    <AlertTriangle className="h-4 w-4 text-red-500 inline ml-1" />
+                  )}
+                </Label>
                 <Button
                   variant="outline"
                   onClick={() => setIsCandidateDialogOpen(true)}
                   disabled={isFormLoading || noOfCandidates === 0}
+                  className={
+                    constraintCheck.violations.length > 0
+                      ? "border-red-300 text-red-600"
+                      : ""
+                  }
                 >
                   {selectedCandidates.length > 0
                     ? `${selectedCandidates.length} candidates selected`
@@ -547,20 +698,87 @@ export function ElectionForm({
                 </Button>
               </div>
             </div>
-            {/* Candidate validation messages */}
-            {selectedCandidates.length < noOfCandidates &&
-              noOfCandidates > 0 && (
+
+            {/* Candidate validation and constraint messages */}
+            <div className="space-y-2">
+              {selectedCandidates.length < noOfCandidates &&
+                noOfCandidates > 0 && (
+                  <p className="text-sm text-red-500">
+                    {noOfCandidates - selectedCandidates.length} more candidate
+                    {noOfCandidates - selectedCandidates.length !== 1
+                      ? "s"
+                      : ""}{" "}
+                    needed to reach the target of {noOfCandidates}.
+                  </p>
+                )}
+              {selectedCandidates.length > noOfCandidates && (
                 <p className="text-sm text-red-500">
-                  {noOfCandidates - selectedCandidates.length} more candidates
-                  need to be selected
+                  Exceeded the candidate limit by{" "}
+                  {selectedCandidates.length - noOfCandidates}
                 </p>
               )}
-            {selectedCandidates.length > noOfCandidates && (
-              <p className="text-sm text-red-500">
-                Exceeded the candidate limit by{" "}
-                {selectedCandidates.length - noOfCandidates}
-              </p>
-            )}
+
+              {/* Presidential election constraint violations */}
+              {isPresidentialElection &&
+                constraintCheck.violations.length > 0 && (
+                  <Alert variant="destructive" className="mt-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      <strong>
+                        Presidential Election Constraint Violation:
+                      </strong>
+                      <div className="mt-2 space-y-1">
+                        {constraintCheck.violations.map((violation) => (
+                          <div key={violation.partyName} className="text-sm">
+                            • <strong>{violation.partyName}</strong> has{" "}
+                            {violation.candidateCount} candidates (
+                            {violation.candidates.join(", ")})
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs mt-2">
+                        Presidential elections allow only one candidate per
+                        party (except Independent). Please remove extra
+                        candidates.
+                      </p>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+              {/* Selected candidates display */}
+              {selectedCandidates.length > 0 && (
+                <div className="mt-3">
+                  <Label className="text-sm font-medium">
+                    Selected Candidates:
+                  </Label>
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {selectedCandidates.map((candidate) => {
+                      const party = candidate.partyName || "Independent";
+                      const hasViolation =
+                        party !== "Independent" &&
+                        isPresidentialElection &&
+                        constraintCheck.violations.some(
+                          (v) => v.partyName === party
+                        );
+
+                      return (
+                        <Badge
+                          key={candidate.candidateId || candidate.id}
+                          variant={hasViolation ? "destructive" : "secondary"}
+                          className="text-xs"
+                        >
+                          {candidate.candidateName} ({party})
+                          {hasViolation && (
+                            <AlertTriangle className="h-3 w-3 ml-1" />
+                          )}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {editingElection && (
               <div className="grid gap-2">
                 <Label htmlFor="status">
@@ -790,23 +1008,17 @@ export function ElectionForm({
             ? "Update"
             : "Schedule"}
         </Button>
-
-        {/* Display calculated status in debug mode */}
-        {process.env.NODE_ENV === "development" && !editingElection && (
-          <div className="text-xs text-muted-foreground ml-4 self-center">
-            Status: {calculateStatus()}
-          </div>
-        )}
       </div>
 
-      {/* Show candidate dialog for both new and edit */}
+      {/* Enhanced candidate dialog with presidential election constraints */}
       <CandidateSelectionDialog
         open={isCandidateDialogOpen && !isFormLoading}
         onOpenChange={setIsCandidateDialogOpen}
         candidates={candidates}
         requiredCandidates={noOfCandidates}
-        onSelect={setSelectedCandidates}
+        onSelect={handleCandidateSelection}
         existingSelections={selectedCandidates}
+        electionType={electionType}
       />
     </div>
   );

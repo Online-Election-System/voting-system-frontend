@@ -1,3 +1,4 @@
+// components/election-dialog.tsx
 import type { Election } from "../election.types";
 import { ElectionStatusBadge } from "./election-status-badge";
 import { formatSimpleDate } from "../utils/date-utils";
@@ -11,26 +12,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Calendar,
   Clock,
   Vote,
-  FileText,
   Edit3,
   CalendarDays,
-  Timer,
   Trash2,
   Loader2,
   Users,
   Activity,
-  Database,
 } from "lucide-react";
 import { DeleteConfirmationDialog } from "./delete-election";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CompactEnrolledCandidatesTable } from "./compact-candidates-table";
+import { EnhancedCandidateStatisticsPanel } from "./enhanced-candidate-statistics-panel";
 
 interface ElectionDialogProps {
   election: Election | null;
@@ -41,10 +39,18 @@ interface ElectionDialogProps {
   error?: string | Error | null;
 }
 
+interface StatCardProps {
+  icon: React.ReactNode;
+  title: string;
+  value?: number | null;
+}
+
 // Enhanced Status Display Component for the Dialog
 function DialogStatusDisplay({ election }: { election: Election }) {
-  const isCancelled = election.status === 'Cancelled';
-  const realTimeStatus = isCancelled ? election.status : calculateRealTimeElectionStatus(election);
+  const isCancelled = election.status === "Cancelled";
+  const realTimeStatus = isCancelled
+    ? election.status
+    : calculateRealTimeElectionStatus(election);
 
   return (
     <div className="space-y-3">
@@ -59,6 +65,28 @@ function DialogStatusDisplay({ election }: { election: Election }) {
   );
 }
 
+function InfoItem({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string;
+  value: string;
+  icon?: any;
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-2">
+        {Icon && <Icon className="h-4 w-4 text-slate-400" />}
+        <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+          {label}
+        </span>
+      </div>
+      <p className="text-slate-900 font-medium">{value}</p>
+    </div>
+  );
+}
+
 export function ElectionDialog({
   election,
   isOpen,
@@ -68,14 +96,37 @@ export function ElectionDialog({
   error = null,
 }: ElectionDialogProps) {
   const isCompleted = election?.status === "Completed";
-  const realTimeStatus = election && election.status !== 'Cancelled' 
-    ? calculateRealTimeElectionStatus(election) 
-    : election?.status;
+  const realTimeStatus =
+    election && election.status !== "Cancelled"
+      ? calculateRealTimeElectionStatus(election)
+      : election?.status;
   const isRealTimeCompleted = realTimeStatus === "Completed";
+  const isActive = realTimeStatus === "Active";
+
+  if (!isOpen) return null;
+
+  // StatCard Component (defined elsewhere)
+  const StatCard = ({ icon, title, value }: StatCardProps) => (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg">{icon}</div>
+          <div>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+              {title}
+            </p>
+            <p className="font-semibold text-gray-900">
+              {value?.toLocaleString() || 0}
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[900px] p-0 max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[1200px] p-0 max-h-[90vh] overflow-hidden flex flex-col">
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
             <Loader2 className="h-8 w-8 animate-spin" />
@@ -90,7 +141,7 @@ export function ElectionDialog({
           <div className="p-6 text-center">No election data available</div>
         ) : (
           <>
-            <DialogHeader className="px-6 pt-6 pb-4">
+            <DialogHeader className="px-6 pt-6 pb-4 flex-shrink-0">
               <div className="flex items-start justify-between">
                 <div className="space-y-3">
                   <DialogTitle className="text-2xl font-semibold text-gray-900">
@@ -101,206 +152,176 @@ export function ElectionDialog({
               </div>
             </DialogHeader>
 
-            <div className="px-6 pb-6 space-y-6">
-              {/* Real-time Status Alert for Active Elections */}
-              {realTimeStatus === 'Active' && (
-                <Alert className="border-green-300 bg-green-50">
-                  <Activity className="h-4 w-4 text-green-600" />
-                  <AlertDescription className="text-green-800">
-                    <strong>Election is currently active!</strong> Voting is in progress.
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {/* Main Election Date */}
-              {election.electionDate && (
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg">
-                        <Calendar className="h-5 w-5 text-black" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-black">Election Date</p>
-                        <p className="text-lg font-semibold text-black">
-                          {formatSimpleDate(election.electionDate)}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Voting Period */}
-              {election.startDate && election.endDate && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg">
-                          <CalendarDays className="h-4 w-4 text-black" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-black">
-                            Start Date
-                          </p>
-                          <p className="font-semibold text-black">
-                            {formatSimpleDate(election.startDate)}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg">
-                          <CalendarDays className="h-4 w-4 text-black" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-black">
-                            End Date
-                          </p>
-                          <p className="font-semibold text-black">
-                            {formatSimpleDate(election.endDate)}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-
-              {election.startTime && election.endTime && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg">
-                          <Timer className="h-4 w-4 text-black" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-black">
-                            Voting Starts
-                          </p>
-                          <p className="font-semibold text-black">
-                            {formatTimeOfDay(election.startTime)}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg">
-                          <Timer className="h-4 w-4 text-black" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-black">
-                            Voting Ends
-                          </p>
-                          <p className="font-semibold text-black">
-                            {formatTimeOfDay(election.endTime)}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-
-              {/* Enrolled Candidates Section */}
-              <Separator />
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-gray-500" />
-                    <span className="font-medium text-gray-900">
-                      {isCompleted || isRealTimeCompleted ? "Election Results" : "Enrolled Candidates"}
-                    </span>
-                  </div>
-                  <Badge variant="secondary" className="text-sm">
-                    {election.enrolledCandidates?.length || 0} of{" "}
-                    {election.noOfCandidates} candidates
-                  </Badge>
-                </div>
-
-                {/* Show results note if election is completed in real-time but not in database */}
-                {isRealTimeCompleted && !isCompleted && (
-                  <Alert className="border-blue-300 bg-blue-50">
-                    <Activity className="h-4 w-4 text-blue-600" />
-                    <AlertDescription className="text-blue-800">
-                      This election has ended based on the scheduled time. Results may be available.
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto px-6">
+              <div className="space-y-8 pb-6">
+                {/* Real-time Status Alert for Active Elections */}
+                {isActive && (
+                  <Alert className="border-green-300 bg-green-50">
+                    <Activity className="h-4 w-4 text-green-600" />
+                    <AlertDescription className="text-green-800">
+                      <strong>Election is currently active!</strong> Voting is
+                      in progress.
                     </AlertDescription>
                   </Alert>
                 )}
 
-                {/* Compact Scrollable Candidate Table */}
+                {/* Voter Statistics Card */}
+                {(election.enrolledVotersCount || isActive) && (
+                  <div
+                    className={isActive ? "grid grid-cols-2 gap-4 mt-4" : ""}
+                  >
+                    {/* Votes Count Card (only shown for active elections) */}
+                    {isActive && (
+                      <StatCard
+                        icon={<Activity className="h-4 w-4 text-slate-400" />}
+                        title="Current Votes"
+                        value={election.votesCount}
+                      />
+                    )}
+
+                    {/* Enrolled Voters Card (shown for both active and inactive elections) */}
+                    {(!isActive || isActive) &&
+                      election.enrolledVotersCount && (
+                        <StatCard
+                          icon={<Users className="h-4 w-4 text-slate-400" />}
+                          title={
+                            isActive
+                              ? "Enrolled Voters"
+                              : "Number of Enrolled Voters for the Election"
+                          }
+                          value={election.enrolledVotersCount}
+                        />
+                      )}
+                  </div>
+                )}
+
+                {/* Election Overview Section */}
                 <Card>
-                  <CardContent className="p-4">
-                    <CompactEnrolledCandidatesTable
-                      enrolledCandidates={election.enrolledCandidates || []}
-                      showVotes={isCompleted || isRealTimeCompleted}
-                      maxHeight="350px"
-                      itemsPerPage={10}
-                    />
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Calendar className="h-5 w-5" />
+                      Election Overview
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="rounded-xl p-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {election.electionDate && (
+                          <InfoItem
+                            label="Election Date"
+                            value={formatSimpleDate(election.electionDate)}
+                            icon={Calendar}
+                          />
+                        )}
+
+                        {election.startDate && (
+                          <InfoItem
+                            label="Start Date"
+                            value={formatSimpleDate(election.startDate)}
+                          />
+                        )}
+
+                        {election.endDate && (
+                          <InfoItem
+                            label="End Date"
+                            value={formatSimpleDate(election.endDate)}
+                          />
+                        )}
+
+                        {election.startTime && (
+                          <InfoItem
+                            label="Voting Starts"
+                            value={formatTimeOfDay(election.startTime)}
+                            icon={Clock}
+                          />
+                        )}
+
+                        {election.endTime && (
+                          <InfoItem
+                            label="Voting Ends"
+                            value={formatTimeOfDay(election.endTime)}
+                            icon={Clock}
+                          />
+                        )}
+
+                        {/* Moved Enrollment Deadline here */}
+                        {election.enrolDdl && (
+                          <InfoItem
+                            label="Enrollment Deadline"
+                            value={formatSimpleDate(election.enrolDdl)}
+                            icon={CalendarDays}
+                          />
+                        )}
+                      </div>
+
+                      {election.description && (
+                        <div className="mt-6 pt-6 border-t border-slate-200">
+                          <InfoItem
+                            label="Description"
+                            value={election.description}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Candidate Statistics Section */}
+                <EnhancedCandidateStatisticsPanel
+                  currentElection={election}
+                  isLoading={false}
+                />
+
+                {/* Enrolled Candidates Section */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-5 w-5" />
+                        <span>
+                          {isCompleted || isRealTimeCompleted
+                            ? "Election Results"
+                            : "Enrolled Candidates"}
+                        </span>
+                      </div>
+                      <Badge variant="secondary" className="text-sm">
+                        {election.enrolledCandidates?.length || 0} of{" "}
+                        {election.noOfCandidates} candidates
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {/* Show results note if election is completed in real-time but not in database */}
+                      {isRealTimeCompleted && !isCompleted && (
+                        <Alert className="border-blue-300 bg-blue-50">
+                          <Activity className="h-4 w-4 text-blue-600" />
+                          <AlertDescription className="text-blue-800">
+                            This election has ended based on the scheduled time.
+                            Results may be available.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+
+                      {/* Candidate Table */}
+                      <CompactEnrolledCandidatesTable
+                        enrolledCandidates={election.enrolledCandidates || []}
+                        showVotes={isCompleted || isRealTimeCompleted}
+                        maxHeight="400px"
+                        itemsPerPage={15}
+                      />
+                    </div>
                   </CardContent>
                 </Card>
               </div>
+            </div>
 
-              {/* Enrollment Deadline */}
-              {election.enrolDdl && (
-                <>
-                  <Separator />
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg">
-                          <Clock className="h-4 w-4 text-orange-600" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">
-                            Enrollment Deadline
-                          </p>
-                          <p className="font-semibold text-gray-900">
-                            {formatSimpleDate(election.enrolDdl)}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </>
-              )}
-
-              {/* Description */}
-              {election.description && (
-                <>
-                  <Separator />
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-gray-500" />
-                      <span className="font-medium text-gray-900">
-                        Description
-                      </span>
-                    </div>
-                    <Card className="bg-gray-50/50">
-                      <CardContent className="p-4">
-                        <p className="text-gray-700 leading-relaxed">
-                          {election.description}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </>
-              )}
-
-              {/* Actions */}
-              <div className="flex items-center justify-between border-t pt-4">
-                <Button variant="outline" className="gap-2" onClick={() => onOpenChange(false)}>
-                  Cancel
+            {/* Fixed Actions Footer */}
+            <div className="flex-shrink-0 border-t bg-gray-50 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <Button variant="outline" onClick={() => onOpenChange(false)}>
+                  Close
                 </Button>
                 <div className="flex justify-end gap-2">
                   <Button asChild className="gap-2">

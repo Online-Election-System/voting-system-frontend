@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import api from "@/src/lib/axios";
 import { getUserId, getUserType, isAuthenticated } from "@/src/lib/cookies";
 
@@ -21,7 +27,7 @@ export default function ChangePasswordPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       // Check authentication first
       if (!isAuthenticated()) {
         console.log("User not authenticated, redirecting to login");
@@ -50,7 +56,7 @@ export default function ChangePasswordPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate passwords match
     if (newPassword !== confirmPassword) {
       alert("New passwords do not match");
@@ -74,16 +80,19 @@ export default function ChangePasswordPage() {
     setError(null);
 
     try {
-      const response = await api.put("/voter-registration/api/v1/changepassword", {
-        userId,
-        userType,
-        oldPassword,
-        newPassword,
-      });
+      const response = await api.put(
+        "/voter-registration/api/v1/changepassword",
+        {
+          userId,
+          userType,
+          oldPassword,
+          newPassword,
+        }
+      );
 
       console.log("Password change response:", response.data);
       alert("Password changed successfully!");
-      
+
       // Redirect based on user type
       const roleToPath: Record<string, string> = {
         admin: "/admin/dashboard",
@@ -98,14 +107,14 @@ export default function ChangePasswordPage() {
       router.push(roleToPath[userType] ?? "/dashboard");
     } catch (err: any) {
       console.error("Password change error:", err);
-      
+
       // Handle specific error cases
       if (err.response?.status === 401 || err.response?.status === 403) {
         setError("Authentication failed. Please log in again.");
         setTimeout(() => router.push("/login"), 1500);
         return;
       }
-      
+
       if (err.response?.status === 400) {
         alert("Invalid old password or password requirements not met.");
       } else {
@@ -151,13 +160,18 @@ export default function ChangePasswordPage() {
     <div className="flex min-h-screen items-center justify-center p-4">
       <Card className="max-w-md w-full">
         <CardHeader>
-          <CardTitle className="text-2xl text-center">Change Password</CardTitle>
+          <CardTitle className="text-2xl text-center">
+            Change Password
+          </CardTitle>
           <CardDescription className="text-center">
             Update your password to keep your account secure
           </CardDescription>
           {userType && (
             <div className="text-sm text-center text-muted-foreground mt-2">
-              Account type: <span className="font-medium capitalize">{userType.replace('_', ' ')}</span>
+              Account type:{" "}
+              <span className="font-medium capitalize">
+                {userType.replace("_", " ")}
+              </span>
             </div>
           )}
         </CardHeader>
@@ -174,7 +188,7 @@ export default function ChangePasswordPage() {
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="newPassword">New Password</Label>
               <Input
@@ -186,7 +200,7 @@ export default function ChangePasswordPage() {
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm New Password</Label>
               <Input
@@ -198,10 +212,10 @@ export default function ChangePasswordPage() {
                 required
               />
             </div>
-            
-            <Button 
-              type="submit" 
-              className="w-full" 
+
+            <Button
+              type="submit"
+              className="w-full"
               disabled={loading || !userId || !userType}
             >
               {loading ? (
@@ -214,19 +228,21 @@ export default function ChangePasswordPage() {
               )}
             </Button>
           </form>
-          
+
           <div className="mt-4 text-center">
             <Button
               variant="outline"
               onClick={() => {
                 const roleToPath: Record<string, string> = {
                   admin: "/admin/dashboard",
-                  government_official: "/government-official/dashboard", 
+                  government_official: "/government-official/dashboard",
                   election_commission: "/election-commission/dashboard",
                   chief_occupant: "/chief-occupant/dashboard",
                   household_member: "/household-member/dashboard",
                   householdMember: "/household-member/dashboard",
                   polling_station: "/polling-station",
+                  verified_chief_occupant: "/enrollment/dashboard",
+                  verified_household_member: "/enrollment/dashboard",
                 };
                 router.push(roleToPath[userType!] ?? "/dashboard");
               }}
