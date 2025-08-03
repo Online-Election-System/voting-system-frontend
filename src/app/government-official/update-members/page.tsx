@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -10,45 +10,69 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Eye, Search, Filter } from "lucide-react"
 import Link from "next/link"
 
+interface UpdateMemberRequest {
+  updateRequestId: string;
+  chiefOccupantId: string;
+  householdMemberId: string;
+  nic: string;
+  newFullName: string | null;
+  newCivilStatus: string | null;
+  relevantCertificatePath: string;
+  requestStatus: string;
+  reason: string | null;
+}
+
+interface RequestStats {
+  pending: number;
+  approved: number;
+  rejected: number;
+  total: number;
+}
+
 export default function UpdateMemberRequests() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
-  const updateMemberRequests = [
-    {
-      updateRequestId: "UMR-001",
-      chiefOccupantId: "CO-001",
-      householdMemberId: "VOT-005",
-      newFullName: "Kasun Bandara Silva",
-      newResidentArea: "New Address Line 1, New Address Line 2, Colombo",
-      requestStatus: "pending",
-      relevantCertificatePath: "/placeholder.svg?height=400&width=600&text=Certificate+PDF",
-    },
-    {
-      updateRequestId: "UMR-002",
-      chiefOccupantId: "CO-002",
-      householdMemberId: "VOT-006",
-      newFullName: null,
-      newResidentArea: "New Village, Kandy",
-      requestStatus: "pending",
-      relevantCertificatePath: "/placeholder.svg?height=400&width=600&text=Certificate+PDF",
-    },
-    {
-      updateRequestId: "UMR-003",
-      chiefOccupantId: "CO-003",
-      householdMemberId: "VOT-007",
-      newFullName: "Nimal Fernando Perera",
-      newResidentArea: null,
-      requestStatus: "approved",
-      relevantCertificatePath: "/placeholder.svg?height=400&width=600&text=Certificate+PDF",
-    },
-  ]
+  const [updateMemberRequests, setUpdateMemberRequests] = useState<UpdateMemberRequest[]>([])
+  const [stats, setStats] = useState<RequestStats>({ pending: 0, approved: 0, rejected: 0, total: 0 })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchUpdateMemberRequests()
+    fetchStats()
+  }, [])
+
+  const fetchUpdateMemberRequests = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('http://localhost:8080/api/v1/update-member-requests')
+      if (response.ok) {
+        const data = await response.json()
+        setUpdateMemberRequests(data)
+      }
+    } catch (error) {
+      console.error('Error fetching update member requests:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchStats = async () => {
+    try {
+      const response = await fetch('http://localhost:8080/api/v1/update-member-requests/counts')
+      if (response.ok) {
+        const data = await response.json()
+        setStats(data)
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error)
+    }
+  }
 
   const filteredRequests = updateMemberRequests.filter((req) => {
-    const matchesSearch =
+    const matchesSearch = 
+      req.nic?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       req.newFullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      "" ||
-      req.householdMemberId?.includes(searchTerm) ||
-      ""
+      req.updateRequestId.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === "all" || req.requestStatus === statusFilter
     return matchesSearch && matchesStatus
   })
@@ -64,6 +88,30 @@ export default function UpdateMemberRequests() {
       default:
         return "bg-gray-100 text-gray-800 hover:bg-gray-200"
     }
+  }
+
+  // Update stats when requests change (for real-time updates after approval/rejection)
+  useEffect(() => {
+    const pending = updateMemberRequests.filter(r => r.requestStatus === "pending").length
+    const approved = updateMemberRequests.filter(r => r.requestStatus === "approved").length
+    const rejected = updateMemberRequests.filter(r => r.requestStatus === "rejected").length
+    
+    setStats({
+      pending,
+      approved,
+      rejected,
+      total: updateMemberRequests.length
+    })
+  }, [updateMemberRequests])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8 px-4 md:px-6 lg:px-8">
+        <div className="container mx-auto">
+          <div className="text-center">Loading...</div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -88,7 +136,7 @@ export default function UpdateMemberRequests() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
-                    placeholder="Search by new name or member ID..."
+                    placeholder="Search by NIC, new name or request ID..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10 bg-white border-gray-300 text-gray-900 focus:border-gray-500 focus:ring-gray-500"
@@ -114,31 +162,25 @@ export default function UpdateMemberRequests() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="bg-white text-gray-900 shadow-md border border-gray-200">
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-yellow-700">
-                {updateMemberRequests.filter((r) => r.requestStatus === "pending").length}
-              </div>
+              <div className="text-2xl font-bold text-yellow-700">{stats.pending}</div>
               <p className="text-sm text-gray-600">Pending Review</p>
             </CardContent>
           </Card>
           <Card className="bg-white text-gray-900 shadow-md border border-gray-200">
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-green-700">
-                {updateMemberRequests.filter((r) => r.requestStatus === "approved").length}
-              </div>
+              <div className="text-2xl font-bold text-green-700">{stats.approved}</div>
               <p className="text-sm text-gray-600">Approved</p>
             </CardContent>
           </Card>
           <Card className="bg-white text-gray-900 shadow-md border border-gray-200">
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-red-700">
-                {updateMemberRequests.filter((r) => r.requestStatus === "rejected").length}
-              </div>
+              <div className="text-2xl font-bold text-red-700">{stats.rejected}</div>
               <p className="text-sm text-gray-600">Rejected</p>
             </CardContent>
           </Card>
           <Card className="bg-white text-gray-900 shadow-md border border-gray-200">
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-gray-800">{updateMemberRequests.length}</div>
+              <div className="text-2xl font-bold text-gray-800">{stats.total}</div>
               <p className="text-sm text-gray-600">Total Requests</p>
             </CardContent>
           </Card>
@@ -154,10 +196,9 @@ export default function UpdateMemberRequests() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-gray-50 hover:bg-gray-100">
-                  <TableHead className="text-gray-700">Chief Occupant ID</TableHead>
-                  <TableHead className="text-gray-700">Member ID</TableHead>
+                  <TableHead className="text-gray-700">NIC Number</TableHead>
                   <TableHead className="text-gray-700">New Full Name</TableHead>
-                  <TableHead className="text-gray-700">New Resident Area</TableHead>
+                  <TableHead className="text-gray-700">New Civil Status</TableHead>
                   <TableHead className="text-gray-700">Status</TableHead>
                   <TableHead className="text-gray-700">Actions</TableHead>
                 </TableRow>
@@ -165,19 +206,16 @@ export default function UpdateMemberRequests() {
               <TableBody>
                 {filteredRequests.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-gray-600">
+                    <TableCell colSpan={5} className="text-center text-gray-600">
                       No update requests found.
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredRequests.map((request) => (
                     <TableRow key={request.updateRequestId} className="hover:bg-gray-50">
-                      <TableCell className="font-medium text-gray-900">{request.chiefOccupantId}</TableCell>
-                      <TableCell className="text-gray-700">{request.householdMemberId}</TableCell>
-                      <TableCell className="text-gray-700">{request.newFullName || "N/A"}</TableCell>
-                      <TableCell className="max-w-48 truncate text-gray-700">
-                        {request.newResidentArea || "N/A"}
-                      </TableCell>
+                      <TableCell className="font-medium text-gray-900">{request.nic}</TableCell>
+                      <TableCell className="text-gray-700">{request.newFullName || "No change"}</TableCell>
+                      <TableCell className="text-gray-700">{request.newCivilStatus || "No change"}</TableCell>
                       <TableCell>
                         <Badge className={getStatusBadgeColor(request.requestStatus)}>
                           {request.requestStatus.charAt(0).toUpperCase() + request.requestStatus.slice(1)}

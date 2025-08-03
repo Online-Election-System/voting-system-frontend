@@ -39,11 +39,13 @@ export default function Dashboard() {
         addMemberResponse,
         registrationResponse,
         removalResponse,
+        updatememberResponse
         // Note: Update member endpoint not provided, keeping as 0 for now
       ] = await Promise.all([
         fetch(`${API_BASE_URL}/add-member-requests/counts`).catch((e) => ({ ok: false, error: e })),
         fetch(`${API_BASE_URL}/registrations/counts`).catch((e) => ({ ok: false, error: e })),
         fetch(`${API_BASE_URL}/removal-requests/counts`).catch((e) => ({ ok: false, error: e })),
+        fetch(`${API_BASE_URL}/update-member-requests/counts`).catch((e) => ({ ok: false, error: e })),
       ])
 
       const newCounts: CountsData = {
@@ -82,6 +84,18 @@ export default function Dashboard() {
         try {
           const removalData = await (removalResponse as Response).json()
           newCounts.pendingRemovalRequests = removalData.pending || 0
+        } catch (e) {
+          console.error("Error parsing removal counts:", e)
+        }
+      } else {
+        console.error("Failed to fetch removal counts")
+      }
+
+      // Process update member requests counts
+      if (updatememberResponse.ok) {
+        try {
+          const updateMemberData = await (updatememberResponse as Response).json()
+          newCounts.pendingUpdateMemberRequests = updateMemberData.pending || 0
         } catch (e) {
           console.error("Error parsing removal counts:", e)
         }

@@ -46,6 +46,8 @@ export default function LoginForm() {
         chief_occupant: "/chief-occupant/dashboard",
         household_member: "/household-member/dashboard",
         polling_station: "/polling-station",
+        verifiedChiefOccupant: "/enrollment/dashboard",  
+        verifiedHouseholdMember: "/enrollment/dashboard"
       };
 
       // First-time login for household members
