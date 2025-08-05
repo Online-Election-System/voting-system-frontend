@@ -4,6 +4,7 @@ import { toast } from '@/components/ui/use-toast';
 import { Candidate, CandidateConfig, CandidateFormData, CandidateUpdate } from '../candidate.types';
 import * as candidateService from '../services/candidateService';
 import { candidateKeys } from './query-keys';
+import { electionKeys } from '../../elections/hooks/query-keys';
 
 // Calculate candidate statistics with null safety
 const calculateCandidateStats = (candidates: Candidate[]) => {
@@ -171,6 +172,12 @@ export const useCreateCandidate = () => {
     onSettled: (data, error, variables) => {
       queryClient.invalidateQueries({ queryKey: candidateKeys.lists() });
       queryClient.invalidateQueries({ queryKey: candidateKeys.active() });
+
+      // NEW: Invalidate all election queries to refresh enrolled candidate data
+      queryClient.invalidateQueries({ queryKey: ['elections'] });
+      
+      // NEW: If you have specific election keys, invalidate those too
+      queryClient.invalidateQueries({ queryKey: electionKeys.all });
     },
   });
 };

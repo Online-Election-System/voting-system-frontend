@@ -410,14 +410,14 @@ function ResultsDashboard({ selectedElection, onBack }: { selectedElection: any;
           </div>
         </div>
         <div className="flex items-center space-x-2">
-          <Button 
+          {/* <Button 
             variant="outline" 
             onClick={handleBatchUpdate}
             disabled={updating}
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${updating ? 'animate-spin' : ''}`} />
             {updating ? 'Updating...' : 'Update Totals'}
-          </Button>
+          </Button> */}
           <Button onClick={handleExportData}>
             <Download className="h-4 w-4 mr-2" />
             Export Results

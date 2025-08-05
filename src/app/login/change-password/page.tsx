@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import api from "@/src/lib/axios";
 import { isAuthenticated, getUserId, getUserType } from "@/src/lib/cookies";
 
@@ -55,6 +61,8 @@ export default function ChangePasswordPage() {
       household_member: "/household-member/dashboard",
       householdMember: "/household-member/dashboard",
       polling_station: "/polling-station",
+      verified_chief_occupant: "/enrollment/dashboard",
+      verified_household_member: "/enrollment/dashboard",
     };
 
     return userType ? roleToPath[userType] ?? "/dashboard" : "/dashboard";
@@ -62,14 +70,14 @@ export default function ChangePasswordPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate password strength
     const validationError = validatePassword(newPassword);
     if (validationError) {
       setPasswordError(validationError);
       return;
     }
-    
+
     if (newPassword !== confirmPassword) {
       setError("New passwords do not match");
       return;
@@ -90,20 +98,26 @@ export default function ChangePasswordPage() {
     setPasswordError(null);
 
     try {
-      const response = await api.put("/voter-registration/api/v1/change-password", {
-        userId,
-        userType,
-        oldPassword: currentPassword,
-        newPassword
-      }, {
-        withCredentials: true
-      });
+      const response = await api.put(
+        "/voter-registration/api/v1/change-password",
+        {
+          userId,
+          userType,
+          oldPassword: currentPassword,
+          newPassword,
+        },
+        {
+          withCredentials: true,
+        }
+      );
 
       if (response.status === 200) {
         alert("Password changed successfully!");
         router.push(getDashboardPath(userType));
       } else {
-        setError(response.data?.message || "Password change failed. Please try again.");
+        setError(
+          response.data?.message || "Password change failed. Please try again."
+        );
       }
     } catch (err: any) {
       console.error("Password change error:", err);
@@ -113,7 +127,10 @@ export default function ChangePasswordPage() {
         } else if (err.response.data?.code === "INVALID_PASSWORD") {
           setError(err.response.data.message);
         } else {
-          setError(err.response.data?.message || "Password change failed. Please try again.");
+          setError(
+            err.response.data?.message ||
+              "Password change failed. Please try again."
+          );
         }
       } else {
         setError("Password change failed. Please try again.");
@@ -147,7 +164,7 @@ export default function ChangePasswordPage() {
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="newPassword">New Password</Label>
               <Input
@@ -168,25 +185,41 @@ export default function ChangePasswordPage() {
               <div className="text-xs text-muted-foreground mt-1">
                 Password must contain:
                 <ul className="list-disc pl-5">
-                  <li className={newPassword.length >= 8 ? "text-green-500" : ""}>
+                  <li
+                    className={newPassword.length >= 8 ? "text-green-500" : ""}
+                  >
                     At least 8 characters
                   </li>
-                  <li className={/[A-Z]/.test(newPassword) ? "text-green-500" : ""}>
+                  <li
+                    className={
+                      /[A-Z]/.test(newPassword) ? "text-green-500" : ""
+                    }
+                  >
                     One uppercase letter
                   </li>
-                  <li className={/[a-z]/.test(newPassword) ? "text-green-500" : ""}>
+                  <li
+                    className={
+                      /[a-z]/.test(newPassword) ? "text-green-500" : ""
+                    }
+                  >
                     One lowercase letter
                   </li>
-                  <li className={/\d/.test(newPassword) ? "text-green-500" : ""}>
+                  <li
+                    className={/\d/.test(newPassword) ? "text-green-500" : ""}
+                  >
                     One number
                   </li>
-                  <li className={/[@$!%*?&]/.test(newPassword) ? "text-green-500" : ""}>
+                  <li
+                    className={
+                      /[@$!%*?&]/.test(newPassword) ? "text-green-500" : ""
+                    }
+                  >
                     One special character (@$!%*?&)
                   </li>
                 </ul>
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm Password</Label>
               <Input
@@ -201,10 +234,14 @@ export default function ChangePasswordPage() {
                 <p className="text-sm text-red-500">Passwords do not match</p>
               )}
             </div>
-            
+
             {error && <p className="text-red-500 text-sm">{error}</p>}
-            
-            <Button type="submit" className="w-full" disabled={loading || !userId || !userType}>
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={loading || !userId || !userType}
+            >
               {loading ? "Processing..." : "Change Password"}
             </Button>
           </form>

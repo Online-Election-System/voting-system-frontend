@@ -5,9 +5,13 @@ import { Election, ElectionCreate, ElectionUpdate } from '../election.types';
 import * as electionService from '../services/electionService';
 import { electionKeys } from './query-keys';
 import { calculateElectionStats } from '../utils/election-status-utils';
+import { useCandidates } from '../../candidates/hooks/use-candidates';
+import { mergeEnrolledCandidatesWithLatestData } from '../../candidates/utils/data-merge-utils';
 
 // Fetch all elections with real-time status calculation
 export const useElections = () => {
+  const { data: candidatesData } = useCandidates();
+
   return useQuery({
     queryKey: electionKeys.lists(),
     queryFn: electionService.getElections,
@@ -15,10 +19,15 @@ export const useElections = () => {
     refetchInterval: 60 * 1000, // Refetch every minute for real-time status
     refetchOnWindowFocus: true,
     select: (data: Election[]) => {
+      // Merge each election with latest candidate data
+      const electionsWithUpdatedCandidates = candidatesData?.candidates 
+        ? data.map(election => mergeEnrolledCandidatesWithLatestData(election, candidatesData.candidates))
+        : data;
+
       // Calculate real-time stats on the client
-      const stats = calculateElectionStats(data);
+      const stats = calculateElectionStats(electionsWithUpdatedCandidates);
       return {
-        elections: data,
+        elections: electionsWithUpdatedCandidates,
         ...stats,
       };
     },
@@ -27,11 +36,20 @@ export const useElections = () => {
 
 // Fetch single election by ID
 export const useElection = (id: string, options?: { enabled?: boolean }) => {
+  const { data: candidatesData } = useCandidates();
+
   return useQuery({
     queryKey: electionKeys.detail(id),
     queryFn: () => electionService.getElectionById(id),
     enabled: options?.enabled ?? !!id,
     staleTime: 5 * 60 * 1000, // 5 minutes
+    select: (election: Election) => {
+      // Merge with latest candidate data
+      if (candidatesData?.candidates) {
+        return mergeEnrolledCandidatesWithLatestData(election, candidatesData.candidates);
+      }
+      return election;
+    },
   });
 };
 

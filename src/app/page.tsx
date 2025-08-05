@@ -75,7 +75,7 @@ export default function SriLankaElectionCommission() {
                 </Button>
               </div> */}
 
-              <div className="grid grid-cols-3 gap-6 pt-8">
+              {/* <div className="grid grid-cols-3 gap-6 pt-8">
                 <div className="text-center">
                   <div className="text-3xl font-bold text-blue-200">2.5M+</div>
                   <div className="text-sm text-blue-300">Registered Voters</div>
@@ -88,7 +88,7 @@ export default function SriLankaElectionCommission() {
                   <div className="text-3xl font-bold text-blue-200">99.8%</div>
                   <div className="text-sm text-blue-300">System Uptime</div>
                 </div>
-              </div>
+              </div> */}
             </div>
 
             <div className="relative">
