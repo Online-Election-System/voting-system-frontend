@@ -123,232 +123,36 @@ Our frontend application is designed to:
 ## 📁 Project Structure
 
 ```plaintext
-├── components/              # Reusable React components
-│   ├── auth/                              # Authentication components
-│   │   └── RoleGuard.tsx                  # Role-based access control
-│   ├── shared/                            # Reusable components
-│   │   └── table/                         # Table utilities
-│   │       ├── index.ts                   # Table exports
-│   │       └── [various table components] # Search, filter, pagination
-│   └── ui/                                # Base UI components (shadcn/ui)
-│       ├── alert.tsx                      # Alert component
-│       ├── badge.tsx                      # Badge component
-│       ├── button.tsx                     # Button component
-│       ├── card.tsx                       # Card component
-│       ├── dialog.tsx                     # Dialog/Modal component
-│       ├── input.tsx                      # Input component
-│       ├── table.tsx                      # Table component
-│       └── [other UI components]          # Various UI primitives
-├── public/
 ├── src/
-│   ├── __tests__/
 │   ├── app/
-│   │   ├── admin/                              # Admin Dashboard & Management
-│   │   │   ├── activity-log/                   # System Activity Monitoring
-│   │   │   │   └── page.tsx                    # Activity logs dashboard
-│   │   │   ├── components/                     # Admin-specific components
-│   │   │   │   ├── activity-modal.tsx          # Activity detail modal
-│   │   │   │   └── activity-table.tsx          # Activity logs table
-│   │   │   ├── dashboard/                      # Main admin dashboard
-│   │   │   │   └── page.tsx                    # Admin dashboard page
-│   │   │   ├── hooks/                          # Admin-specific hooks
-│   │   │   │   └── use-activity-logs.ts        # Activity logging hooks
-│   │   │   └── layout.tsx                      # Admin layout wrapper
-│   │   │
-│   │   ├── chief-occupant/                     # Chief Occupant Portal
-│   │   │   ├── dashboard/                      # Chief occupant dashboard
-│   │   │   │   └── page.tsx                    # Main dashboard
-│   │   │   └── household-management/           # Household member management
-│   │   │       ├── manage/                     # Member management forms
-│   │   │       │   ├── addform.tsx             # Add household member
-│   │   │       │   ├── removeform.tsx          # Remove household member
-│   │   │       │   └── updateform.tsx          # Update member info
-│   │   │       ├── page.tsx                    # Household management main page
-│   │   │       └── types.ts                    # Type definitions
-│   │   │
-│   │   ├── election-commission/                # Election Commission Portal
-│   │   │   ├── candidates/                     # Candidate Management System
-│   │   │   │   ├── components/                 # Candidate UI components
-│   │   │   │   │   ├── candidate-dialog.tsx    # Add/edit candidate form
-│   │   │   │   │   └── candidate-table.tsx     # Candidates listing table
-│   │   │   │   ├── hooks/                      # Candidate-specific hooks
-│   │   │   │   │   ├── query-keys.ts           # React Query keys
-│   │   │   │   │   ├── use-candidate-dialog.ts # Dialog state management
-│   │   │   │   │   ├── use-candidate-form.ts   # Form validation & state
-│   │   │   │   │   ├── use-candidates.ts       # CRUD operations
-│   │   │   │   │   └── use-party-suggestions.ts # Party autocomplete
-│   │   │   │   ├── services/                   # API services
-│   │   │   │   │   └── candidateService.ts     # Candidate API calls
-│   │   │   │   ├── utils/                      # Utility functions
-│   │   │   │   │   ├── data-merge-utils.ts     # Data transformation
-│   │   │   │   │   ├── formatters.ts           # Text formatting
-│   │   │   │   │   ├── helpers.ts              # General utilities
-│   │   │   │   │   └── validation.ts           # Form validation
-│   │   │   │   ├── candidate-constants.ts      # Constants & config
-│   │   │   │   ├── candidate.types.ts          # TypeScript interfaces
-│   │   │   │   └── page.tsx                    # Candidates main page
-│   │   │   │
-│   │   │   ├── dashboard/                      # Election Commission Dashboard
-│   │   │   │   └── page.tsx                    # Main dashboard with stats
-│   │   │   │
-│   │   │   ├── elections/                      # Election Management System
-│   │   │   │   ├── (pages)/                    # Dynamic routing pages
-│   │   │   │   │   ├── [id]/                   # Edit election page
-│   │   │   │   │   │   └── page.tsx            # Edit specific election
-│   │   │   │   │   └── add/                    # Create new election
-│   │   │   │   │       └── page.tsx            # Create election form
-│   │   │   │   ├── components/                 # Election UI components
-│   │   │   │   │   ├── candidate-selection-dialog.tsx    # Select candidates for election
-│   │   │   │   │   ├── compact-candidates-table.tsx      # Compact candidate view
-│   │   │   │   │   ├── delete-election.tsx               # Delete confirmation
-│   │   │   │   │   ├── elec-com-header.tsx               # Header component
-│   │   │   │   │   ├── election-dialog.tsx               # Election details modal
-│   │   │   │   │   ├── election-form.tsx                 # Add/edit election form
-│   │   │   │   │   ├── election-status-badge.tsx         # Status indicator
-│   │   │   │   │   ├── elections-table.tsx               # Elections listing
-│   │   │   │   │   └── enhanced-candidate-statistics-panel.tsx # Analytics panel
-│   │   │   │   ├── hooks/                      # Election-specific hooks
-│   │   │   │   │   ├── query-keys.ts           # React Query cache keys
-│   │   │   │   │   ├── use-election-comparison.ts # Compare elections
-│   │   │   │   │   └── use-elections.ts        # Election CRUD operations
-│   │   │   │   ├── services/                   # API services
-│   │   │   │   │   └── electionService.ts      # Election API calls
-│   │   │   │   ├── utils/                      # Utility functions
-│   │   │   │   │   ├── date-utils.ts           # Date manipulation
-│   │   │   │   │   ├── election-status-utils.ts # Status calculation
-│   │   │   │   │   └── time-utils.ts           # Time formatting
-│   │   │   │   ├── election-constants.ts       # Constants & configuration
-│   │   │   │   ├── election.types.ts           # TypeScript interfaces
-│   │   │   │   └── page.tsx                    # Elections main page
-│   │   │   │
-│   │   │   └── layout.tsx                      # Election Commission layout
-│   │   │
-│   │   ├── government-official/
-│   │   │   ├── add-members/
-│   │   │   │   ├── [id]/
-│   │   │   │   │   └── page.tsx
-│   │   │   │   └── page.tsx
-│   │   │   ├── dashboard/
-│   │   │   │   └── page.tsx
-│   │   │   ├── households/
-│   │   │   │   └── page.tsx
-│   │   │   ├── lib/
-│   │   │   │   ├── api.ts
-│   │   │   │   └── types.ts
-│   │   │   ├── notifications/
-│   │   │   │   └── page.tsx
-│   │   │   ├── profile/
-│   │   │   │   └── page.tsx
-│   │   │   ├── registrations/
-│   │   │   │   ├── [id]/
-│   │   │   │   │   └── page.tsx
-│   │   │   │   └── page.tsx
-│   │   │   ├── removal-requests/
-│   │   │   │   └── page.tsx
-│   │   │   ├── search/
-│   │   │   │   └── page.tsx
-│   │   │   └── update-members/
-│   │   │       ├── [id]/
-│   │   │       │   └── page.tsx
-│   │   │       └── page.tsx
-│   │   │
-│   │   ├── household-member/
-│   │   │   ├── dashboard/
-│   │   │   │   └── page.tsx
-│   │   │   └── layout.tsx
-│   │   │
-│   │   ├── login/
-│   │   │   ├── change-password/
-│   │   │   │   └── page.tsx
-│   │   │   ├── changepassword.tsx
-│   │   │   └── page.tsx
-│   │   │
-│   │   ├── polling-station/
-│   │   │   ├── layout.tsx
-│   │   │   ├── page.tsx
-│   │   │   └── vote/
-│   │   │       ├── components/
-│   │   │       │   ├── candidate-card.tsx
-│   │   │       │   ├── header.tsx
-│   │   │       │   ├── success-message.tsx
-│   │   │       │   ├── vote-confirmation.tsx
-│   │   │       │   ├── voter-profile.tsx
-│   │   │       │   ├── voter-search.tsx
-│   │   │       │   └── voting-interface.tsx
-│   │   │       ├── hooks/
-│   │   │       │   └── useVote.ts
-│   │   │       ├── lib/
-│   │   │       │   ├── config/
-│   │   │       │   │   └── api.ts
-│   │   │       │   └── utils.ts
-│   │   │       ├── page.tsx
-│   │   │       ├── service/
-│   │   │       │   └── voteService.ts
-│   │   │       └── types/
-│   │   │           └── voter.ts
-│   │   │
-│   │   ├── register/
-│   │   │   ├── components/
-│   │   │   │   ├── ChiefOccupantForm.tsx
-│   │   │   │   ├── HouseholdDetailsForm.tsx
-│   │   │   │   ├── HouseholdMembersForm.tsx
-│   │   │   │   └── HouseholdRegistrationForm.tsx
-│   │   │   ├── constants.ts
-│   │   │   ├── hooks/
-│   │   │   │   ├── use-file-upload-hook.ts
-│   │   │   │   └── use-household-form.ts
-│   │   │   ├── page.tsx
-│   │   │   ├── services/
-│   │   │   │   └── householdRegistrationServices.ts
-│   │   │   ├── types.ts
-│   │   │   └── utils/
-│   │   │       └── password-validation-util.ts
-│   │   │
-│   │   ├── results/
-│   │   │   ├── (components)/
-│   │   │   │   ├── CandidateResultsCard.tsx
-│   │   │   │   ├── DistrictAnalysisCard.tsx
-│   │   │   │   ├── DistrictMapView.tsx
-│   │   │   │   ├── ElectionSummaryCard.tsx
-│   │   │   │   └── VoteDistributionChart.tsx
-│   │   │   ├── hooks/
-│   │   │   │   ├── useReslult.ts
-│   │   │   │   └── useSimpleElections.ts
-│   │   │   ├── lib/
-│   │   │   │   └── config/
-│   │   │   │       └── api.ts
-│   │   │   ├── page.tsx
-│   │   │   ├── service/
-│   │   │   │   └── resultService.ts
-│   │   │   └── types.ts
-│   │   │
-│   │   ├── signin/
-│   │   │   └── page.tsx
-│   │   │
-│   │   ├── unauthorized/
-│   │   │   └── page.tsx
-│   │   │
-│   │   ├── globals.css
-│   │   ├── layout.tsx
-│   │   ├── page.tsx
-│   │   └── providers.tsx                       # Global providers (React Query, etc.)
-│   └── lib/
-│   │   ├── hooks/
-│   │   │   ├── use-mobile.tsx          # Mobile breakpoint detection hook
-│   │   │   └── use-toast.ts            # Toast notification system
-│   │   ├── services/
-│   │   │   └── authService.ts          # Authentication service (login, register, logout)
-│   │   ├── storage/
-│   │   │   └── supabase.ts             # Supabase client configuration
-│   │   ├── axios.ts                    # Axios HTTP client with interceptors
-│   │   ├── cookies.ts                  # Cookie management utilities
-│   │   ├── election-data.ts            # Static election data (2016, 2020, 2024)
-│   │   └── utils.ts                    # Utility functions (cn for class merging)
-├── .env.example             # Sample environment config
-├── package.json
-├── tsconfig.json
-└── README.md                # This README file
+│   │   ├── layout.tsx            # Root layout component
+│   │   ├── page.tsx              # Main landing page
+│   │   ├── globals.css           # Global styles (Tailwind, customizations)
+│   │   ├── providers.tsx         # App-level providers (React Query, etc.)
+│   │   └── ...                   # Role/functionality-based folders and route files (e.g., /admin, /user, /voter, /results, etc.)
+│   ├── lib/
+│   │   ├── axios.ts              # Axios instance for API calls
+│   │   ├── utils.ts              # Utility functions (classnames, etc.)
+│   │   ├── cookies.ts            # Session and cookie helpers
+│   │   └── storage/
+│   │       └── supabase.ts       # Supabase storage client
+│   └── ...                       # Other utility or feature folders
+├── components/
+│   └── ui/
+│       ├── toast.tsx             # Toast notification system
+│       ├── resizable.tsx         # Resizable UI panel components
+│       ├── header.tsx            # App header/navigation (referenced in layout)
+│       ├── footer.tsx            # App footer (referenced in layout)
+│       └── ...                   # UI components (cards, badges, etc.)
+├── public/
+│   └── ...                       # Static assets (favicon, images, etc.)
+├── package.json                  # Project dependencies and scripts
+├── tsconfig.json                 # TypeScript configuration
+├── README.md                     # Project documentation
+└── ...                           # Other config and supporting files
 ```
+> **Note:** Only main files/folders are shown (including all major files in `src/app/`). Many feature implementations are further divided into subfolders under `src/app/` for roles and functionalities.  
+For the complete structure, see [GitHub code search](https://github.com/Online-Election-System/voting-system-frontend/search).
 
 ---
 
