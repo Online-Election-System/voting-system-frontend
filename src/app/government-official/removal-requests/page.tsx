@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -56,8 +56,8 @@ export default function RemovalRequests() {
   const [error, setError] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
 
-  // API functions
-  const fetchRemovalRequests = async (searchTerm = "", statusFilter = "all") => {
+  // Optimized API functions with better error handling
+  const fetchRemovalRequests = useCallback(async (searchTerm = "", statusFilter = "all") => {
     try {
       const params = new URLSearchParams()
 
@@ -71,46 +71,73 @@ export default function RemovalRequests() {
 
       const url = `${API_BASE_URL}/removal-requests${params.toString() ? "?" + params.toString() : ""}`
 
+      console.log("Fetching removal requests from:", url) // Debug log
+
       const response = await fetch(url, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
         },
       })
+      
+      console.log("Removal requests response status:", response.status) // Debug log
+      
       if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`Failed to fetch removal requests: ${response.status} ${response.statusText} - ${errorText}`)
+        let errorText = ""
+        try {
+          errorText = await response.text()
+        } catch {
+          errorText = "Unable to read error response"
+        }
+        throw new Error(`HTTP ${response.status}: ${response.statusText}${errorText ? ' - ' + errorText : ''}`)
       }
-      return await response.json()
+      
+      const data = await response.json()
+      console.log("Removal requests data received:", data) // Debug log
+      return data
     } catch (error) {
       console.error("Error fetching removal requests:", error)
       throw error
     }
-  }
+  }, [])
 
-  const fetchRemovalRequestCounts = async () => {
+  const fetchRemovalRequestCounts = useCallback(async () => {
     try {
+      console.log("Fetching removal request counts") // Debug log
+      
       const response = await fetch(`${API_BASE_URL}/removal-requests/counts`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
         },
       })
+      
+      console.log("Counts response status:", response.status) // Debug log
+      
       if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`Failed to fetch counts: ${response.status} ${response.statusText} - ${errorText}`)
+        let errorText = ""
+        try {
+          errorText = await response.text()
+        } catch {
+          errorText = "Unable to read error response"
+        }
+        throw new Error(`HTTP ${response.status}: ${response.statusText}${errorText ? ' - ' + errorText : ''}`)
       }
-      return await response.json()
+      
+      const data = await response.json()
+      console.log("Counts data received:", data) // Debug log
+      return data
     } catch (error) {
       console.error("Error fetching removal request counts:", error)
       throw error
     }
-  }
+  }, [])
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true)
     setError(null)
     try {
+      // Fetch both data sets in parallel for better performance
       const [requestsData, countsData] = await Promise.all([
         fetchRemovalRequests(searchTerm, statusFilter),
         fetchRemovalRequestCounts(),
@@ -122,15 +149,17 @@ export default function RemovalRequests() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [searchTerm, statusFilter, fetchRemovalRequests, fetchRemovalRequestCounts])
 
-  // Event handlers
+  // Optimized event handlers
   const handleApprove = async (deleteRequestId: string) => {
     if (isProcessing) return
 
     try {
       setIsProcessing(true)
       setError(null)
+
+      console.log("Approving removal request:", deleteRequestId) // Debug log
 
       const response = await fetch(`${API_BASE_URL}/removal-requests/${deleteRequestId}/approve`, {
         method: "POST",
@@ -139,14 +168,38 @@ export default function RemovalRequests() {
         },
       })
 
+      console.log("Approve response status:", response.status) // Debug log
+
       if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`Failed to approve removal request: ${response.status} ${response.statusText} - ${errorText}`)
+        let errorText = ""
+        try {
+          errorText = await response.text()
+        } catch {
+          errorText = "Unable to read error response"
+        }
+        throw new Error(`HTTP ${response.status}: ${response.statusText}${errorText ? ' - ' + errorText : ''}`)
       }
 
-      // Refresh data after approval
-      await fetchData()
+      // Update local state instead of full refetch for better performance
+      setRemovalRequests(prev => 
+        prev.map(req => 
+          req.deleteRequestId === deleteRequestId 
+            ? { ...req, status: "approved" as const }
+            : req
+        )
+      )
+      
+      // Update counts
+      setCounts(prev => ({
+        ...prev,
+        pending: prev.pending - 1,
+        approved: prev.approved + 1
+      }))
+
+      console.log("Removal request approved successfully") // Debug log
+      
     } catch (err: any) {
+      console.error("Error approving removal request:", err)
       setError(err.message || "Failed to approve removal request")
     } finally {
       setIsProcessing(false)
@@ -160,6 +213,8 @@ export default function RemovalRequests() {
       setIsProcessing(true)
       setError(null)
 
+      console.log("Rejecting removal request:", selectedRequest) // Debug log
+
       const response = await fetch(`${API_BASE_URL}/removal-requests/${selectedRequest}/reject`, {
         method: "POST",
         headers: {
@@ -168,19 +223,43 @@ export default function RemovalRequests() {
         body: JSON.stringify({ reason: rejectionReason.trim() }),
       })
 
+      console.log("Reject response status:", response.status) // Debug log
+
       if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`Failed to reject removal request: ${response.status} ${response.statusText} - ${errorText}`)
+        let errorText = ""
+        try {
+          errorText = await response.text()
+        } catch {
+          errorText = "Unable to read error response"
+        }
+        throw new Error(`HTTP ${response.status}: ${response.statusText}${errorText ? ' - ' + errorText : ''}`)
       }
+
+      // Update local state instead of full refetch for better performance
+      setRemovalRequests(prev => 
+        prev.map(req => 
+          req.deleteRequestId === selectedRequest 
+            ? { ...req, status: "rejected" as const }
+            : req
+        )
+      )
+      
+      // Update counts
+      setCounts(prev => ({
+        ...prev,
+        pending: prev.pending - 1,
+        rejected: prev.rejected + 1
+      }))
 
       // Close dialog and reset state
       setShowRejectDialog(false)
       setSelectedRequest(null)
       setRejectionReason("")
 
-      // Refresh data after rejection
-      await fetchData()
+      console.log("Removal request rejected successfully") // Debug log
+
     } catch (err: any) {
+      console.error("Error rejecting removal request:", err)
       setError(err.message || "Failed to reject removal request")
     } finally {
       setIsProcessing(false)
@@ -190,9 +269,9 @@ export default function RemovalRequests() {
   // Effects
   useEffect(() => {
     fetchData()
-  }, [searchTerm, statusFilter])
+  }, [fetchData])
 
-  // Filter requests based on search and status
+  // Filter requests based on search and status (client-side filtering for better performance)
   const filteredRequests = removalRequests.filter((req) => {
     const matchesSearch =
       req.memberName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -208,6 +287,13 @@ export default function RemovalRequests() {
         <div className="text-red-600 flex items-center gap-2">
           <AlertCircle className="w-5 h-5" />
           {error}
+          <Button 
+            onClick={() => fetchData()} 
+            className="ml-4"
+            variant="outline"
+          >
+            Retry
+          </Button>
         </div>
       </div>
     )
@@ -261,19 +347,19 @@ export default function RemovalRequests() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="bg-white text-gray-900 shadow-md border border-gray-200">
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-yellow-700">{counts.pending}</div> {/* Yellow for pending */}
+              <div className="text-2xl font-bold text-yellow-700">{counts.pending}</div>
               <p className="text-sm text-gray-600">Pending Review</p>
             </CardContent>
           </Card>
           <Card className="bg-white text-gray-900 shadow-md border border-gray-200">
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-green-700">{counts.approved}</div> {/* Green for approved */}
+              <div className="text-2xl font-bold text-green-700">{counts.approved}</div>
               <p className="text-sm text-gray-600">Approved</p>
             </CardContent>
           </Card>
           <Card className="bg-white text-gray-900 shadow-md border border-gray-200">
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-red-700">{counts.rejected}</div> {/* Red for rejected */}
+              <div className="text-2xl font-bold text-red-700">{counts.rejected}</div>
               <p className="text-sm text-gray-600">Rejected</p>
             </CardContent>
           </Card>
@@ -296,7 +382,7 @@ export default function RemovalRequests() {
           <CardContent>
             <Table>
               <TableHeader>
-                <TableRow className="bg-gray-50 hover:bg-gray-100">
+                <TableRow className="bg-red-50 hover:bg-red-100">
                   <TableHead className="text-gray-700">Member to Remove</TableHead>
                   <TableHead className="text-gray-700">Member NIC</TableHead>
                   <TableHead className="text-gray-700">Requested By</TableHead>
@@ -324,7 +410,7 @@ export default function RemovalRequests() {
                   </TableRow>
                 ) : (
                   filteredRequests.map((request) => (
-                    <TableRow key={request.deleteRequestId} className="hover:bg-gray-50">
+                    <TableRow key={request.deleteRequestId} className="hover:bg-red-50">
                       <TableCell className="font-medium text-gray-900">{request.memberName}</TableCell>
                       <TableCell className="text-gray-700">{request.memberNic}</TableCell>
                       <TableCell className="text-gray-700">{request.requestedBy}</TableCell>

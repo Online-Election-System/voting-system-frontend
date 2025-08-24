@@ -195,7 +195,7 @@ export default function UpdateMemberRequests() {
           <CardContent>
             <Table>
               <TableHeader>
-                <TableRow className="bg-gray-50 hover:bg-gray-100">
+                <TableRow className="bg-yellow-50 hover:bg-yellow-100">
                   <TableHead className="text-gray-700">NIC Number</TableHead>
                   <TableHead className="text-gray-700">New Full Name</TableHead>
                   <TableHead className="text-gray-700">New Civil Status</TableHead>
@@ -212,7 +212,7 @@ export default function UpdateMemberRequests() {
                   </TableRow>
                 ) : (
                   filteredRequests.map((request) => (
-                    <TableRow key={request.updateRequestId} className="hover:bg-gray-50">
+                    <TableRow key={request.updateRequestId} className="hover:bg-yellow-50">
                       <TableCell className="font-medium text-gray-900">{request.nic}</TableCell>
                       <TableCell className="text-gray-700">{request.newFullName || "No change"}</TableCell>
                       <TableCell className="text-gray-700">{request.newCivilStatus || "No change"}</TableCell>

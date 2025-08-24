@@ -209,8 +209,10 @@ export default function Registrations() {
           </CardHeader>
           <CardContent>
             <Table>
+              
               <TableHeader>
-                <TableRow className="bg-gray-50 hover:bg-gray-100">
+                <TableRow className="bg-green-50 hover:bg-green-100">
+                  
                   <TableHead className="text-gray-700">Full Name</TableHead>
                   <TableHead className="text-gray-700">NIC</TableHead>
                   <TableHead className="text-gray-700">Phone</TableHead>
@@ -233,7 +235,7 @@ export default function Registrations() {
                   </TableRow>
                 ) : (
                   applications.map((registration) => (
-                    <TableRow key={registration.nic} className="hover:bg-gray-50">
+                    <TableRow key={registration.nic} className="hover:bg-green-50">
                       <TableCell className="font-medium text-gray-900">{registration.fullName}</TableCell>
                       <TableCell className="text-gray-700">{registration.nic}</TableCell>
                       <TableCell className="text-gray-700">{registration.phone || "-"}</TableCell>

@@ -286,9 +286,9 @@ export default function ProfilePage() {
                           Enrolled: {formatDate(election.enrollmentDate)}
                         </p>
                       </div>
-                      <Badge variant="outline" className="bg-gray-100 text-gray-800 px-3 py-1.5 text-sm font-medium">
+                      {/* <Badge variant="outline" className="bg-gray-100 text-gray-800 px-3 py-1.5 text-sm font-medium">
                         {election.status}
-                      </Badge>
+                      </Badge> */}
                     </div>
                   ))}
                 </div>

@@ -39,6 +39,15 @@ export default function LoginForm() {
 
       const { userType: backendRole, message } = response.data;
 
+      // Store the NIC in localStorage for profile access
+      if (typeof window !== 'undefined') {
+        localStorage.setItem("userNic", nic);
+        localStorage.setItem("userRole", backendRole);
+        
+        // Optionally store login timestamp
+        localStorage.setItem("loginTime", new Date().toISOString());
+      }
+
       const roleToPath: Record<string, string> = {
         admin: "/admin/dashboard",
         government_official: "/government-official/dashboard",
@@ -46,8 +55,8 @@ export default function LoginForm() {
         chief_occupant: "/chief-occupant/dashboard",
         household_member: "/household-member/dashboard",
         polling_station: "/polling-station",
-        verifiedChiefOccupant: "/enrollment/dashboard",  
-        verifiedHouseholdMember: "/enrollment/dashboard"
+        verified_chief_occupant: "/enrollment/dashboard",  
+        verified_household_member: "/enrollment/dashboard"
       };
 
       // First-time login for household members
