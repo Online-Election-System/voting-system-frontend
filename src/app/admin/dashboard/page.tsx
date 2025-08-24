@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import RoleGuard from "@/components/auth/RoleGuard";
 import { getUserType, isAuthenticated } from "@/src/lib/cookies";
@@ -9,33 +9,116 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "@/src/lib/hooks/use-toast";
+import {
+  useTableSearch,
+  SearchInput,
+  FilterControls,
+  FilterSelect,
+  SortableHeader,
+  ResultsSummary,
+  TablePagination,
+  FilterOption,
+} from "@/components/shared/table";
 
-type RegistrationType = "government_official" | "election_commission" | "polling_station" | null;
+type RegistrationType =
+  | "government_official"
+  | "election_commission"
+  | "polling_station"
+  | null;
 
 interface RegistrationForm {
-  fullName: string;
-  nic: string;
-  email: string;
+  userId: string;
   passwordHash: string;
+  confirmPassword: string;
+  division?: string; // Optional field for government officials
 }
+
+interface AdminUser {
+  id: string;
+  username: string;
+  passwordHash: string;
+  role: string;
+  createdAt: [number, number]; // [seconds, fractional_seconds]
+  isActive: boolean;
+}
+
+// Utility function to convert Ballerina time:Utc to JavaScript Date
+const utcTimeToDate = (utcTime: [number, number]): Date => {
+  try {
+    const [seconds, fractionalSeconds] = utcTime;
+    return new Date(seconds * 1000 + fractionalSeconds * 1000);
+  } catch (error) {
+    console.error("Error converting UTC time:", error);
+    return new Date(); // Return current date as fallback
+  }
+};
 
 export default function AdminDashboard() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeForm, setActiveForm] = useState<RegistrationType>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [usersError, setUsersError] = useState<string | null>(null);
   const router = useRouter();
 
   const [formData, setFormData] = useState<RegistrationForm>({
-    fullName: "",
-    nic: "",
-    email: "",
-    passwordHash: ""
+    userId: "",
+    passwordHash: "",
+    confirmPassword: "",
+    division: "",
   });
 
+  const [passwordError, setPasswordError] = useState<string>("");
+
+  // Table search and filter functionality with custom date sorting
+  const {
+    searchQuery,
+    filters,
+    sortConfig,
+    currentPage,
+    filteredData: baseFilteredData,
+    hasActiveFilters,
+    setSearchQuery,
+    setCurrentPage,
+    updateFilter,
+    updateSort,
+    clearFilters,
+  } = useTableSearch(adminUsers, ["username", "role"], 10);
+
+  // Custom sorting for dates - override the default sorting for createdAt
+  const filteredData = useMemo(() => {
+    if (sortConfig.field === "createdAt") {
+      const sorted = [...baseFilteredData].sort((a, b) => {
+        const dateA = utcTimeToDate(a.createdAt);
+        const dateB = utcTimeToDate(b.createdAt);
+        const comparison = dateA.getTime() - dateB.getTime();
+        return sortConfig.direction === "asc" ? comparison : -comparison;
+      });
+      return sorted;
+    }
+    return baseFilteredData;
+  }, [baseFilteredData, sortConfig]);
+
+  // Recalculate pagination based on custom filtered data
+  const startIndex = (currentPage - 1) * 10;
+  const paginatedData = filteredData.slice(startIndex, startIndex + 10);
+  const customTotalPages = Math.ceil(filteredData.length / 10);
+
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       if (!isAuthenticated()) {
         console.log("User not authenticated, redirecting to login");
         router.push("/login");
@@ -44,7 +127,7 @@ export default function AdminDashboard() {
 
       const role = getUserType();
       console.log("User role from cookies:", role);
-      
+
       if (!role) {
         console.log("No user role found, redirecting to login");
         router.push("/login");
@@ -56,26 +139,83 @@ export default function AdminDashboard() {
     }
   }, [router]);
 
+  // Fetch admin users
+  const fetchAdminUsers = async () => {
+    setLoadingUsers(true);
+    setUsersError(null);
+
+    try {
+      const API_BASE_URL =
+        process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+      const response = await fetch(`${API_BASE_URL}/admin/api/v1/admins`, {
+        method: "GET",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch admin users: ${response.statusText}`);
+      }
+
+      const users = await response.json();
+      setAdminUsers(users);
+    } catch (error) {
+      console.error("Error fetching admin users:", error);
+      setUsersError(
+        error instanceof Error ? error.message : "Failed to fetch admin users"
+      );
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  // Fetch admin users on component mount
+  useEffect(() => {
+    if (!loading && userRole) {
+      fetchAdminUsers();
+    }
+  }, [loading, userRole]);
+
   const resetForm = () => {
     setFormData({
-      fullName: "",
-      nic: "",
-      email: "",
-      passwordHash: ""
+      userId: "",
+      passwordHash: "",
+      confirmPassword: "",
+      division: "",
     });
     setActiveForm(null);
-    setMessage(null);
+    setPasswordError("");
+  };
+
+  const validatePassword = (password: string): boolean => {
+    const hasMinLength = password.length >= 8;
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumbers = /\d/.test(password);
+    const hasSpecialChar = /[@$!%*?&]/.test(password);
+
+    return (
+      hasMinLength &&
+      hasUpperCase &&
+      hasLowerCase &&
+      hasNumbers &&
+      hasSpecialChar
+    );
   };
 
   const handleInputChange = (field: keyof RegistrationForm, value: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
+
+    if (field === "passwordHash") {
+      setPasswordError("");
+    }
   };
 
   const getEndpointUrl = (type: RegistrationType) => {
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080"
+    const API_BASE_URL =
+      process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
     switch (type) {
       case "government_official":
         return `${API_BASE_URL}/admin/api/v1/gov-official/register`;
@@ -89,13 +229,35 @@ export default function AdminDashboard() {
   };
 
   const getRequestBody = (type: RegistrationType) => {
+    let requestData;
+
     switch (type) {
       case "government_official":
-        return { official: formData };
+        // For government officials, send userId as nic and include optional division
+        requestData = {
+          nic: formData.userId,
+          passwordHash: formData.passwordHash,
+          division: formData.division || null,
+        };
+        return { official: requestData };
+
       case "election_commission":
-        return { commission: formData };
+        // For election commission, send userId as nic
+        requestData = {
+          nic: formData.userId,
+          passwordHash: formData.passwordHash,
+        };
+        return { commission: requestData };
+
       case "polling_station":
-        return { station: formData };
+        // For polling station, send userId as nic
+        requestData = {
+          nic: formData.userId,
+          passwordHash: formData.passwordHash,
+          division: formData.division || null,
+        };
+        return { station: requestData };
+
       default:
         return {};
     }
@@ -105,30 +267,114 @@ export default function AdminDashboard() {
     e.preventDefault();
     if (!activeForm) return;
 
+    if (!validatePassword(formData.passwordHash)) {
+      setPasswordError("Password does not meet requirements");
+      toast({
+        title: "Validation Error",
+        description: "Password does not meet requirements",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (formData.passwordHash !== formData.confirmPassword) {
+      setPasswordError("Passwords do not match");
+      toast({
+        title: "Validation Error",
+        description: "Passwords do not match",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSubmitting(true);
-    setMessage(null);
+    setPasswordError("");
 
     try {
       const response = await fetch(getEndpointUrl(activeForm), {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        credentials: 'include',
-        body: JSON.stringify(getRequestBody(activeForm))
+        credentials: "include",
+        body: JSON.stringify(getRequestBody(activeForm)),
       });
 
       const result = await response.json();
 
-      if (response.ok && result.status === 'success') {
-        setMessage({ type: 'success', text: result.message });
+      if (response.ok && result.status === "success") {
+        toast({
+          title: "Registration Successful",
+          description: result.message || "User registered successfully",
+        });
         resetForm();
+        // Refresh the admin users list after successful registration
+        fetchAdminUsers();
       } else {
-        setMessage({ type: 'error', text: result.message || 'Registration failed' });
+        // Enhanced error handling for specific error cases
+        const errorMessage = result.message || "Registration failed";
+
+        // Check for duplicate username/user ID errors
+        if (
+          errorMessage.toLowerCase().includes("already exists") ||
+          errorMessage.toLowerCase().includes("already taken") ||
+          errorMessage.toLowerCase().includes("duplicate") ||
+          errorMessage.toLowerCase().includes("user already registered") ||
+          response.status === 409
+        ) {
+          // 409 Conflict status code
+          toast({
+            title: "Username Already Taken",
+            description: `The User ID "${formData.userId}" is already registered. Please choose a different User ID.`,
+            variant: "destructive",
+          });
+        } else if (
+          errorMessage.toLowerCase().includes("invalid") &&
+          errorMessage.toLowerCase().includes("password")
+        ) {
+          toast({
+            title: "Invalid Password",
+            description:
+              "The password format is invalid. Please check the requirements.",
+            variant: "destructive",
+          });
+        } else if (
+          errorMessage.toLowerCase().includes("unauthorized") ||
+          response.status === 401
+        ) {
+          toast({
+            title: "Unauthorized",
+            description:
+              "You don't have permission to register users. Please contact your administrator.",
+            variant: "destructive",
+          });
+        } else if (
+          errorMessage.toLowerCase().includes("invalid") &&
+          errorMessage.toLowerCase().includes("division")
+        ) {
+          toast({
+            title: "Invalid Division",
+            description:
+              "The specified division is not valid. Please check and try again.",
+            variant: "destructive",
+          });
+        } else {
+          // Generic error fallback
+          toast({
+            title: "Registration Failed",
+            description: errorMessage,
+            variant: "destructive",
+          });
+        }
       }
     } catch (error) {
-      console.error('Registration error:', error);
-      setMessage({ type: 'error', text: 'Network error. Please try again.' });
+      console.error("Registration error:", error);
+      toast({
+        title: "Network Error",
+        description:
+          "Unable to connect to the server. Please check your internet connection and try again.",
+        variant: "destructive",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -147,14 +393,135 @@ export default function AdminDashboard() {
     }
   };
 
-  // Show loading state while checking authentication
+  const formatDate = (createdAt: [number, number]) => {
+    // Convert Ballerina time:Utc to JavaScript Date
+    const date = utcTimeToDate(createdAt);
+
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const roleOptions: FilterOption[] = [
+    { label: "Admin", value: "admin" },
+    { label: "Government Official", value: "government_official" },
+    { label: "Election Commission", value: "election_commission" },
+    { label: "Polling Station", value: "polling_station" },
+  ];
+
+  const statusOptions: FilterOption[] = [
+    { label: "Active", value: "true" },
+    { label: "Inactive", value: "false" },
+  ];
+
+  const renderFormFields = () => {
+    const password = formData.passwordHash;
+
+    return (
+      <>
+        <div>
+          <Label htmlFor="userId">
+            User ID<span className="text-red-500">*</span>
+          </Label>
+          <Input
+            id="userId"
+            type="text"
+            value={formData.userId}
+            onChange={(e) => handleInputChange("userId", e.target.value)}
+            required
+            placeholder="Enter user ID"
+          />
+        </div>
+
+        {(activeForm === "government_official" ||
+          activeForm === "polling_station") && (
+          <div>
+            <Label htmlFor="division">Division (Optional)</Label>
+            <Input
+              id="division"
+              type="text"
+              value={formData.division || ""}
+              onChange={(e) => handleInputChange("division", e.target.value)}
+              placeholder="Enter division"
+            />
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <Label htmlFor="password">
+            Password<span className="text-red-500">*</span>
+          </Label>
+          <Input
+            id="password"
+            type="password"
+            value={formData.passwordHash}
+            onChange={(e) => handleInputChange("passwordHash", e.target.value)}
+            required
+            placeholder="Enter password"
+          />
+          {passwordError && (
+            <p className="text-sm text-red-500">{passwordError}</p>
+          )}
+          <div className="text-xs text-muted-foreground mt-1">
+            Password must contain:
+            <ul className="list-disc pl-5">
+              <li className={password.length >= 8 ? "text-green-500" : ""}>
+                At least 8 characters
+              </li>
+              <li className={/[A-Z]/.test(password) ? "text-green-500" : ""}>
+                One uppercase letter
+              </li>
+              <li className={/[a-z]/.test(password) ? "text-green-500" : ""}>
+                One lowercase letter
+              </li>
+              <li className={/\d/.test(password) ? "text-green-500" : ""}>
+                One number
+              </li>
+              <li
+                className={/[@$!%*?&]/.test(password) ? "text-green-500" : ""}
+              >
+                One special character (@$!%*?&)
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="confirmPassword">
+            Confirm Password<span className="text-red-500">*</span>
+          </Label>
+          <Input
+            id="confirmPassword"
+            type="password"
+            value={formData.confirmPassword}
+            onChange={(e) =>
+              handleInputChange("confirmPassword", e.target.value)
+            }
+            placeholder="Confirm password"
+            required
+          />
+          {formData.confirmPassword &&
+            password !== formData.confirmPassword && (
+              <p className="text-sm text-red-500">Passwords do not match</p>
+            )}
+        </div>
+      </>
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col">
         <main className="flex flex-1 flex-col items-center justify-center p-4 md:p-6">
           <div className="text-center">
             <div className="animate-spin mx-auto h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mb-4" />
-            <p className="text-lg text-muted-foreground">Loading dashboard...</p>
+            <p className="text-lg text-muted-foreground">
+              Loading dashboard...
+            </p>
           </div>
         </main>
       </div>
@@ -164,160 +531,277 @@ export default function AdminDashboard() {
   return (
     <RoleGuard requiredRole="admin">
       <div className="flex min-h-screen flex-col">
-        <main className="flex flex-1 flex-col items-center justify-center p-4 md:p-6">
-          <div className="max-w-4xl w-full">
+        <main className="flex flex-1 flex-col p-4 md:p-6">
+          <div className="max-w-7xl w-full mx-auto">
             <div className="text-center mb-8">
               <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
                 Admin Dashboard
               </h1>
-              <p className="mt-4 text-lg text-muted-foreground md:text-xl">
-                Manage user registrations and system administration — all in one place.
-              </p>
-              {userRole && (
-                <div className="mt-6 text-sm text-muted-foreground">
-                  Logged in as: <span className="font-medium capitalize">{userRole.replace('_', ' ')}</span>
-                </div>
-              )}
             </div>
 
-            {!activeForm ? (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+            <Tabs defaultValue="users" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="users">Manage Users</TabsTrigger>
+                <TabsTrigger value="register">Register New Users</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="users" className="mt-6">
+                <Card>
                   <CardHeader>
-                    <CardTitle className="text-center">Government Official</CardTitle>
+                    <CardTitle>Admin Users</CardTitle>
                   </CardHeader>
-                  <CardContent className="text-center">
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Register new government officials who can manage elections
-                    </p>
-                    <Button 
-                      onClick={() => setActiveForm("government_official")}
-                      className="w-full"
-                    >
-                      Register Official
-                    </Button>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {/* Search and Filter Controls */}
+                      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                        <SearchInput
+                          value={searchQuery}
+                          onChange={setSearchQuery}
+                          placeholder="Search by username or role..."
+                        />
+
+                        <FilterControls
+                          hasActiveFilters={hasActiveFilters}
+                          onClearFilters={clearFilters}
+                        >
+                          <FilterSelect
+                            label="Role"
+                            value={filters.role || "all"}
+                            options={roleOptions}
+                            onChange={(value) => updateFilter("role", value)}
+                          />
+                          <FilterSelect
+                            label="Status"
+                            value={filters.isActive || "all"}
+                            options={statusOptions}
+                            onChange={(value) =>
+                              updateFilter("isActive", value)
+                            }
+                          />
+                        </FilterControls>
+                      </div>
+
+                      <ResultsSummary
+                        hasActiveFilters={hasActiveFilters}
+                        filteredCount={filteredData.length}
+                        totalCount={adminUsers.length}
+                        itemName="users"
+                      />
+
+                      {/* Table */}
+                      {loadingUsers ? (
+                        <div className="flex justify-center py-8">
+                          <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+                        </div>
+                      ) : usersError ? (
+                        <Alert className="border-red-500">
+                          <AlertDescription className="text-red-700">
+                            {usersError}
+                          </AlertDescription>
+                        </Alert>
+                      ) : (
+                        <>
+                          <div className="rounded-md border">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>
+                                    <SortableHeader
+                                      field="username"
+                                      currentSort={sortConfig}
+                                      onSort={updateSort}
+                                    >
+                                      Username
+                                    </SortableHeader>
+                                  </TableHead>
+                                  <TableHead>
+                                    <SortableHeader
+                                      field="role"
+                                      currentSort={sortConfig}
+                                      onSort={updateSort}
+                                    >
+                                      Role
+                                    </SortableHeader>
+                                  </TableHead>
+                                  <TableHead>
+                                    <SortableHeader
+                                      field="isActive"
+                                      currentSort={sortConfig}
+                                      onSort={updateSort}
+                                    >
+                                      Status
+                                    </SortableHeader>
+                                  </TableHead>
+                                  <TableHead>
+                                    <SortableHeader
+                                      field="createdAt"
+                                      currentSort={sortConfig}
+                                      onSort={updateSort}
+                                    >
+                                      Created At
+                                    </SortableHeader>
+                                  </TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {paginatedData.length === 0 ? (
+                                  <TableRow>
+                                    <TableCell
+                                      colSpan={4}
+                                      className="text-center py-8 text-muted-foreground"
+                                    >
+                                      {hasActiveFilters
+                                        ? "No users found matching your criteria"
+                                        : "No admin users found"}
+                                    </TableCell>
+                                  </TableRow>
+                                ) : (
+                                  paginatedData.map((user) => (
+                                    <TableRow key={user.id}>
+                                      <TableCell className="font-medium">
+                                        {user.username}
+                                      </TableCell>
+                                      <TableCell>
+                                        <Badge variant="secondary">
+                                          {user.role.replace("_", " ")}
+                                        </Badge>
+                                      </TableCell>
+                                      <TableCell>
+                                        <Badge
+                                          variant={
+                                            user.isActive
+                                              ? "default"
+                                              : "destructive"
+                                          }
+                                        >
+                                          {user.isActive
+                                            ? "Active"
+                                            : "Inactive"}
+                                        </Badge>
+                                      </TableCell>
+                                      <TableCell className="text-muted-foreground">
+                                        {formatDate(user.createdAt)}
+                                      </TableCell>
+                                    </TableRow>
+                                  ))
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
+
+                          <TablePagination
+                            currentPage={currentPage}
+                            totalPages={customTotalPages}
+                            totalItems={filteredData.length}
+                            itemsPerPage={10}
+                            onPageChange={setCurrentPage}
+                            itemName="users"
+                          />
+                        </>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
+              </TabsContent>
 
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                  <CardHeader>
-                    <CardTitle className="text-center">Election Commission</CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-center">
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Register election commission users for oversight and monitoring
-                    </p>
-                    <Button 
-                      onClick={() => setActiveForm("election_commission")}
-                      className="w-full"
-                    >
-                      Register Commission User
-                    </Button>
-                  </CardContent>
-                </Card>
+              <TabsContent value="register" className="mt-6">
+                {!activeForm ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                      <CardHeader>
+                        <CardTitle className="text-center">
+                          Government Official
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="text-center">
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Register new government officials for oversight and
+                          monitoring
+                        </p>
+                        <Button
+                          onClick={() => setActiveForm("government_official")}
+                          className="w-full"
+                        >
+                          Register Official
+                        </Button>
+                      </CardContent>
+                    </Card>
 
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                  <CardHeader>
-                    <CardTitle className="text-center">Polling Station</CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-center">
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Register polling station operators for election day management
-                    </p>
-                    <Button 
-                      onClick={() => setActiveForm("polling_station")}
-                      className="w-full"
-                    >
-                      Register Station User
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-            ) : (
-              <Card className="max-w-2xl mx-auto">
-                <CardHeader>
-                  <CardTitle className="text-center">{getFormTitle(activeForm)}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {message && (
-                    <Alert className={`mb-6 ${message.type === 'error' ? 'border-red-500' : 'border-green-500'}`}>
-                      <AlertDescription className={message.type === 'error' ? 'text-red-700' : 'text-green-700'}>
-                        {message.text}
-                      </AlertDescription>
-                    </Alert>
-                  )}
+                    <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                      <CardHeader>
+                        <CardTitle className="text-center">
+                          Election Commission
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="text-center">
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Register election commission users who can manage
+                          elections
+                        </p>
+                        <Button
+                          onClick={() => setActiveForm("election_commission")}
+                          className="w-full"
+                        >
+                          Register Commission User
+                        </Button>
+                      </CardContent>
+                    </Card>
 
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                      <Label htmlFor="fullName">Full Name</Label>
-                      <Input
-                        id="fullName"
-                        type="text"
-                        value={formData.fullName}
-                        onChange={(e) => handleInputChange('fullName', e.target.value)}
-                        required
-                        placeholder="Enter full name"
-                      />
-                    </div>
+                    <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                      <CardHeader>
+                        <CardTitle className="text-center">
+                          Polling Station
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="text-center">
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Register polling station operators for election day
+                          management
+                        </p>
+                        <Button
+                          onClick={() => setActiveForm("polling_station")}
+                          className="w-full"
+                        >
+                          Register Station User
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </div>
+                ) : (
+                  <Card className="max-w-2xl mx-auto">
+                    <CardHeader>
+                      <CardTitle className="text-center">
+                        {getFormTitle(activeForm)}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <form onSubmit={handleSubmit} className="space-y-4">
+                        {renderFormFields()}
 
-                    <div>
-                      <Label htmlFor="nic">NIC Number</Label>
-                      <Input
-                        id="nic"
-                        type="text"
-                        value={formData.nic}
-                        onChange={(e) => handleInputChange('nic', e.target.value)}
-                        required
-                        placeholder="Enter NIC number"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="email">Email Address</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => handleInputChange('email', e.target.value)}
-                        required
-                        placeholder="Enter email address"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="password">Password</Label>
-                      <Input
-                        id="password"
-                        type="password"
-                        value={formData.passwordHash}
-                        onChange={(e) => handleInputChange('passwordHash', e.target.value)}
-                        required
-                        placeholder="Enter password"
-                      />
-                    </div>
-
-                    <div className="flex gap-4 pt-4">
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        onClick={resetForm}
-                        className="flex-1"
-                        disabled={submitting}
-                      >
-                        Cancel
-                      </Button>
-                      <Button 
-                        type="submit" 
-                        className="flex-1"
-                        disabled={submitting}
-                      >
-                        {submitting ? 'Registering...' : 'Register User'}
-                      </Button>
-                    </div>
-                  </form>
-                </CardContent>
-              </Card>
-            )}
+                        <div className="flex gap-4 pt-4">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={resetForm}
+                            className="flex-1"
+                            disabled={submitting}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            type="submit"
+                            className="flex-1"
+                            disabled={submitting}
+                          >
+                            {submitting ? "Registering..." : "Register User"}
+                          </Button>
+                        </div>
+                      </form>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+            </Tabs>
           </div>
         </main>
       </div>

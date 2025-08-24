@@ -8,7 +8,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, Trash2 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Pencil, Trash2, Users } from "lucide-react";
 import { Election } from "../election.types";
 import { ElectionStatusBadge } from "./election-status-badge";
 import { formatSimpleDate, simpleDateToDate } from "../utils/date-utils";
@@ -73,6 +79,31 @@ export function ElectionsTable({
   });
 
   const prefetchElection = usePrefetchElection();
+
+  // Helper function to check if election can be edited/deleted
+  const canEditOrDelete = (election: Election) => {
+    const realTimeStatus = election.status === 'Cancelled' 
+      ? election.status 
+      : calculateRealTimeElectionStatus(election);
+    
+    // Elections that are Active or Completed cannot be edited/deleted
+    return realTimeStatus !== 'Active' && realTimeStatus !== 'Completed';
+  };
+
+  // Helper function to get tooltip message for disabled actions
+  const getDisabledTooltipMessage = (election: Election) => {
+    const realTimeStatus = election.status === 'Cancelled' 
+      ? election.status 
+      : calculateRealTimeElectionStatus(election);
+    
+    if (realTimeStatus === 'Active') {
+      return "Cannot edit or delete an active election";
+    }
+    if (realTimeStatus === 'Completed') {
+      return "Cannot edit or delete a completed election";
+    }
+    return "";
+  };
 
   // Enhanced elections with real-time status for filtering
   const electionsWithRealTimeStatus = useMemo(() => {
@@ -332,7 +363,10 @@ export function ElectionsTable({
                   currentSort={sortConfig}
                   onSort={updateSort}
                 >
-                  Candidates
+                  <div className="flex flex-col items-center text-center">
+                    <span className="block">Number of</span>
+                    <span className="block">Candidates Enrolled</span>
+                  </div>
                 </SortableHeader>
               </TableHead>
               <TableHead>
@@ -392,7 +426,7 @@ export function ElectionsTable({
                         )} - ${formatTimeOfDay(election.endTime)}`
                       : "Time not set"}
                   </TableCell>
-                  <TableCell>{election.noOfCandidates || 0}</TableCell>
+                  <TableCell className="text-center">{election.noOfCandidates || 0}</TableCell>
                   <TableCell>
                     <RealTimeStatusDisplay election={election} />
                   </TableCell>
@@ -401,21 +435,62 @@ export function ElectionsTable({
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" asChild title="Edit">
-                        <Link
-                          href={`/election-commission/elections/${election.id}`}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      <DeleteConfirmationDialog
-                        onConfirm={() => onDelete(election.id)}
-                        trigger={
-                          <Button variant="ghost" size="icon" title="Delete">
-                            <Trash2 className="h-4 w-4 text-destructive" />
+                      <TooltipProvider>
+                        {canEditOrDelete(election) ? (
+                          <Button variant="ghost" size="icon" asChild title="Edit">
+                            <Link
+                              href={`/election-commission/elections/${election.id}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Link>
                           </Button>
-                        }
-                      />
+                        ) : (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                disabled
+                                className="opacity-50 cursor-not-allowed"
+                                aria-label={`Cannot edit ${election.electionName}`}
+                              >
+                                <Pencil className="h-4 w-4 text-gray-400" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{getDisabledTooltipMessage(election)}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+
+                        {canEditOrDelete(election) ? (
+                          <DeleteConfirmationDialog
+                            onConfirm={() => onDelete(election.id)}
+                            trigger={
+                              <Button variant="ghost" size="icon" title="Delete">
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            }
+                          />
+                        ) : (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                disabled
+                                className="opacity-50 cursor-not-allowed"
+                                aria-label={`Cannot delete ${election.electionName}`}
+                              >
+                                <Trash2 className="h-4 w-4 text-gray-400" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{getDisabledTooltipMessage(election)}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </TooltipProvider>
                     </div>
                   </TableCell>
                 </TableRow>

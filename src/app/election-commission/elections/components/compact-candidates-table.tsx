@@ -112,18 +112,6 @@ export const CompactEnrolledCandidatesTable = ({
                     Party
                   </SortableHeader>
                 </TableHead>
-                {showVotes && (
-                  <TableHead className="h-10 text-xs text-right">
-                    <SortableHeader
-                      field="numberOfVotes"
-                      currentSort={sortConfig}
-                      onSort={updateSort}
-                      className="text-xs"
-                    >
-                      Votes
-                    </SortableHeader>
-                  </TableHead>
-                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -157,13 +145,6 @@ export const CompactEnrolledCandidatesTable = ({
                     <TableCell className="py-3">
                       {candidate.partyName || "Independent"}
                     </TableCell>
-                    {showVotes && (
-                      <TableCell className="py-3 text-right">
-                        <span className="font-medium text-sm">
-                          {candidate.numberOfVotes.toLocaleString()}
-                        </span>
-                      </TableCell>
-                    )}
                   </TableRow>
                 ))
               )}

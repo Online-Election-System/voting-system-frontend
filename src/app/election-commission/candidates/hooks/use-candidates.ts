@@ -1,6 +1,6 @@
 // hooks/candidates/useCandidates.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from "@/src/lib/hooks/use-toast";
 import { Candidate, CandidateConfig, CandidateFormData, CandidateUpdate } from '../candidate.types';
 import * as candidateService from '../services/candidateService';
 import { candidateKeys } from './query-keys';

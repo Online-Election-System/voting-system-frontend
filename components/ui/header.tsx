@@ -193,12 +193,6 @@ export default function Header() {
     const authenticated = isAuthenticated();
     const userType = getUserType() as UserRole;
 
-    console.log("Header Auth Check:", {
-      authenticated,
-      userType,
-      timestamp: new Date().toISOString(),
-    });
-
     setIsLoggedIn(authenticated);
     setUserRole(authenticated ? userType : null);
     setIsLoading(false);

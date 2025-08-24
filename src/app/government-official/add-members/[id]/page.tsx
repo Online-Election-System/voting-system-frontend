@@ -18,7 +18,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "@/src/lib/hooks/use-toast"
 
 // Updated interfaces to match backend response structure
 interface AddMemberRequest {

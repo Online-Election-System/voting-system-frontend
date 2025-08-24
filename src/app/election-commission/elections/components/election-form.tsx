@@ -42,7 +42,7 @@ import {
 import { simpleDateToDate, dateToSimpleDate } from "../utils/date-utils";
 import { formatTimeOfDay, parseTimeString } from "../utils/time-utils";
 import { ELECTION_TYPES, ELECTION_STATUSES } from "../election-constants";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/src/lib/hooks/use-toast";
 import { CandidateSelectionDialog } from "./candidate-selection-dialog";
 import { Candidate } from "../../candidates/candidate.types";
 import { useCandidates } from "../../candidates/hooks/use-candidates";
@@ -661,7 +661,7 @@ export function ElectionForm({
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="noOfCandidates">
-                  Number of Candidates<span className="text-red-500">*</span>
+                  Number of Candidates
                 </Label>
                 <Input
                   id="noOfCandidates"
@@ -782,12 +782,11 @@ export function ElectionForm({
             {editingElection && (
               <div className="grid gap-2">
                 <Label htmlFor="status">
-                  Status<span className="text-red-500">*</span>
+                  Status
                 </Label>
                 <Select
                   value={status}
                   onValueChange={(value) => setStatus(value as ElectionStatus)}
-                  required
                   disabled={isFormLoading}
                 >
                   <SelectTrigger>

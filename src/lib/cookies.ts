@@ -32,13 +32,11 @@ export function getSessionInfo(): SessionInfo | null {
   try {
     const sessionCookie = getCookie('SESSION_INFO');
     if (!sessionCookie) {
-      console.log("No SESSION_INFO cookie found");
       return null;
     }
     
     const decoded = decodeURIComponent(sessionCookie);
     const parsed = JSON.parse(decoded);
-    console.log("Session info parsed:", parsed);
     return parsed;
   } catch (error) {
     console.error('Failed to parse session cookie:', error);
@@ -52,7 +50,6 @@ export function getSessionInfo(): SessionInfo | null {
 export function isAuthenticated(): boolean {
   const sessionInfo = getSessionInfo();
   const result = !!sessionInfo;
-  console.log("isAuthenticated check:", result, sessionInfo);
   return result;
 }
 

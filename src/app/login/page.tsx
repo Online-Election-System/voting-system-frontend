@@ -88,10 +88,10 @@ export default function LoginForm() {
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="nic">National Identity Card Number</Label>
+            <Label htmlFor="nic">National Identity Card Number / User ID</Label>
             <Input
               id="nic"
-              placeholder="Enter your NIC number"
+              placeholder="Enter your NIC number or user ID"
               value={nic}
               onChange={(e) => setNic(e.target.value)}
               required

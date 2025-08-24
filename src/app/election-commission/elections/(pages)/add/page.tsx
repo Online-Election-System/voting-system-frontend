@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { ElectionForm } from "../../components/election-form";
 import { useCreateElection } from "../../hooks/use-elections";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/src/lib/hooks/use-toast";
 import {
   Card,
   CardContent,

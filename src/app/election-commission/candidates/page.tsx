@@ -23,7 +23,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/src/lib/hooks/use-toast";
 
 export default function CandidatesPage() {
   // React Query hooks

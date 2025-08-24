@@ -276,7 +276,7 @@ export function ActivityLogAdminPage() {
 
         <TabsContent value="logs">
           <ActivityLogTable
-            refreshInterval={30000} // Auto-refresh every 30 seconds
+            refreshInterval={120000} // Auto-refresh every 120 seconds
             showExportButton={true}
             showRefreshButton={true}
             title="All Activity Logs"
