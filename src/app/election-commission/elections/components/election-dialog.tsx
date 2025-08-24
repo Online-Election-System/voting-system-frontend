@@ -181,18 +181,17 @@ export function ElectionDialog({
                     )}
 
                     {/* Enrolled Voters Card (shown for both active and inactive elections) */}
-                    {(!isActive || isActive) &&
-                      election.enrolledVotersCount && (
-                        <StatCard
-                          icon={<Users className="h-4 w-4 text-slate-400" />}
-                          title={
-                            isActive
-                              ? "Enrolled Voters"
-                              : "Number of Enrolled Voters for the Election"
-                          }
-                          value={election.enrolledVotersCount}
-                        />
-                      )}
+                    {election.enrolledVotersCount && (
+                      <StatCard
+                        icon={<Users className="h-4 w-4 text-slate-400" />}
+                        title={
+                          isActive
+                            ? "Enrolled Voters"
+                            : "Number of Enrolled Voters for the Election"
+                        }
+                        value={election.enrolledVotersCount}
+                      />
+                    )}
                   </div>
                 )}
 

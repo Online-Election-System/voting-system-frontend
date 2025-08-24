@@ -1,12 +1,12 @@
 // hooks/elections/useElections.ts
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from '@/components/ui/use-toast';
-import { Election, ElectionCreate, ElectionUpdate } from '../election.types';
-import * as electionService from '../services/electionService';
-import { electionKeys } from './query-keys';
-import { calculateElectionStats } from '../utils/election-status-utils';
-import { useCandidates } from '../../candidates/hooks/use-candidates';
-import { mergeEnrolledCandidatesWithLatestData } from '../../candidates/utils/data-merge-utils';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "@/src/lib/hooks/use-toast";
+import { Election, ElectionCreate, ElectionUpdate } from "../election.types";
+import * as electionService from "../services/electionService";
+import { electionKeys } from "./query-keys";
+import { calculateElectionStats } from "../utils/election-status-utils";
+import { useCandidates } from "../../candidates/hooks/use-candidates";
+import { mergeEnrolledCandidatesWithLatestData } from "../../candidates/utils/data-merge-utils";
 
 // Fetch all elections with real-time status calculation
 export const useElections = () => {
@@ -20,8 +20,13 @@ export const useElections = () => {
     refetchOnWindowFocus: true,
     select: (data: Election[]) => {
       // Merge each election with latest candidate data
-      const electionsWithUpdatedCandidates = candidatesData?.candidates 
-        ? data.map(election => mergeEnrolledCandidatesWithLatestData(election, candidatesData.candidates))
+      const electionsWithUpdatedCandidates = candidatesData?.candidates
+        ? data.map((election) =>
+            mergeEnrolledCandidatesWithLatestData(
+              election,
+              candidatesData.candidates
+            )
+          )
         : data;
 
       // Calculate real-time stats on the client
@@ -46,7 +51,10 @@ export const useElection = (id: string, options?: { enabled?: boolean }) => {
     select: (election: Election) => {
       // Merge with latest candidate data
       if (candidatesData?.candidates) {
-        return mergeEnrolledCandidatesWithLatestData(election, candidatesData.candidates);
+        return mergeEnrolledCandidatesWithLatestData(
+          election,
+          candidatesData.candidates
+        );
       }
       return election;
     },
@@ -54,13 +62,18 @@ export const useElection = (id: string, options?: { enabled?: boolean }) => {
 };
 
 // Fetch candidates for a specific election
-export const useElectionCandidates = (electionId: string, options?: { enabled?: boolean }) => {
+export const useElectionCandidates = (
+  electionId: string,
+  options?: { enabled?: boolean }
+) => {
   return useQuery({
-    queryKey: [...electionKeys.detail(electionId), 'candidates'],
+    queryKey: [...electionKeys.detail(electionId), "candidates"],
     queryFn: () => {
       // Get candidates from the election data itself
       const queryClient = useQueryClient();
-      const electionData = queryClient.getQueryData(electionKeys.detail(electionId)) as Election;
+      const electionData = queryClient.getQueryData(
+        electionKeys.detail(electionId)
+      ) as Election;
       return electionData?.enrolledCandidates || [];
     },
     enabled: options?.enabled ?? !!electionId,
@@ -81,14 +94,14 @@ export const useCreateElection = () => {
 
       // Optimistically update cache
       queryClient.setQueryData(electionKeys.lists(), (old: any) => {
-        const tempElection = { ...newElection, id: 'temp-' + Date.now() };
-        
+        const tempElection = { ...newElection, id: "temp-" + Date.now() };
+
         if (!old) return [tempElection];
-        
+
         // Handle both raw array and transformed object
-        const currentElections = Array.isArray(old) ? old : (old.elections || []);
+        const currentElections = Array.isArray(old) ? old : old.elections || [];
         const newElections = [...currentElections, tempElection];
-        
+
         // If old was already transformed, maintain that structure
         if (!Array.isArray(old) && old.elections) {
           const stats = calculateElectionStats(newElections);
@@ -97,7 +110,7 @@ export const useCreateElection = () => {
             ...stats,
           };
         }
-        
+
         // Otherwise return raw array (let select transform it)
         return newElections;
       });
@@ -106,11 +119,15 @@ export const useCreateElection = () => {
     },
     onError: (err, newElection, context) => {
       if (context?.previousElections) {
-        queryClient.setQueryData(electionKeys.lists(), context.previousElections);
+        queryClient.setQueryData(
+          electionKeys.lists(),
+          context.previousElections
+        );
       }
       toast({
         title: "Error",
-        description: err instanceof Error ? err.message : "Failed to create election",
+        description:
+          err instanceof Error ? err.message : "Failed to create election",
         variant: "destructive",
       });
     },
@@ -119,12 +136,12 @@ export const useCreateElection = () => {
         title: "Success",
         description: "Election created successfully",
       });
-      
+
       queryClient.invalidateQueries({ queryKey: electionKeys.lists() });
-      
+
       if (data?.id) {
-        queryClient.invalidateQueries({ 
-          queryKey: [...electionKeys.detail(data.id), 'candidates'] 
+        queryClient.invalidateQueries({
+          queryKey: [...electionKeys.detail(data.id), "candidates"],
         });
       }
     },
@@ -145,7 +162,9 @@ export const useUpdateElection = () => {
       await queryClient.cancelQueries({ queryKey: electionKeys.detail(id) });
       await queryClient.cancelQueries({ queryKey: electionKeys.lists() });
 
-      const previousElection = queryClient.getQueryData(electionKeys.detail(id));
+      const previousElection = queryClient.getQueryData(
+        electionKeys.detail(id)
+      );
       const previousElections = queryClient.getQueryData(electionKeys.lists());
 
       // Optimistic update for single election
@@ -157,13 +176,13 @@ export const useUpdateElection = () => {
       // Optimistic update for elections list
       queryClient.setQueryData(electionKeys.lists(), (old: any) => {
         if (!old) return old;
-        
+
         // Handle both raw array and transformed object
-        const currentElections = Array.isArray(old) ? old : (old.elections || []);
+        const currentElections = Array.isArray(old) ? old : old.elections || [];
         const updatedElections = currentElections.map((election: Election) =>
           election.id === id ? { ...election, ...data } : election
         );
-        
+
         // If old was already transformed, maintain that structure
         if (!Array.isArray(old) && old.elections) {
           const stats = calculateElectionStats(updatedElections);
@@ -172,7 +191,7 @@ export const useUpdateElection = () => {
             ...stats,
           };
         }
-        
+
         // Otherwise return raw array (let select transform it)
         return updatedElections;
       });
@@ -181,14 +200,21 @@ export const useUpdateElection = () => {
     },
     onError: (err, { id }, context) => {
       if (context?.previousElection) {
-        queryClient.setQueryData(electionKeys.detail(id), context.previousElection);
+        queryClient.setQueryData(
+          electionKeys.detail(id),
+          context.previousElection
+        );
       }
       if (context?.previousElections) {
-        queryClient.setQueryData(electionKeys.lists(), context.previousElections);
+        queryClient.setQueryData(
+          electionKeys.lists(),
+          context.previousElections
+        );
       }
       toast({
         title: "Error",
-        description: err instanceof Error ? err.message : "Failed to update election",
+        description:
+          err instanceof Error ? err.message : "Failed to update election",
         variant: "destructive",
       });
     },
@@ -197,9 +223,9 @@ export const useUpdateElection = () => {
         title: "Success",
         description: "Election updated successfully",
       });
-      
-      queryClient.invalidateQueries({ 
-        queryKey: [...electionKeys.detail(id), 'candidates'] 
+
+      queryClient.invalidateQueries({
+        queryKey: [...electionKeys.detail(id), "candidates"],
       });
     },
     onSettled: (data, error, { id }) => {
@@ -223,11 +249,13 @@ export const useDeleteElection = () => {
       // Optimistically remove from cache
       queryClient.setQueryData(electionKeys.lists(), (old: any) => {
         if (!old) return old;
-        
+
         // Handle both raw array and transformed object
-        const currentElections = Array.isArray(old) ? old : (old.elections || []);
-        const filteredElections = currentElections.filter((election: Election) => election.id !== id);
-        
+        const currentElections = Array.isArray(old) ? old : old.elections || [];
+        const filteredElections = currentElections.filter(
+          (election: Election) => election.id !== id
+        );
+
         // If old was already transformed, maintain that structure
         if (!Array.isArray(old) && old.elections) {
           const stats = calculateElectionStats(filteredElections);
@@ -236,7 +264,7 @@ export const useDeleteElection = () => {
             ...stats,
           };
         }
-        
+
         // Otherwise return raw array (let select transform it)
         return filteredElections;
       });
@@ -245,17 +273,23 @@ export const useDeleteElection = () => {
     },
     onError: (err, id, context) => {
       if (context?.previousElections) {
-        queryClient.setQueryData(electionKeys.lists(), context.previousElections);
+        queryClient.setQueryData(
+          electionKeys.lists(),
+          context.previousElections
+        );
       }
       toast({
         title: "Error",
-        description: err instanceof Error ? err.message : "Failed to delete election",
+        description:
+          err instanceof Error ? err.message : "Failed to delete election",
         variant: "destructive",
       });
     },
     onSuccess: (data, id) => {
       queryClient.removeQueries({ queryKey: electionKeys.detail(id) });
-      queryClient.removeQueries({ queryKey: [...electionKeys.detail(id), 'candidates'] });
+      queryClient.removeQueries({
+        queryKey: [...electionKeys.detail(id), "candidates"],
+      });
       toast({
         title: "Success",
         description: "Election deleted successfully",

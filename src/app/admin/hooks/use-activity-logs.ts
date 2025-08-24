@@ -54,6 +54,9 @@ export interface SecurityAlert {
   resolved: boolean;
 }
 
+// Get API base URL
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+
 // Hook for fetching activity logs
 export function useActivityLogs(filters?: ActivityLogFilter) {
   const [data, setData] = useState<ActivityLog[]>([]);
@@ -72,10 +75,10 @@ export function useActivityLogs(filters?: ActivityLogFilter) {
       if (filters?.userId) queryParams.append('userId', filters.userId);
       if (filters?.userType) queryParams.append('userType', filters.userType);
       if (filters?.actions?.length) {
-        filters.actions.forEach(action => queryParams.append('actions', action));
+        filters.actions.forEach(action => queryParams.append('action', action));
       }
       if (filters?.statuses?.length) {
-        filters.statuses.forEach(status => queryParams.append('statuses', status));
+        filters.statuses.forEach(status => queryParams.append('status', status));
       }
       if (filters?.startTime) queryParams.append('startTime', filters.startTime);
       if (filters?.endTime) queryParams.append('endTime', filters.endTime);
@@ -84,7 +87,10 @@ export function useActivityLogs(filters?: ActivityLogFilter) {
       if (filters?.limit) queryParams.append('limit', filters.limit.toString());
       if (filters?.offset) queryParams.append('offset', filters.offset.toString());
 
-      const response = await fetch(`/api/admin/activity-logs?${queryParams.toString()}`, {
+      const url = `${API_BASE_URL}/admin/api/v1/logs?${queryParams.toString()}`;
+      console.log('Fetching activity logs from:', url);
+
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -93,16 +99,29 @@ export function useActivityLogs(filters?: ActivityLogFilter) {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch activity logs: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('Response error:', response.status, errorText);
+        throw new Error(`Failed to fetch activity logs: ${response.status} ${response.statusText}`);
       }
 
       const result = await response.json();
+      console.log('Activity logs response:', result);
       
-      // Assuming the API returns { data: ActivityLog[], totalCount: number }
-      setData(result.data || []);
-      setTotalCount(result.totalCount || 0);
+      // Handle both array response and object with data property
+      if (Array.isArray(result)) {
+        setData(result);
+        setTotalCount(result.length);
+      } else if (result.data && Array.isArray(result.data)) {
+        setData(result.data);
+        setTotalCount(result.totalCount || result.data.length);
+      } else {
+        console.warn('Unexpected response format:', result);
+        setData([]);
+        setTotalCount(0);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch activity logs');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch activity logs';
+      setError(errorMessage);
       console.error('Error fetching activity logs:', err);
     } finally {
       setIsLoading(false);
@@ -141,7 +160,10 @@ export function useActivityLogStats(timeRange?: { startTime?: string; endTime?: 
       if (timeRange?.startTime) queryParams.append('startTime', timeRange.startTime);
       if (timeRange?.endTime) queryParams.append('endTime', timeRange.endTime);
 
-      const response = await fetch(`/api/admin/activity-stats?${queryParams.toString()}`, {
+      const url = `${API_BASE_URL}/admin/api/v1/stats?${queryParams.toString()}`;
+      console.log('Fetching activity stats from:', url);
+
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -150,13 +172,17 @@ export function useActivityLogStats(timeRange?: { startTime?: string; endTime?: 
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch activity stats: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('Stats response error:', response.status, errorText);
+        throw new Error(`Failed to fetch activity stats: ${response.status} ${response.statusText}`);
       }
 
       const result = await response.json();
+      console.log('Activity stats response:', result);
       setStats(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch activity stats');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch activity stats';
+      setError(errorMessage);
       console.error('Error fetching activity stats:', err);
     } finally {
       setIsLoading(false);
@@ -193,7 +219,10 @@ export function useSecurityAlerts(since?: string) {
       const queryParams = new URLSearchParams();
       if (since) queryParams.append('since', since);
 
-      const response = await fetch(`/api/admin/security-alerts?${queryParams.toString()}`, {
+      const url = `${API_BASE_URL}/admin/api/v1/security-alerts?${queryParams.toString()}`;
+      console.log('Fetching security alerts from:', url);
+
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -202,13 +231,26 @@ export function useSecurityAlerts(since?: string) {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch security alerts: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('Security alerts response error:', response.status, errorText);
+        throw new Error(`Failed to fetch security alerts: ${response.status} ${response.statusText}`);
       }
 
       const result = await response.json();
-      setAlerts(result.data || []);
+      console.log('Security alerts response:', result);
+      
+      // Handle both array response and object with data property
+      if (Array.isArray(result)) {
+        setAlerts(result);
+      } else if (result.data && Array.isArray(result.data)) {
+        setAlerts(result.data);
+      } else {
+        console.warn('Unexpected security alerts response format:', result);
+        setAlerts([]);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch security alerts');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch security alerts';
+      setError(errorMessage);
       console.error('Error fetching security alerts:', err);
     } finally {
       setIsLoading(false);
@@ -225,7 +267,7 @@ export function useSecurityAlerts(since?: string) {
 
   const markAsResolved = useCallback(async (alertId: string) => {
     try {
-      const response = await fetch(`/api/admin/security-alerts/${alertId}/resolve`, {
+      const response = await fetch(`${API_BASE_URL}/admin/api/v1/security-alerts/${alertId}/resolve`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -277,17 +319,19 @@ export function useActivityLogExport() {
       if (filters?.userId) queryParams.append('userId', filters.userId);
       if (filters?.userType) queryParams.append('userType', filters.userType);
       if (filters?.actions?.length) {
-        filters.actions.forEach(action => queryParams.append('actions', action));
+        filters.actions.forEach(action => queryParams.append('action', action));
       }
       if (filters?.statuses?.length) {
-        filters.statuses.forEach(status => queryParams.append('statuses', status));
+        filters.statuses.forEach(status => queryParams.append('status', status));
       }
       if (filters?.startTime) queryParams.append('startTime', filters.startTime);
       if (filters?.endTime) queryParams.append('endTime', filters.endTime);
       if (filters?.endpoint) queryParams.append('endpoint', filters.endpoint);
       if (filters?.ipAddress) queryParams.append('ipAddress', filters.ipAddress);
 
-      const response = await fetch(`/api/admin/activity-logs/export?${queryParams.toString()}`, {
+      const url = `${API_BASE_URL}/admin/api/v1/logs/export?${queryParams.toString()}`;
+
+      const response = await fetch(url, {
         method: 'GET',
         credentials: 'include',
       });
@@ -298,14 +342,14 @@ export function useActivityLogExport() {
 
       // Create download
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = url;
+      link.href = downloadUrl;
       link.download = `activity-logs-${new Date().toISOString().split('T')[0]}.${format}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      window.URL.revokeObjectURL(downloadUrl);
     } catch (err) {
       console.error('Error exporting activity logs:', err);
       throw err;

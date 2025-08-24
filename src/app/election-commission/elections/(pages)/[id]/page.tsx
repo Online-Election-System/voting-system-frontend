@@ -6,7 +6,7 @@ import {
   useElection, 
   useUpdateElection 
 } from "../../hooks/use-elections";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/src/lib/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Edit3, Loader2, AlertTriangle } from "lucide-react";

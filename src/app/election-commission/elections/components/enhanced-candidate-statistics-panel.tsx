@@ -109,20 +109,27 @@ export const EnhancedStatisticCard = ({
       isSignificant ? "ring-2 ring-blue-200 bg-blue-50/30" : ""
     }`}
   >
-    <div className="flex items-center justify-between mb-2">
-      <div className="flex items-center gap-2">
-        <Icon
-          className={`h-4 w-4 ${
-            isSignificant ? "text-blue-600" : "text-slate-400"
-          }`}
-        />
-        <span
-          className={`text-xs font-medium uppercase tracking-wide ${
-            isSignificant ? "text-blue-800" : "text-slate-500"
-          }`}
-        >
-          {title}
-        </span>
+    <div className="flex items-center gap-2">
+      <Icon
+        className={`h-4 w-4 ${
+          isSignificant ? "text-blue-600" : "text-slate-400"
+        }`}
+      />
+      <span
+        className={`text-xs font-medium uppercase tracking-wide ${
+          isSignificant ? "text-blue-800" : "text-slate-500"
+        }`}
+      >
+        {title}
+      </span>
+    </div>
+    <div className="flex items-center justify-between mt-2">
+      <div
+        className={`text-2xl font-bold ${
+          isSignificant ? "text-blue-900" : "text-gray-900"
+        }`}
+      >
+        {value}
       </div>
       {comparison && (
         <EnhancedTrendIndicator
@@ -130,13 +137,6 @@ export const EnhancedStatisticCard = ({
           isSignificant={isSignificant}
         />
       )}
-    </div>
-    <div
-      className={`text-2xl font-bold ${
-        isSignificant ? "text-blue-900" : "text-gray-900"
-      }`}
-    >
-      {value}
     </div>
     {subtitle && (
       <div
