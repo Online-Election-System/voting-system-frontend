@@ -18,7 +18,7 @@ import { submitHouseholdRegistration } from "../services/householdRegistrationSe
 import { validatePassword } from "../utils/password-validation-util";
 import { useState, useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/src/lib/hooks/use-toast";
 
 export default function HouseholdRegistrationForm() {
   const router = useRouter();
@@ -184,13 +184,15 @@ export default function HouseholdRegistrationForm() {
 
       toast({
         title: "Registration Successful",
-        description: "Your household registration has been submitted successfully",
+        description:
+          "Your household registration has been submitted successfully",
         variant: "default",
       });
       router.push("/login");
     } catch (error) {
       console.error("Registration error:", error);
-      const errorMessage = error instanceof Error ? error.message : "Registration failed";
+      const errorMessage =
+        error instanceof Error ? error.message : "Registration failed";
       setPasswordError(errorMessage);
       toast({
         title: "Registration Error",
@@ -250,7 +252,11 @@ export default function HouseholdRegistrationForm() {
             </Button>
             <div className="flex space-x-6">
               {currentStep !== "chief" && (
-                <Button type="button" variant="outline" onClick={handlePrevStep}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handlePrevStep}
+                >
                   Previous
                 </Button>
               )}

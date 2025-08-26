@@ -1,10 +1,11 @@
 "use client"
 
+import { Suspense } from "react"
 import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "@/src/lib/hooks/use-toast"
 import { format } from "date-fns"
 import { useRouter } from "next/navigation"
 import { Calendar, Users, Clock, Vote, CheckCircle, AlertCircle, Eye } from "lucide-react"
@@ -49,7 +50,8 @@ interface Election {
   enrolled: boolean
 }
 
-export default function ElectionsPage() {
+// Separate component that uses useSearchParams
+function ElectionsContent() {
   const [elections, setElections] = useState<Election[]>([])
   const [enrolledElections, setEnrolledElections] = useState<Set<string>>(new Set())
   const searchParams = useSearchParams()
@@ -394,5 +396,44 @@ export default function ElectionsPage() {
         )}
       </div>
     </div>
+  )
+}
+
+// Loading fallback component
+function ElectionsLoading() {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center justify-center w-12 h-12 bg-gray-200 rounded-lg animate-pulse">
+              <div className="w-6 h-6 bg-gray-300 rounded"></div>
+            </div>
+            <div>
+              <div className="h-8 w-48 bg-gray-200 rounded animate-pulse mb-2"></div>
+              <div className="h-4 w-80 bg-gray-200 rounded animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+          <div className="animate-pulse space-y-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-16 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Main component with Suspense wrapper
+export default function ElectionsPage() {
+  return (
+    <Suspense fallback={<ElectionsLoading />}>
+      <ElectionsContent />
+    </Suspense>
   )
 }

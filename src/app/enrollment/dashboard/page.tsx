@@ -1,5 +1,6 @@
 "use client"
 
+import { Suspense } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { useEffect, useState } from "react"
@@ -7,7 +8,7 @@ import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Vote, Users, Calendar, ArrowRight, Info } from "lucide-react"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "@/src/lib/hooks/use-toast"
 
 type Election = {
   id: string
@@ -49,7 +50,8 @@ type Election = {
   enrolled: boolean
 }
 
-export default function Dashboard() {
+// Separate component that uses useSearchParams
+function DashboardContent() {
   const [elections, setElections] = useState<Election[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -275,5 +277,50 @@ export default function Dashboard() {
         </div>
       )}
     </div>
+  )
+}
+
+// Loading fallback component
+function DashboardLoading() {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-200 rounded-2xl mb-6 animate-pulse">
+            <div className="w-8 h-8 bg-gray-300 rounded"></div>
+          </div>
+          <div className="h-12 w-96 bg-gray-200 rounded animate-pulse mb-4 mx-auto"></div>
+          <div className="h-6 w-3/4 bg-gray-200 rounded animate-pulse mx-auto"></div>
+        </div>
+      </div>
+
+      <div className="w-full max-w-md mx-auto mt-10">
+        <div className="w-full h-72 bg-gray-200 rounded animate-pulse mx-auto"></div>
+      </div>
+
+      <div className="space-y-2 mt-10 text-center">
+        <div className="h-12 w-48 bg-gray-200 rounded animate-pulse mx-auto"></div>
+        <div className="h-4 w-80 bg-gray-200 rounded animate-pulse mx-auto"></div>
+      </div>
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="bg-white border border-gray-200 rounded-lg p-6 animate-pulse">
+            <div className="h-4 w-24 bg-gray-200 rounded mb-4"></div>
+            <div className="h-8 w-12 bg-gray-200 rounded mb-2"></div>
+            <div className="h-4 w-full bg-gray-200 rounded"></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// Main component with Suspense wrapper
+export default function Dashboard() {
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <DashboardContent />
+    </Suspense>
   )
 }
