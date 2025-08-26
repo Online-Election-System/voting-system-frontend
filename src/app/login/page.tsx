@@ -39,6 +39,15 @@ export default function LoginForm() {
 
       const { userType: backendRole, message } = response.data;
 
+      // Store the NIC in localStorage for profile access
+      if (typeof window !== 'undefined') {
+        localStorage.setItem("userNic", nic);
+        localStorage.setItem("userRole", backendRole);
+        
+        // Optionally store login timestamp
+        localStorage.setItem("loginTime", new Date().toISOString());
+      }
+
       const roleToPath: Record<string, string> = {
         admin: "/admin/dashboard",
         government_official: "/government-official/dashboard",

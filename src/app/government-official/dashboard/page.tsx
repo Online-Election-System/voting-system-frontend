@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Users, UserCheck, UserMinus, UserPlus, UserCog, Loader2 } from "lucide-react"
+import { Users, UserCheck, UserMinus, UserPlus, UserCog, Loader2, BarChart3 } from "lucide-react"
 import Link from "next/link"
 
 // API base URL - adjust as needed
@@ -14,6 +14,8 @@ interface CountsData {
   pendingUpdateMemberRequests: number
   pendingReviewRegistrations: number
   pendingRemovalRequests: number
+  totalEligibleVoters: number
+  totalHouseholds: number
 }
 
 export default function Dashboard() {
@@ -22,6 +24,8 @@ export default function Dashboard() {
     pendingUpdateMemberRequests: 0,
     pendingReviewRegistrations: 0,
     pendingRemovalRequests: 0,
+    totalEligibleVoters: 0,
+    totalHouseholds: 0,
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -39,11 +43,16 @@ export default function Dashboard() {
         addMemberResponse,
         registrationResponse,
         removalResponse,
-        // Note: Update member endpoint not provided, keeping as 0 for now
+        updatememberResponse,
+        eligibleVotersResponse,
+        householdsResponse
       ] = await Promise.all([
         fetch(`${API_BASE_URL}/add-member-requests/counts`).catch((e) => ({ ok: false, error: e })),
         fetch(`${API_BASE_URL}/registrations/counts`).catch((e) => ({ ok: false, error: e })),
         fetch(`${API_BASE_URL}/removal-requests/counts`).catch((e) => ({ ok: false, error: e })),
+        fetch(`${API_BASE_URL}/update-member-requests/counts`).catch((e) => ({ ok: false, error: e })),
+        fetch(`${API_BASE_URL}/eligible-voters/count`).catch((e) => ({ ok: false, error: e })),
+        fetch(`${API_BASE_URL}/households`).catch((e) => ({ ok: false, error: e })),
       ])
 
       const newCounts: CountsData = {
@@ -51,6 +60,8 @@ export default function Dashboard() {
         pendingUpdateMemberRequests: 0, // Keep as 0 since endpoint not provided
         pendingReviewRegistrations: 0,
         pendingRemovalRequests: 0,
+        totalEligibleVoters: 0,
+        totalHouseholds: 0
       }
 
       // Process add member requests counts
@@ -89,6 +100,41 @@ export default function Dashboard() {
         console.error("Failed to fetch removal counts")
       }
 
+      // Process update member requests counts
+      if (updatememberResponse.ok) {
+        try {
+          const updateMemberData = await (updatememberResponse as Response).json()
+          newCounts.pendingUpdateMemberRequests = updateMemberData.pending || 0
+        } catch (e) {
+          console.error("Error parsing removal counts:", e)
+        }
+      } else {
+        console.error("Failed to fetch removal counts")
+      }
+
+      if (eligibleVotersResponse.ok) {
+        try {
+          const eligibleVotersData = await (eligibleVotersResponse as Response).json()
+          newCounts.totalEligibleVoters = eligibleVotersData.count || 0
+        } catch (e) {
+          console.error("Error parsing eligible voters count:", e)
+        }
+      } else {
+        console.error("Failed to fetch eligible voters count")
+      }
+
+      // Process households count
+      if (householdsResponse.ok) {
+        try {
+          const householdsData = await (householdsResponse as Response).json()
+          newCounts.totalHouseholds = householdsData.length || 0
+        } catch (e) {
+          console.error("Error parsing households count:", e)
+        }
+      } else {
+        console.error("Failed to fetch households count")
+      }
+
       setCounts(newCounts)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch counts")
@@ -107,20 +153,14 @@ export default function Dashboard() {
 
   const stats = [
     {
-      title: "Total Approved Voters",
-      value: "1,247",
-      description: "Active voters in division",
+      title: "Total Eligible Voters",
+      value: loading ? "..." : counts.totalEligibleVoters.toString(),
+      description: "Active eligible voters in division",
       icon: Users,
     },
     {
-      title: "Total Rejected Voters",
-      value: "3",
-      description: "Total rejected removal requests",
-      icon: UserMinus,
-    },
-    {
       title: "Total Households",
-      value: "342",
+      value: loading ? "..." : counts.totalHouseholds.toString(),
       description: "Registered households",
       icon: Users,
     },
@@ -129,6 +169,14 @@ export default function Dashboard() {
       value: loading ? "..." : totalPendingRequests.toString(),
       description: "Across all categories",
       icon: UserCog,
+    },
+    {
+      title: "Analytics & Reports",
+      value: loading ? "..." : "View",
+      description: "Comprehensive insights & metrics",
+      icon: BarChart3,
+      isLink: true,
+      href: "/government-official/analytics"
     },
   ]
 
@@ -153,21 +201,33 @@ export default function Dashboard() {
         )}
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {stats.map((stat, index) => (
-            <Card key={index} className="bg-white text-gray-900 shadow-md border border-gray-200">
-              {" "}
-              {/* Changed to bg-white, text-gray-900, border-gray-200, shadow-md */}
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">{stat.title}</CardTitle>{" "}
-                {/* Changed to gray-600 */}
-                <stat.icon className="h-5 w-5 text-gray-500" /> {/* Changed to gray-500 */}
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{stat.value}</div>
-                <p className="text-xs text-gray-500 mt-1">{stat.description}</p> {/* Changed to gray-500 */}
-              </CardContent>
-            </Card>
+            stat.isLink ? (
+              <Link key={index} href={stat.href || "#"}>
+                <Card className="bg-white text-gray-900 shadow-md border border-gray-200 hover:shadow-lg transition-shadow cursor-pointer">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-gray-600">{stat.title}</CardTitle>
+                    <stat.icon className="h-5 w-5 text-blue-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold text-blue-600">{stat.value}</div>
+                    <p className="text-xs text-gray-500 mt-1">{stat.description}</p>
+                  </CardContent>
+                </Card>
+              </Link>
+            ) : (
+              <Card key={index} className="bg-white text-gray-900 shadow-md border border-gray-200">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">{stat.title}</CardTitle>
+                  <stat.icon className="h-5 w-5 text-gray-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold">{stat.value}</div>
+                  <p className="text-xs text-gray-500 mt-1">{stat.description}</p>
+                </CardContent>
+              </Card>
+            )
           ))}
         </div>
 
@@ -176,7 +236,7 @@ export default function Dashboard() {
           {" "}
           {/* Changed to bg-white, text-gray-900, border-gray-200, shadow-md */}
           <CardHeader>
-            <CardTitle className="text-xl font-semibold">Quick Actions</CardTitle>
+            <CardTitle className="text-xl font-semibold"> Actions</CardTitle>
             <CardDescription className="text-gray-600">Common tasks and shortcuts</CardDescription>{" "}
             {/* Changed to gray-600 */}
           </CardHeader>

@@ -204,7 +204,7 @@ export default function AddMemberRequests() {
             ) : (
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-gray-50 hover:bg-gray-100">
+                  <TableRow className="bg-blue-50 hover:bg-blue-100">
                     <TableHead className="text-gray-700">Full Name</TableHead>
                     <TableHead className="text-gray-700">NIC Number</TableHead>
                     <TableHead className="text-gray-700">Date of Birth</TableHead>
@@ -216,7 +216,7 @@ export default function AddMemberRequests() {
                 </TableHeader>
                 <TableBody>
                   {filteredRequests.map((request) => (
-                    <TableRow key={request.addRequestId} className="hover:bg-gray-50">
+                    <TableRow key={request.addRequestId} className="hover:bg-blue-50">
                       <TableCell className="font-medium text-gray-900">{request.fullName}</TableCell>
                       <TableCell className="text-gray-700">{request.nicNumber}</TableCell>
                       <TableCell className="text-gray-700">{request.dateOfBirth}</TableCell>

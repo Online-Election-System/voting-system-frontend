@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -58,35 +58,49 @@ export default function RegistrationDetail({ params }: { params: Promise<{ id: s
     resolveParams()
   }, [params])
 
-  useEffect(() => {
+  // Memoized fetch function to prevent recreating on every render
+  const fetchRegistration = useCallback(async () => {
     if (!nicId) return
 
-    const fetchRegistration = async () => {
-      try {
-        setLoading(true)
-        setError(null)
+    try {
+      setLoading(true)
+      setError(null)
 
-        const response = await fetch(`${API_BASE_URL}/registrations/application/${nicId}`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        })
-        if (!response.ok) {
-          const errorText = await response.text()
-          throw new Error(`Failed to fetch registration: ${response.status} ${response.statusText} - ${errorText}`)
+      console.log("Fetching registration for NIC:", nicId) // Debug log
+
+      const response = await fetch(`${API_BASE_URL}/registrations/application/${nicId}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      console.log("Response status:", response.status) // Debug log
+
+      if (!response.ok) {
+        let errorText = ""
+        try {
+          errorText = await response.text()
+        } catch {
+          errorText = "Unable to read error response"
         }
-        const data = await response.json()
-        setRegistration(data)
-      } catch (err: any) {
-        setError(err.message)
-        console.error("Error fetching registration detail:", err)
-      } finally {
-        setLoading(false)
+        throw new Error(`HTTP ${response.status}: ${response.statusText}${errorText ? ' - ' + errorText : ''}`)
       }
+      
+      const data = await response.json()
+      console.log("Registration data received:", data) // Debug log
+      setRegistration(data)
+    } catch (err: any) {
+      console.error("Error fetching registration detail:", err)
+      setError(err.message || "Failed to fetch registration details")
+    } finally {
+      setLoading(false)
     }
-    fetchRegistration()
   }, [nicId])
+
+  useEffect(() => {
+    fetchRegistration()
+  }, [fetchRegistration])
 
   const handleApprove = async () => {
     if (!nicId || isProcessing) return
@@ -95,6 +109,8 @@ export default function RegistrationDetail({ params }: { params: Promise<{ id: s
       setIsProcessing(true)
       setError(null)
 
+      console.log("Approving registration for NIC:", nicId) // Debug log
+
       const response = await fetch(`${API_BASE_URL}/registrations/${nicId}/approve`, {
         method: "POST",
         headers: {
@@ -102,14 +118,24 @@ export default function RegistrationDetail({ params }: { params: Promise<{ id: s
         },
       })
 
+      console.log("Approve response status:", response.status) // Debug log
+
       if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`Failed to approve registration: ${response.status} ${response.statusText} - ${errorText}`)
+        let errorText = ""
+        try {
+          errorText = await response.text()
+        } catch {
+          errorText = "Unable to read error response"
+        }
+        throw new Error(`HTTP ${response.status}: ${response.statusText}${errorText ? ' - ' + errorText : ''}`)
       }
 
-      // Refresh the data after approval
-      window.location.reload()
+      // Instead of full page reload, update the state directly for better UX
+      setRegistration(prev => prev ? { ...prev, status: "approved" } : null)
+      console.log("Registration approved successfully") // Debug log
+      
     } catch (err: any) {
+      console.error("Error approving registration:", err)
       setError(err.message || "Failed to approve registration")
     } finally {
       setIsProcessing(false)
@@ -123,6 +149,8 @@ export default function RegistrationDetail({ params }: { params: Promise<{ id: s
       setIsProcessing(true)
       setError(null)
 
+      console.log("Rejecting registration for NIC:", nicId) // Debug log
+
       const response = await fetch(`${API_BASE_URL}/registrations/${nicId}/reject`, {
         method: "POST",
         headers: {
@@ -131,16 +159,27 @@ export default function RegistrationDetail({ params }: { params: Promise<{ id: s
         body: JSON.stringify({ reason: rejectionReason.trim() }),
       })
 
+      console.log("Reject response status:", response.status) // Debug log
+
       if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`Failed to reject registration: ${response.status} ${response.statusText} - ${errorText}`)
+        let errorText = ""
+        try {
+          errorText = await response.text()
+        } catch {
+          errorText = "Unable to read error response"
+        }
+        throw new Error(`HTTP ${response.status}: ${response.statusText}${errorText ? ' - ' + errorText : ''}`)
       }
 
       setShowRejectDialog(false)
       setRejectionReason("")
-      // Refresh the data after rejection
-      window.location.reload()
+      
+      // Instead of full page reload, update the state directly
+      setRegistration(prev => prev ? { ...prev, status: "rejected" } : null)
+      console.log("Registration rejected successfully") // Debug log
+      
     } catch (err: any) {
+      console.error("Error rejecting registration:", err)
       setError(err.message || "Failed to reject registration")
     } finally {
       setIsProcessing(false)
@@ -164,6 +203,13 @@ export default function RegistrationDetail({ params }: { params: Promise<{ id: s
         <div className="text-red-600 flex items-center gap-2">
           <AlertCircle className="w-5 h-5" />
           {error}
+          <Button 
+            onClick={() => window.location.reload()} 
+            className="ml-4"
+            variant="outline"
+          >
+            Retry
+          </Button>
         </div>
       </div>
     )
