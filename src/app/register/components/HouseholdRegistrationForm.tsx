@@ -18,9 +18,11 @@ import { submitHouseholdRegistration } from "../services/householdRegistrationSe
 import { validatePassword } from "../utils/password-validation-util";
 import { useState, useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function HouseholdRegistrationForm() {
   const router = useRouter();
+  const { toast } = useToast();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
@@ -80,8 +82,6 @@ export default function HouseholdRegistrationForm() {
       }
     };
 
-    // Note: In Next.js 13+ app router, you might need to use a different approach
-    // This is for pages router. For app router, consider using usePathname and useSearchParams
     const handlePopState = () => {
       if (!isFormSubmittedRef.current) {
         cleanupAllFiles();
@@ -104,8 +104,17 @@ export default function HouseholdRegistrationForm() {
       await Promise.all(
         cleanupFunctionsRef.current.map((cleanup) => cleanup())
       );
-      console.log("All uploaded files cleaned up");
+      toast({
+        title: "Cleanup Complete",
+        description: "All uploaded files have been cleaned up",
+        variant: "default",
+      });
     } catch (error) {
+      toast({
+        title: "Cleanup Error",
+        description: "There was an error cleaning up files",
+        variant: "destructive",
+      });
       console.error("Error cleaning up files:", error);
     }
   };
@@ -125,33 +134,39 @@ export default function HouseholdRegistrationForm() {
     router.push("/");
   };
 
-  // Handle navigation between steps (NOT form submission)
   const handleNextStep = (e: React.MouseEvent) => {
-    e.preventDefault(); // Prevent form submission
+    e.preventDefault();
     nextStep();
   };
 
   const handlePrevStep = (e: React.MouseEvent) => {
-    e.preventDefault(); // Prevent form submission
+    e.preventDefault();
     prevStep();
   };
 
-  // Handle actual form submission (only when submit button is clicked)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Prevent multiple submissions
     if (isSubmitting) return;
 
-    // Validate password before submission
     const passwordValidationError = validatePassword(password);
     if (passwordValidationError) {
       setPasswordError(passwordValidationError);
+      toast({
+        title: "Password Error",
+        description: passwordValidationError,
+        variant: "destructive",
+      });
       return;
     }
 
     if (password !== confirmPassword) {
       setPasswordError("Passwords do not match");
+      toast({
+        title: "Password Error",
+        description: "Passwords do not match",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -165,16 +180,23 @@ export default function HouseholdRegistrationForm() {
         password
       );
 
-      // Mark form as successfully submitted (prevents cleanup)
       isFormSubmittedRef.current = true;
 
-      alert("Registration successful!");
+      toast({
+        title: "Registration Successful",
+        description: "Your household registration has been submitted successfully",
+        variant: "default",
+      });
       router.push("/login");
     } catch (error) {
       console.error("Registration error:", error);
-      setPasswordError(
-        error instanceof Error ? error.message : "Registration failed"
-      );
+      const errorMessage = error instanceof Error ? error.message : "Registration failed";
+      setPasswordError(errorMessage);
+      toast({
+        title: "Registration Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }

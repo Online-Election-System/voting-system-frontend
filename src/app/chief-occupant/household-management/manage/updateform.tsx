@@ -48,6 +48,7 @@ interface UpdateRequestData {
   newFullName?: string
   newCivilStatus?: string
   relevantCertificatePath: string
+  requestStatus?:null
   reason: null
 }
 
@@ -256,6 +257,7 @@ export function UpdateHouseholdMemberForm({
         chiefOccupantId: chiefOccupant?.memberId || "",
         householdMemberId: isChiefOccupant ? null : selectedMember, // null for chief occupant
         relevantCertificatePath: documentUrl,
+        requestStatus:null,
         reason: null // Always null as per backend
       }
 
