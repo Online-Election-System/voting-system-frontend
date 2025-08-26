@@ -154,7 +154,7 @@ export function ElectionsTable({
   ];
 
   const dateRangeOptions: FilterOption[] = [
-    { label: "Upcoming", value: "upcoming" },
+    { label: "Future", value: "upcoming" },
     { label: "Past", value: "past" },
     { label: "This Month", value: "this-month" },
     { label: "This Year", value: "this-year" },

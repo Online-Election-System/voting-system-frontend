@@ -35,6 +35,14 @@ export function useTableSearch<T>(
           if (typeof itemValue === "undefined") {
             return true;
           }
+          
+          // Handle boolean fields (like isActive)
+          if (typeof itemValue === 'boolean') {
+            const filterValueAsBoolean = value === "true";
+            return itemValue === filterValueAsBoolean;
+          }
+          
+          // Handle string fields (like role)
           return itemValue === value;
         });
       }

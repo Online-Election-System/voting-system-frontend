@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -72,6 +73,7 @@ export default function AdminDashboard() {
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
+  const [updatingUsers, setUpdatingUsers] = useState<Set<string>>(new Set());
   const router = useRouter();
 
   const [formData, setFormData] = useState<RegistrationForm>({
@@ -98,7 +100,7 @@ export default function AdminDashboard() {
     clearFilters,
   } = useTableSearch(adminUsers, ["username", "role"], 10);
 
-  // Custom sorting for dates - override the default sorting for createdAt
+  // Custom sorting for dates - the hook now handles status filtering correctly
   const filteredData = useMemo(() => {
     if (sortConfig.field === "createdAt") {
       const sorted = [...baseFilteredData].sort((a, b) => {
@@ -166,6 +168,100 @@ export default function AdminDashboard() {
     } finally {
       setLoadingUsers(false);
     }
+  };
+
+  // Update user active status
+  const updateUserActiveStatus = async (userId: string, newStatus: boolean) => {
+    setUpdatingUsers((prev) => new Set([...prev, userId]));
+
+    try {
+      const API_BASE_URL =
+        process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+
+      const response = await fetch(
+        `${API_BASE_URL}/admin/api/v1/user/${userId}/status`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            isActive: newStatus,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (response.ok && result.status === "success") {
+        // Update local state optimistically
+        setAdminUsers((prevUsers) =>
+          prevUsers.map((user) =>
+            user.id === userId ? { ...user, isActive: newStatus } : user
+          )
+        );
+
+        toast({
+          title: "Status Updated",
+          description: `User ${
+            newStatus ? "activated" : "deactivated"
+          } successfully`,
+        });
+      } else {
+        // Handle specific error cases
+        const errorMessage = result.message || "Failed to update user status";
+
+        if (
+          response.status === 404 ||
+          errorMessage.toLowerCase().includes("not found")
+        ) {
+          toast({
+            title: "User Not Found",
+            description:
+              "The user could not be found. Please refresh and try again.",
+            variant: "destructive",
+          });
+          // Refresh the users list
+          fetchAdminUsers();
+        } else if (
+          response.status === 401 ||
+          errorMessage.toLowerCase().includes("unauthorized")
+        ) {
+          toast({
+            title: "Unauthorized",
+            description: "You don't have permission to update user status.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Update Failed",
+            description: errorMessage,
+            variant: "destructive",
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error updating user status:", error);
+      toast({
+        title: "Network Error",
+        description:
+          "Unable to connect to the server. Please check your connection and try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdatingUsers((prev) => {
+        const updated = new Set(prev);
+        updated.delete(userId);
+        return updated;
+      });
+    }
+  };
+
+  // Handle toggle switch change
+  const handleStatusToggle = async (userId: string, currentStatus: boolean) => {
+    const newStatus = !currentStatus;
+    await updateUserActiveStatus(userId, newStatus);
   };
 
   // Fetch admin users on component mount
@@ -625,15 +721,6 @@ export default function AdminDashboard() {
                                   </TableHead>
                                   <TableHead>
                                     <SortableHeader
-                                      field="isActive"
-                                      currentSort={sortConfig}
-                                      onSort={updateSort}
-                                    >
-                                      Status
-                                    </SortableHeader>
-                                  </TableHead>
-                                  <TableHead>
-                                    <SortableHeader
                                       field="createdAt"
                                       currentSort={sortConfig}
                                       onSort={updateSort}
@@ -641,13 +728,14 @@ export default function AdminDashboard() {
                                       Created At
                                     </SortableHeader>
                                   </TableHead>
+                                  <TableHead>Actions</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
                                 {paginatedData.length === 0 ? (
                                   <TableRow>
                                     <TableCell
-                                      colSpan={4}
+                                      colSpan={5}
                                       className="text-center py-8 text-muted-foreground"
                                     >
                                       {hasActiveFilters
@@ -657,7 +745,14 @@ export default function AdminDashboard() {
                                   </TableRow>
                                 ) : (
                                   paginatedData.map((user) => (
-                                    <TableRow key={user.id}>
+                                    <TableRow
+                                      key={user.id}
+                                      className={
+                                        !user.isActive
+                                          ? "opacity-50 bg-muted/30"
+                                          : ""
+                                      }
+                                    >
                                       <TableCell className="font-medium">
                                         {user.username}
                                       </TableCell>
@@ -666,21 +761,33 @@ export default function AdminDashboard() {
                                           {user.role.replace("_", " ")}
                                         </Badge>
                                       </TableCell>
-                                      <TableCell>
-                                        <Badge
-                                          variant={
-                                            user.isActive
-                                              ? "default"
-                                              : "destructive"
-                                          }
-                                        >
-                                          {user.isActive
-                                            ? "Active"
-                                            : "Inactive"}
-                                        </Badge>
-                                      </TableCell>
                                       <TableCell className="text-muted-foreground">
                                         {formatDate(user.createdAt)}
+                                      </TableCell>
+                                      <TableCell>
+                                        <div className="flex items-center gap-2">
+                                          <Switch
+                                            checked={user.isActive}
+                                            onCheckedChange={() =>
+                                              handleStatusToggle(
+                                                user.id,
+                                                user.isActive
+                                              )
+                                            }
+                                            disabled={updatingUsers.has(
+                                              user.id
+                                            )}
+                                            aria-label={`Toggle ${user.username} status`}
+                                            className="data-[state=checked]:bg-green-500"
+                                          />
+                                          <span className="text-sm text-muted-foreground">
+                                            {updatingUsers.has(user.id)
+                                              ? "Updating..."
+                                              : user.isActive
+                                              ? "Active"
+                                              : "Inactive"}
+                                          </span>
+                                        </div>
                                       </TableCell>
                                     </TableRow>
                                   ))
