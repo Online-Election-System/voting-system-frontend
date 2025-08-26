@@ -49,6 +49,10 @@ export function HouseholdMembersForm({
   const [dragOverNicStates, setDragOverNicStates] = useState<{ [key: number]: boolean }>({});
   const [dragOverProfileStates, setDragOverProfileStates] = useState<{ [key: number]: boolean }>({});
 
+    // Add near the top with other state declarations
+  const [nicTypes, setNicTypes] = useState<{ [key: number]: 'old' | 'new' }>({});
+  const [nicErrors, setNicErrors] = useState<{ [key: number]: string }>({});
+
   // NIC Document Upload Hook
   const {
     uploadFile: uploadNicFile,
@@ -208,6 +212,60 @@ export function HouseholdMembersForm({
     }
   };
 
+  const validateNic = (index: number, value: string, type: 'old' | 'new') => {
+    // Basic length validation
+    if (type === 'old' && value.length !== 10) {
+      return 'Old NIC must be 10 characters long';
+    }
+    if (type === 'new' && value.length !== 12) {
+      return 'New NIC must be 12 digits long';
+    }
+
+    // Format validation
+    if (type === 'old' && !/^\d{9}[VvXx]$/.test(value)) {
+      return 'Old NIC must be 9 digits followed by V, X, v, or x';
+    }
+    if (type === 'new' && !/^\d{12}$/.test(value)) {
+      return 'New NIC must be 12 digits';
+    }
+
+    // DOB validation if DOB is provided
+    const member = householdMembers[index];
+    if (member?.dob) {
+      const birthYear = new Date(member.dob).getFullYear();
+      
+      if (type === 'new') {
+        const nicYear = parseInt(value.substring(0, 4));
+        if (nicYear !== birthYear) {
+          return `NIC year (${nicYear}) doesn't match birth year (${birthYear})`;
+        }
+      } else if (type === 'old') {
+        const nicYearPart = parseInt(value.substring(0, 2));
+        const nicYear = 1900 + nicYearPart;
+        const possibleYears = [nicYear, nicYear + 100];
+        if (!possibleYears.includes(birthYear)) {
+          return `NIC year (${nicYear} or ${nicYear + 100}) doesn't match birth year (${birthYear})`;
+        }
+      }
+    }
+
+    return '';
+  };
+  const handleNicChange = (index: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.toUpperCase();
+    const type = nicTypes[index] || 'new';
+    const errorMsg = validateNic(index, value, type);
+    
+    setNicErrors(prev => ({ ...prev, [index]: errorMsg }));
+    if (!errorMsg) {
+      onChange(index, "nic", value);
+    }
+  };
+  const handleNicTypeChange = (index: number, value: 'old' | 'new') => {
+    setNicTypes(prev => ({ ...prev, [index]: value }));
+    setNicErrors(prev => ({ ...prev, [index]: '' }));
+    onChange(index, "nic", "");
+  };
   // Render uploaded NIC file
   const renderUploadedNicFile = (index: number) => {
     const member = householdMembers[index];
@@ -383,16 +441,37 @@ export function HouseholdMembersForm({
               required
             />
           </div>
-          <div className="space-y-2">
+         <div className="space-y-2">
+          <div className="flex items-center justify-between">
             <Label htmlFor={`nic-${index}`}>NIC Number</Label>
-            <Input
-              id={`nic-${index}`}
-              value={householdMembers[index]?.nic || ""}
-              onChange={(e) => onChange(index, "nic", e.target.value)}
-              placeholder="Enter NIC number"
-              required
-            />
+            <Select 
+              value={nicTypes[index] || 'new'}
+              onValueChange={(value: string) => handleNicTypeChange(index, value as 'old' | 'new')}
+            >
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="NIC Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="new">New NIC</SelectItem>
+                <SelectItem value="old">Old NIC</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
+          <Input
+            id={`nic-${index}`}
+            value={householdMembers[index]?.nic || ""}
+            onChange={handleNicChange(index)}
+            placeholder={nicTypes[index] === 'old' ? 'Enter 10 character NIC' : 'Enter 12 digit NIC'}
+            maxLength={nicTypes[index] === 'old' ? 10 : 12}
+            required
+          />
+          {nicErrors[index] && <p className="text-sm text-red-500">{nicErrors[index]}</p>}
+          <p className="text-sm text-muted-foreground">
+            {nicTypes[index] === 'old' 
+              ? 'Old NIC: 9 digits + V/X (e.g., 855420159V)' 
+              : 'New NIC: 12 digits (e.g., 200270503426)'}
+          </p>
+        </div>
           <div className="space-y-2">
               <Label>Date of Birth *</Label>
               <Popover>
@@ -548,7 +627,7 @@ export function HouseholdMembersForm({
             )}
 
             <p className="text-xs text-gray-500">
-              Please upload a clear passport-style photo of yourself. The photo should be recent and clearly show your face.
+              Please upload a clear passport-size(45.0 x 35.0 mm) photo of yourself. The photo should be recent and clearly show your face.
             </p>
           </div>
         </div>

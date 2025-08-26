@@ -53,6 +53,8 @@ export function ChiefOccupantForm({
   const [dragOverNic, setDragOverNic] = useState(false);
   const [dragOverProfile, setDragOverProfile] = useState(false);
 
+  const [nicType, setNicType] = useState<'old' | 'new'>('new');
+  const [nicError, setNicError] = useState('');
   // NIC Document Upload Hook
   const {
     uploadFile: uploadNicFile,
@@ -93,6 +95,63 @@ export function ChiefOccupantForm({
       });
     }
   }, [onRegisterCleanup, cleanupNicFiles, cleanupProfileFiles]);
+
+  // NIC Validation
+  const validateNic = (value: string, type: 'old' | 'new') => {
+    // Basic length validation
+    if (type === 'old' && value.length !== 10) {
+      return 'Old NIC must be 10 characters long';
+    }
+    if (type === 'new' && value.length !== 12) {
+      return 'New NIC must be 12 digits long';
+    }
+
+    // Format validation
+    if (type === 'old' && !/^\d{9}[VvXx]$/.test(value)) {
+      return 'Old NIC must be 9 digits followed by V, X, v, or x';
+    }
+    if (type === 'new' && !/^\d{12}$/.test(value)) {
+      return 'New NIC must be 12 digits';
+    }
+
+    // DOB validation if DOB is provided
+    if (chiefOccupant.dob) {
+      const birthYear = new Date(chiefOccupant.dob).getFullYear();
+      
+      if (type === 'new') {
+        const nicYear = parseInt(value.substring(0, 4));
+        if (nicYear !== birthYear) {
+          return `NIC year (${nicYear}) doesn't match birth year (${birthYear})`;
+        }
+      } else if (type === 'old') {
+        const nicYearPart = parseInt(value.substring(0, 2));
+        // For old NIC, the year is 1900 + first two digits
+        const nicYear = 1900 + nicYearPart;
+        // Handle cases where birth year might be 2000s
+        const possibleYears = [nicYear, nicYear + 100];
+        if (!possibleYears.includes(birthYear)) {
+          return `NIC year (${nicYear} or ${nicYear + 100}) doesn't match birth year (${birthYear})`;
+        }
+      }
+    }
+
+    return '';
+  };
+
+  const handleNicChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.toUpperCase(); // Convert to uppercase for old NIC
+    const errorMsg = validateNic(value, nicType);
+    setNicError(errorMsg);
+    if (!errorMsg) {
+      onChange("nic", value);
+    }
+  };
+
+  const handleNicTypeChange = (value: 'old' | 'new') => {
+    setNicType(value);
+    setNicError('');
+    onChange("nic", ''); // Clear NIC when changing type
+  };
 
   const handleNicFileSelect = async (file: File) => {
     if (!chiefOccupant.nic || chiefOccupant.nic.trim() === '') {
@@ -370,14 +429,32 @@ export function ChiefOccupantForm({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="chiefNic">NIC Number</Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="chiefNic">NIC Number</Label>
+            <Select value={nicType} onValueChange={handleNicTypeChange}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="NIC Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="new">New NIC</SelectItem>
+                <SelectItem value="old">Old NIC</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <Input
             id="chiefNic"
             value={chiefOccupant.nic}
-            onChange={(e) => onChange("nic", e.target.value)}
-            placeholder="Enter NIC number"
+            onChange={handleNicChange}
+            placeholder={nicType === 'new' ? 'Enter 12 digit NIC' : 'Enter 10 character NIC'}
+            maxLength={nicType === 'new' ? 12 : 10}
             required
           />
+          {nicError && <p className="text-sm text-red-500">{nicError}</p>}
+          <p className="text-sm text-muted-foreground">
+            {nicType === 'new' 
+              ? 'New NIC: 12 digits (e.g., 200270503426)' 
+              : 'Old NIC: 9 digits + V/X (e.g., 855420159V)'}
+          </p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="chiefTelephone">Telephone Number</Label>
@@ -389,39 +466,39 @@ export function ChiefOccupantForm({
             required
           />
         </div>
-        <div className="space-y-2">
-              <Label>Date of Birth *</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !chiefOccupant.dob && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {chiefOccupant.dob ? format(chiefOccupant.dob, "PPP") : <span>Pick a date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={chiefOccupant.dob}
-                    onSelect={(date) => onChange("dob", date)}
-                    initialFocus
-                    disabled={{ 
-                    after: new Date(), 
-                    before: new Date(new Date().setFullYear(new Date().getFullYear() - 120)) 
-                  }}
-                  captionLayout="dropdown"
-                  fromYear={1900}
-                  toYear={new Date().getFullYear()}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-      </div>          
+      <div className="space-y-2">
+          <Label>Date of Birth *</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant={"outline"}
+                className={cn(
+                  "w-full justify-start text-left font-normal",
+                  !chiefOccupant.dob && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {chiefOccupant.dob ? format(chiefOccupant.dob, "PPP") : <span>Pick a date</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0">
+              <Calendar
+                mode="single"
+                selected={chiefOccupant.dob}
+                onSelect={(date) => onChange("dob", date)}
+                initialFocus
+                disabled={{ 
+                  after: new Date(), 
+                  before: new Date(new Date().setFullYear(new Date().getFullYear() - 120)) 
+                }}
+                captionLayout="dropdown"
+                fromYear={1900}
+                toYear={new Date().getFullYear()}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>  
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Gender</Label>
@@ -536,7 +613,7 @@ export function ChiefOccupantForm({
           )}
 
           <p className="text-xs text-gray-500">
-            Please upload a clear passport-style photo of yourself. The photo should be recent and clearly show your face.
+            Please upload a clear passport-size(45.0 x 35.0 mm) photo of yourself. The photo should be recent and clearly show your face.
           </p>
         </div>
       </div>
