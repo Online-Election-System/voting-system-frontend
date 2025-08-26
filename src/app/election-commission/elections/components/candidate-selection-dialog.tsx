@@ -279,8 +279,8 @@ export const CandidateSelectionDialog = ({
           )}
 
           {/* Candidates Table */}
-          <div className="flex-1 border rounded-lg overflow-hidden">
-            <div className="overflow-auto h-full max-h-[400px]">
+          <div className="flex-1  min-h-0 border rounded-lg overflow-hidden">
+            <div className="overflow-auto h-full max-h-[250px]">
               <Table>
                 <TableHeader className="sticky top-0 bg-background">
                   <TableRow>
@@ -377,7 +377,7 @@ export const CandidateSelectionDialog = ({
           </div>
         </div>
 
-        <DialogFooter className="flex-shrink-0">
+        <DialogFooter className="flex-shrink-0 border-t pt-4">
           <Button variant="outline" onClick={handleCancel}>
             Cancel
           </Button>
